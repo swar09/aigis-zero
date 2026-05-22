@@ -1,0 +1,71 @@
+[workspace]
+resolver = "2"
+members = [
+    "sdk",
+    "fleet-server",
+    "api-backend",
+    "kafka-pipeline",
+    "rule-engine",
+    "agent/crates/agent-core",
+    "agent/crates/osquery-client",
+    "agent/crates/event-buffer",
+    "agent/crates/fleet-client",
+    "agent/crates/isolation",
+]
+exclude = [
+    "agent/crates/ebpf-collector",
+]
+
+[workspace.package]
+edition = "2024"
+rust-version = "1.85"
+version = "0.1.0"
+license = "MIT"
+
+[workspace.dependencies]
+tokio = { version = "1", features = ["full"] }
+tokio-stream = "0.1"
+tokio-util = { version = "0.7", features = ["codec"] }
+tokio-tungstenite = "0.29"
+
+tonic = "0.14"
+tonic-reflection = "0.14"
+tonic-build = "0.14"
+prost = "0.14"
+
+axum = { version = "0.8", features = ["ws", "macros"] }
+tower = "0.5"
+tower-http = { version = "0.6", features = ["cors", "trace", "compression-gzip"] }
+
+rdkafka = { version = "0.39", features = ["cmake-build"] }
+
+sqlx = { version = "0.8", features = ["postgres", "runtime-tokio-native-tls", "uuid", "chrono", "migrate"] }
+
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+
+uuid = { version = "1", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+bytes = "1"
+
+jsonwebtoken = "10"
+argon2 = "0.5"
+
+config = "0.15"
+
+anyhow = "1"
+thiserror = "2"
+
+yara-x = "1"
+
+sled = "0.34"
+
+edr-sdk = { path = "sdk" }
+agent-core = { path = "agent/crates/agent-core" }
+osquery-client = { path = "agent/crates/osquery-client" }
+event-buffer = { path = "agent/crates/event-buffer" }
+fleet-client = { path = "agent/crates/fleet-client" }
+isolation = { path = "agent/crates/isolation" }

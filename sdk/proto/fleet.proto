@@ -1,0 +1,77 @@
+syntax = "proto3";
+package edr.fleet;
+
+service FleetService {
+  // Agent calls this once to register. Returns a JWT token.
+  rpc RegisterAgent(RegisterRequest) returns (RegisterResponse);
+
+  // Bidirectional stream: agent sends events, server sends commands.
+  rpc EventStream(stream AgentEvent) returns (stream ServerCommand);
+
+  // Agent sends periodic heartbeat.
+  rpc Heartbeat(HeartbeatRequest) returns (HeartbeatResponse);
+}
+
+message RegisterRequest {
+  string hostname = 1;
+  string os_version = 2;
+  string agent_version = 3;
+  string machine_id = 4;
+}
+
+message RegisterResponse {
+  string node_id = 1;
+  string token = 2;
+  AgentConfig config = 3;
+}
+
+message AgentEvent {
+  string node_id = 1;
+  string event_type = 2;
+  bytes payload = 3;
+  int64 timestamp_ns = 4;
+  string sequence_id = 5;
+}
+
+message ServerCommand {
+  oneof command {
+    IsolateCommand isolate = 1;
+    ConfigUpdateCommand config_update = 2;
+    AckCommand ack = 3;
+  }
+}
+
+message IsolateCommand {
+  bool isolate = 1;
+  string reason = 2;
+}
+
+message ConfigUpdateCommand {
+  AgentConfig config = 1;
+}
+
+message AckCommand {
+  string sequence_id = 1;
+}
+
+message AgentConfig {
+  repeated OsquerySchedule osquery_schedule = 1;
+  int32 heartbeat_interval_secs = 2;
+  int32 batch_size = 3;
+}
+
+message OsquerySchedule {
+  string name = 1;
+  string query = 2;
+  int32 interval_secs = 3;
+}
+
+message HeartbeatRequest {
+  string node_id = 1;
+  string status = 2;
+  int64 events_buffered = 3;
+}
+
+message HeartbeatResponse {
+  bool ok = 1;
+}

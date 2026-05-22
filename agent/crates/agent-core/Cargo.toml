@@ -1,0 +1,21 @@
+[package]
+name = "agent-core"
+edition.workspace = true
+version.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+tokio = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+anyhow = { workspace = true }
+serde = { workspace = true }
+config = { workspace = true }
+edr-sdk = { workspace = true }
+osquery-client = { workspace = true }
+event-buffer = { workspace = true }
+fleet-client = { workspace = true }
+isolation = { workspace = true }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+ebpf-collector = { path = "../ebpf-collector" }

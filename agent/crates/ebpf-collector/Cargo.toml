@@ -1,0 +1,17 @@
+[package]
+name = "ebpf-collector"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+
+[dependencies]
+aya = "0.13"
+aya-log = "0.2"
+tokio = { version = "1", features = ["full"] }
+tracing = "0.1"
+anyhow = "1"
+bytes = "1"
+edr-sdk = { path = "../../../sdk" }
+
+[build-dependencies]
+aya-build = "0.1"

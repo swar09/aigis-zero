@@ -1,0 +1,31 @@
+syntax = "proto3";
+package edr.agent;
+
+// Agent-specific messages for internal event representation
+message ProcessEvent {
+  uint32 pid = 1;
+  uint32 ppid = 2;
+  string name = 3;
+  string cmdline = 4;
+  uint32 uid = 5;
+  string exe_path = 6;
+  string working_dir = 7;
+}
+
+message FileEvent {
+  string path = 1;
+  string operation = 2;  // "open" | "write" | "delete" | "rename"
+  uint32 pid = 3;
+  string process_name = 4;
+  int32 return_code = 5;
+}
+
+message NetworkEvent {
+  string src_ip = 1;
+  string dst_ip = 2;
+  uint32 src_port = 3;
+  uint32 dst_port = 4;
+  string protocol = 5;   // "tcp" | "udp"
+  uint32 pid = 6;
+  string direction = 7;  // "inbound" | "outbound"
+}

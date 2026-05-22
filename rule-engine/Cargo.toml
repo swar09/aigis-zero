@@ -1,0 +1,20 @@
+[package]
+name = "edr-rule-engine"
+edition.workspace = true
+version.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "edr-rule-engine"
+path = "src/main.rs"
+
+[dependencies]
+tokio = { workspace = true }
+rdkafka = { workspace = true }
+yara-x = { workspace = true }
+sqlx = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+anyhow = { workspace = true }
+edr-sdk = { workspace = true }

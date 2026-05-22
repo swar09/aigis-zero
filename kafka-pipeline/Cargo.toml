@@ -1,0 +1,21 @@
+[package]
+name = "edr-kafka-pipeline"
+edition.workspace = true
+version.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "edr-kafka-pipeline"
+path = "src/main.rs"
+
+[dependencies]
+tokio = { workspace = true }
+rdkafka = { workspace = true }
+sqlx = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+edr-sdk = { workspace = true }

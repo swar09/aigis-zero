@@ -1,0 +1,14 @@
+[package]
+name = "fleet-client"
+edition.workspace = true
+version.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+tonic = { workspace = true }
+tokio = { workspace = true }
+tokio-stream = { workspace = true }
+tower = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+edr-sdk = { workspace = true }

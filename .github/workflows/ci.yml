@@ -1,0 +1,76 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: Format check
+        run: |
+          for dir in sdk agent fleet-server kafka-pipeline rule-engine api-backend; do
+            echo "--- Checking $dir ---"
+            cargo fmt --manifest-path $dir/Cargo.toml --all -- --check
+          done
+      - name: Clippy
+        run: |
+          for dir in sdk agent fleet-server kafka-pipeline rule-engine api-backend; do
+            echo "--- Clippy $dir ---"
+            cargo clippy --manifest-path $dir/Cargo.toml --all-targets --all-features -- -D warnings
+          done
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: testpass
+          POSTGRES_DB: edr_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Run tests
+        run: |
+          for dir in sdk agent fleet-server kafka-pipeline rule-engine api-backend; do
+            echo "--- Testing $dir ---"
+            cargo test --manifest-path $dir/Cargo.toml --all
+          done
+        env:
+          DATABASE_URL: postgres://postgres:testpass@localhost:5432/edr_test
+
+  security:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install cargo-audit
+        run: cargo install cargo-audit
+      - name: Audit dependencies
+        run: |
+          for dir in sdk agent fleet-server kafka-pipeline rule-engine api-backend; do
+            echo "--- Auditing $dir ---"
+            cargo audit --file $dir/Cargo.toml
+          done
