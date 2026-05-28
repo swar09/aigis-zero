@@ -166,7 +166,10 @@ impl QueryScheduler {
                             ResultAction::Snapshot,
                         );
                         if tx.send(result).await.is_err() {
-                            tracing::info!("[{}] Result channel closed, stopping task.", query.name);
+                            tracing::info!(
+                                "[{}] Result channel closed, stopping task.",
+                                query.name
+                            );
                             break;
                         }
                     } else {
@@ -180,7 +183,10 @@ impl QueryScheduler {
                                 ResultAction::Snapshot,
                             );
                             if tx.send(result).await.is_err() {
-                                tracing::info!("[{}] Result channel closed, stopping task.", query.name);
+                                tracing::info!(
+                                    "[{}] Result channel closed, stopping task.",
+                                    query.name
+                                );
                                 break;
                             }
                             first_run = false;
@@ -196,7 +202,10 @@ impl QueryScheduler {
                                     ResultAction::Added,
                                 );
                                 if tx.send(res).await.is_err() {
-                                    tracing::info!("[{}] Result channel closed, stopping task.", query.name);
+                                    tracing::info!(
+                                        "[{}] Result channel closed, stopping task.",
+                                        query.name
+                                    );
                                     break;
                                 }
                             }
@@ -208,7 +217,10 @@ impl QueryScheduler {
                                     ResultAction::Removed,
                                 );
                                 if tx.send(res).await.is_err() {
-                                    tracing::info!("[{}] Result channel closed, stopping task.", query.name);
+                                    tracing::info!(
+                                        "[{}] Result channel closed, stopping task.",
+                                        query.name
+                                    );
                                     break;
                                 }
                             }

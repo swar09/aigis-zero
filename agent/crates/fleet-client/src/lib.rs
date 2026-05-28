@@ -1,3 +1,4 @@
+#[expect(dead_code)]
 pub mod connection;
 pub mod enrollment;
 pub mod heartbeat;
