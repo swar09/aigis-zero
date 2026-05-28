@@ -1,5 +1,5 @@
 use anyhow::Result;
-use tracing_subscriber::{fmt, EnvFilter};
+use tracing_subscriber::{EnvFilter, fmt};
 
 /// Log output format.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -18,8 +18,7 @@ impl Default for LogFormat {
 
 /// Initialize the agent's tracing/logging infrastructure.
 pub fn init(log_level: &str, format: LogFormat) -> Result<()> {
-    let filter = EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| EnvFilter::new(log_level));
+    let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(log_level));
 
     match format {
         LogFormat::Human => {

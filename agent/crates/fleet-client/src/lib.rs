@@ -9,7 +9,7 @@ use crate::enrollment::AgentEnrollment;
 use crate::heartbeat::HeartbeatManager;
 use crate::stream::EventStreamManager;
 use crate::types::{AgentEvent, ConnectionState, EnrollmentResult, RegisterRequest, ServerCommand};
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use tokio::sync::{mpsc, watch};
 
 pub struct FleetConfig {

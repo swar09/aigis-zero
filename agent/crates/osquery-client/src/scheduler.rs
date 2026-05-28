@@ -1,9 +1,13 @@
-use crate::types::{OsqueryResult, ScheduledQuery};
+use crate::client::OsqueryClient;
+use crate::diff;
+use crate::types::{
+    ColumnEntry, OsqueryResult, OsqueryResultRow, OsqueryRow, ResultAction, ScheduledQuery,
+};
 use anyhow::Result;
+use chrono::Utc;
 use rusqlite::Connection;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use tokio::sync::mpsc;
-
 pub struct QueryScheduler {
     conn: Connection,
 }
@@ -11,7 +15,7 @@ pub struct QueryScheduler {
 impl QueryScheduler {
     pub fn new(db_path: &Path) -> Result<Self> {
         let conn = Connection::open(db_path)?;
-        
+
         conn.execute(
             "CREATE TABLE IF NOT EXISTS scheduled_queries (
                 name TEXT PRIMARY KEY,
@@ -27,7 +31,9 @@ impl QueryScheduler {
     }
 
     pub fn load_queries(&self) -> Result<Vec<ScheduledQuery>> {
-        let mut stmt = self.conn.prepare("SELECT name, query, interval_secs, snapshot FROM scheduled_queries")?;
+        let mut stmt = self
+            .conn
+            .prepare("SELECT name, query, interval_secs, snapshot FROM scheduled_queries")?;
         let query_iter = stmt.query_map([], |row| {
             let snapshot: i32 = row.get(3)?;
             Ok(ScheduledQuery {
@@ -47,9 +53,9 @@ impl QueryScheduler {
 
     pub fn upsert_queries(&mut self, queries: &[ScheduledQuery]) -> Result<()> {
         let tx = self.conn.transaction()?;
-        
+
         let now = chrono::Utc::now().timestamp();
-        
+
         for query in queries {
             tx.execute(
                 "INSERT INTO scheduled_queries (name, query, interval_secs, snapshot, updated_at) 
@@ -65,7 +71,7 @@ impl QueryScheduler {
                 ],
             )?;
         }
-        
+
         // Remove old queries not in this update (if we consider this update to be the full state)
         // Note: For now, we just upsert. If full replacement is needed, we'd delete missing ones.
 
@@ -73,9 +79,144 @@ impl QueryScheduler {
         Ok(())
     }
 
-    pub async fn run(self, _tx: mpsc::Sender<OsqueryResult>) {
-        // Implement the actual loop here.
-        // It will spawn tasks for each query, using OsqueryClient::query, and tracking diffs.
-        // Left as stub for now until client is implemented.
+    pub async fn run(
+        self,
+        tx: mpsc::Sender<OsqueryResult>,
+        socket_path: PathBuf,
+        agent_uuid: String,
+    ) {
+        let queries = match self.load_queries() {
+            Ok(q) => q,
+            Err(e) => {
+                tracing::error!("Failed to load scheduled queries: {}", e);
+                return;
+            }
+        };
+
+        for query in queries {
+            let tx = tx.clone();
+            let socket_path = socket_path.clone();
+            let agent_uuid = agent_uuid.clone();
+
+            tokio::spawn(async move {
+                let mut previous_rows: Vec<OsqueryRow> = Vec::new();
+                let mut first_run = true;
+
+                let mut interval =
+                    tokio::time::interval(std::time::Duration::from_secs(query.interval_secs));
+
+                loop {
+                    interval.tick().await;
+
+                    let mut client = match OsqueryClient::connect(&socket_path).await {
+                        Ok(c) => c,
+                        Err(e) => {
+                            tracing::warn!(
+                                "Failed to connect to osqueryd for query {}: {}",
+                                query.name,
+                                e
+                            );
+                            continue;
+                        }
+                    };
+
+                    let response = match client.query(&query.query).await {
+                        Ok(res) => res,
+                        Err(e) => {
+                            tracing::warn!("Query {} failed: {}", query.name, e);
+                            continue;
+                        }
+                    };
+
+                    if response.status.code != 0 {
+                        tracing::warn!(
+                            "Query {} returned osquery error: {}",
+                            query.name,
+                            response.status.message
+                        );
+                        continue;
+                    }
+
+                    let current_rows = response.rows;
+
+                    if query.snapshot {
+                        // Snapshot mode: emit all rows every time
+                        let result = Self::build_result(
+                            &query.name,
+                            &agent_uuid,
+                            current_rows,
+                            ResultAction::Snapshot,
+                        );
+                        if let Err(e) = tx.send(result).await {
+                            tracing::error!(
+                                "Failed to send query result for {}: {}",
+                                query.name,
+                                e
+                            );
+                            break;
+                        }
+                    } else {
+                        // Differential mode
+                        if first_run {
+                            let result = Self::build_result(
+                                &query.name,
+                                &agent_uuid,
+                                current_rows.clone(),
+                                ResultAction::Snapshot,
+                            );
+                            let _ = tx.send(result).await;
+                            first_run = false;
+                        } else {
+                            let (added, removed) =
+                                diff::compute_diff(&previous_rows, &current_rows);
+
+                            if !added.is_empty() {
+                                let res = Self::build_result(
+                                    &query.name,
+                                    &agent_uuid,
+                                    added,
+                                    ResultAction::Added,
+                                );
+                                let _ = tx.send(res).await;
+                            }
+                            if !removed.is_empty() {
+                                let res = Self::build_result(
+                                    &query.name,
+                                    &agent_uuid,
+                                    removed,
+                                    ResultAction::Removed,
+                                );
+                                let _ = tx.send(res).await;
+                            }
+                        }
+                        previous_rows = current_rows;
+                    }
+                }
+            });
+        }
+    }
+
+    fn build_result(
+        query_name: &str,
+        agent_uuid: &str,
+        rows: Vec<OsqueryRow>,
+        action: ResultAction,
+    ) -> OsqueryResult {
+        let mut result_rows = Vec::with_capacity(rows.len());
+        for row in rows {
+            let mut columns = Vec::with_capacity(row.len());
+            for (k, v) in row {
+                columns.push(ColumnEntry { name: k, value: v });
+            }
+            result_rows.push(OsqueryResultRow { columns });
+        }
+
+        OsqueryResult {
+            query_name: query_name.to_string(),
+            agent_uuid: agent_uuid.to_string(),
+            timestamp_ns: Utc::now().timestamp_nanos_opt().unwrap_or(0),
+            rows: result_rows,
+            action: action as i32,
+        }
     }
 }

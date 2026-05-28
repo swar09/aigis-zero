@@ -2,19 +2,19 @@ use crate::config::AgentConfig;
 use anyhow::Result;
 use event_buffer::EventBuffer;
 use fleet_client::{
-    types::{AgentEvent, EventType, RegisterRequest},
     FleetClient,
+    types::{AgentEvent, EventType, RegisterRequest},
 };
 use osquery_client::OsqueryCollector;
 use prost::Message;
 
 pub async fn run() -> Result<()> {
-    let config_path = std::env::var("EDR_AGENT_CONFIG")
-        .unwrap_or_else(|_| "agent.toml".to_string());
-        
+    let config_path =
+        std::env::var("EDR_AGENT_CONFIG").unwrap_or_else(|_| "agent.toml".to_string());
+
     let config_str = std::fs::read_to_string(&config_path)
         .map_err(|e| anyhow::anyhow!("Failed to read config file at {}: {}", config_path, e))?;
-        
+
     let config: AgentConfig = toml::from_str(&config_str)
         .map_err(|e| anyhow::anyhow!("Failed to parse TOML config: {}", e))?;
 
@@ -22,7 +22,7 @@ pub async fn run() -> Result<()> {
         Some("json") => agent_tracing::LogFormat::Json,
         _ => agent_tracing::LogFormat::Human,
     };
-    
+
     agent_tracing::init(&config.agent.log_level, format)?;
     tracing::info!("Starting EDR Agent Orchestrator");
 
@@ -52,7 +52,7 @@ pub async fn run() -> Result<()> {
     }
 
     // Stub: We would also create OsqueryCollector and route events here.
-    
+
     // Keeping main alive
     tokio::time::sleep(tokio::time::Duration::from_secs(60)).await;
 

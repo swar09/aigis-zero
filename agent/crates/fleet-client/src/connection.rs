@@ -40,7 +40,11 @@ impl FleetConnection {
                         return Ok(channel);
                     }
                     Err(e) => {
-                        tracing::warn!("Failed to connect to fleet server: {}. Retrying in {:?}", e, backoff);
+                        tracing::warn!(
+                            "Failed to connect to fleet server: {}. Retrying in {:?}",
+                            e,
+                            backoff
+                        );
                     }
                 },
                 Err(e) => {

@@ -24,14 +24,16 @@ impl OsqueryCollector {
         Ok(Self { config })
     }
 
-    pub async fn start(&self) -> mpsc::Receiver<OsqueryResult> {
+    pub async fn start(&self, agent_uuid: &str) -> mpsc::Receiver<OsqueryResult> {
         let (tx, rx) = mpsc::channel(100);
-        
+
         let scheduler_db_path = self.config.db_path.clone();
-        
+        let socket_path = self.config.socket_path.clone();
+        let agent_uuid = agent_uuid.to_string();
+
         tokio::spawn(async move {
             if let Ok(scheduler) = QueryScheduler::new(&scheduler_db_path) {
-                scheduler.run(tx).await;
+                scheduler.run(tx, socket_path, agent_uuid).await;
             }
         });
 
