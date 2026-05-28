@@ -3,18 +3,15 @@ use tracing_subscriber::{EnvFilter, fmt};
 
 /// Log output format.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Default)]
 pub enum LogFormat {
     /// Pretty-printed, colored, human-readable (for development)
+    #[default]
     Human,
     /// Structured JSON (for production / log aggregation)
     Json,
 }
 
-impl Default for LogFormat {
-    fn default() -> Self {
-        Self::Human
-    }
-}
 
 /// Initialize the agent's tracing/logging infrastructure.
 pub fn init(log_level: &str, format: LogFormat) -> Result<()> {

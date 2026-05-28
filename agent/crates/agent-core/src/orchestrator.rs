@@ -1,12 +1,7 @@
 use crate::config::AgentConfig;
 use anyhow::Result;
 use event_buffer::EventBuffer;
-use fleet_client::{
-    FleetClient,
-    types::{AgentEvent, EventType, RegisterRequest},
-};
-use osquery_client::OsqueryCollector;
-use prost::Message;
+use fleet_client::types::RegisterRequest;
 
 pub async fn run() -> Result<()> {
     let config_path =
