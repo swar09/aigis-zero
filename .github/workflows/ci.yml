@@ -2,75 +2,99 @@ name: CI
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main, dev]
   pull_request:
-    branches: [main, develop]
+    branches: [main, dev]
 
 env:
   CARGO_TERM_COLOR: always
-  RUST_BACKTRACE: 1
+  RUSTFLAGS: "-D warnings"
 
 jobs:
-  lint:
-    name: Lint
+  
+  check:
+    name: cargo check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo registry + build artifacts
+        uses: Swatinem/rust-cache@v2
         with:
-          components: rustfmt, clippy
-      - uses: Swatinem/rust-cache@v2
-      - name: Format check
-        run: |
-          for dir in sdk agent fleet-server kafka-pipeline rule-engine api-backend; do
-            echo "--- Checking $dir ---"
-            cargo fmt --manifest-path $dir/Cargo.toml --all -- --check
-          done
-      - name: Clippy
-        run: |
-          for dir in sdk agent fleet-server kafka-pipeline rule-engine api-backend; do
-            echo "--- Clippy $dir ---"
-            cargo clippy --manifest-path $dir/Cargo.toml --all-targets --all-features -- -D warnings
-          done
+          shared-key: "ci"
+
+      - name: cargo check (all workspace members)
+        run: cargo check --workspace --all-targets
+
+  
+  clippy:
+    name: cargo clippy
+    runs-on: ubuntu-latest
+    needs: check
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust stable + clippy
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      - name: Cache cargo registry + build artifacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: "ci"
+
+      - name: cargo clippy (deny warnings)
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+
+  fmt:
+    name: cargo fmt
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust stable + rustfmt
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+
+      - name: cargo fmt check
+        run: cargo fmt --all -- --check
 
   test:
-    name: Test
+    name: cargo test
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_PASSWORD: testpass
-          POSTGRES_DB: edr_test
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
+    needs: check
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-      - name: Run tests
-        run: |
-          for dir in sdk agent fleet-server kafka-pipeline rule-engine api-backend; do
-            echo "--- Testing $dir ---"
-            cargo test --manifest-path $dir/Cargo.toml --all
-          done
-        env:
-          DATABASE_URL: postgres://postgres:testpass@localhost:5432/edr_test
 
-  security:
-    name: Security Audit
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo registry + build artifacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: "ci"
+
+      - name: cargo test (all workspace members)
+        run: cargo test --workspace
+
+
+  audit:
+    name: cargo audit
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
       - name: Install cargo-audit
-        run: cargo install cargo-audit
-      - name: Audit dependencies
-        run: |
-          for dir in sdk agent fleet-server kafka-pipeline rule-engine api-backend; do
-            echo "--- Auditing $dir ---"
-            cargo audit --file $dir/Cargo.toml
-          done
+        run: cargo install cargo-audit --locked
+
+      - name: cargo audit
+        run: cargo audit

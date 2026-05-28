@@ -17,6 +17,7 @@ pub struct OsqueryClient {
 
 impl OsqueryClient {
     pub async fn connect(socket_path: &Path) -> Result<Self> {
+        tracing::debug!("Connecting to osquery at {}", socket_path.display());
         Ok(Self {
             socket_path: socket_path.to_path_buf(),
         })

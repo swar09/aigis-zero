@@ -1,0 +1,20 @@
+# .testingignore
+# Files and config that exist ONLY for testing purposes.
+# Before promoting to production, remove or replace each item listed here.
+#
+# Format: one path per line, with a note on what to do.
+
+# Seed file for scheduled queries — replace with fleet server push.
+scheduled_queries.toml
+
+# agent.toml: remove the `scheduled_queries_path` field from [agent] section
+# when queries are pushed by the fleet server instead.
+# agent.toml → [agent] → scheduled_queries_path
+
+# Ephemeral SQLite event buffer location (stored in /tmp — lost on reboot).
+# Change agent.toml → [agent] → buffer_path to a persistent location in production.
+# e.g. /var/lib/edr/event_buffer.db
+/tmp/edr_event_buffer.db
+
+# SQLite scheduler DB (co-located with buffer for now — same path).
+# In production these should be separate files in a persistent directory.

@@ -18,3 +18,5 @@ agent-tracing = { workspace = true }
 fleet-client = { workspace = true }
 osquery-client = { workspace = true }
 event-buffer = { workspace = true }
+hostname = "0.4"
+

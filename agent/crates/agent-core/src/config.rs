@@ -38,6 +38,10 @@ pub struct AgentSection {
 
     /// Log output format: "human" (default, colored) | "json" (structured)
     pub log_format: Option<String>,
+
+    /// Path to a TOML file containing scheduled queries to seed into SQLite.
+    /// Testing only — remove path from config (or omit field) in production.
+    pub scheduled_queries_path: Option<PathBuf>,
 }
 
 /// OSQuery daemon configuration.

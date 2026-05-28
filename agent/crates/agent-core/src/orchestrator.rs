@@ -1,7 +1,37 @@
 use crate::config::AgentConfig;
 use anyhow::Result;
 use event_buffer::EventBuffer;
-use fleet_client::types::RegisterRequest;
+use osquery_client::types::{OsqueryResult, ScheduledQuery};
+use prost::Message as _;
+use serde::Deserialize;
+use tokio::sync::mpsc;
+
+/// Top-level structure of scheduled_queries.toml.
+#[derive(Debug, Deserialize)]
+struct ScheduledQueriesFile {
+    queries: Vec<ScheduledQueryEntry>,
+}
+
+/// One entry inside [[queries]] in the TOML file.
+#[derive(Debug, Deserialize)]
+struct ScheduledQueryEntry {
+    name: String,
+    query: String,
+    interval_secs: u64,
+    #[serde(default)]
+    snapshot: bool,
+}
+
+impl From<ScheduledQueryEntry> for ScheduledQuery {
+    fn from(e: ScheduledQueryEntry) -> Self {
+        ScheduledQuery {
+            name: e.name,
+            query: e.query,
+            interval_secs: e.interval_secs,
+            snapshot: e.snapshot,
+        }
+    }
+}
 
 pub async fn run() -> Result<()> {
     let config_path =
@@ -21,35 +51,140 @@ pub async fn run() -> Result<()> {
     agent_tracing::init(&config.agent.log_level, format)?;
     tracing::info!("Starting EDR Agent Orchestrator");
 
-    let _buffer = EventBuffer::new(&config.agent.buffer_path)?;
+    // ── Event buffer (SQLite) ──────────────────────────────────────────────
+    // EventBuffer wraps rusqlite::Connection which is !Send, so we keep it
+    // on this task and never move it into tokio::spawn.
+    let buffer = EventBuffer::new(&config.agent.buffer_path)
+        .map_err(|e| anyhow::anyhow!("Failed to open event buffer: {}", e))?;
     tracing::info!("Initialized event buffer at {:?}", config.agent.buffer_path);
 
+    // ── Seed scheduled queries from TOML file (testing only) ──────────────
+    if let Some(sq_path) = &config.agent.scheduled_queries_path {
+        match seed_scheduled_queries(sq_path, &config) {
+            Ok(n) => tracing::info!(
+                "Seeded {} scheduled queries into SQLite from {:?}",
+                n,
+                sq_path
+            ),
+            Err(e) => tracing::warn!("Could not seed scheduled queries from {:?}: {}", sq_path, e),
+        }
+    }
+
+    // ── Start OsqueryCollector ─────────────────────────────────────────────
+    let collector = osquery_client::OsqueryCollector::new(osquery_client::OsqueryConfig {
+        socket_path: config.osquery.socket_path.clone(),
+        db_path: config.agent.buffer_path.clone(),
+    })
+    .await?;
+
+    // agent_uuid: use node_id from config if available, otherwise a placeholder.
+    let agent_uuid = config
+        .agent
+        .node_id
+        .map(|u| u.to_string())
+        .unwrap_or_else(|| "unregistered".to_string());
+
+    let mut results_rx = collector.start(&agent_uuid).await;
+    tracing::info!("OsqueryCollector started (agent_uuid={})", agent_uuid);
+
+    // ── Fleet enrollment (non-fatal, fleet server not ready yet) ──────────
+    tracing::info!("Attempting fleet enrollment (non-fatal if server is down)...");
     let mut fleet_client = fleet_client::FleetClient::new(fleet_client::FleetConfig {
         endpoint: config.fleet.endpoint.clone(),
     })
     .await?;
 
-    let req = RegisterRequest {
-        hostname: "mock-hostname".to_string(),
-        os_version: "mock-os".to_string(),
-        agent_version: "0.1.0".to_string(),
-        machine_id: "mock-machine-id".to_string(),
+    let req = fleet_client::types::RegisterRequest {
+        hostname: hostname_or_default(),
+        os_version: "linux".to_string(),
+        agent_version: env!("CARGO_PKG_VERSION").to_string(),
+        machine_id: read_machine_id(),
     };
 
-    match fleet_client.enroll(req).await {
-        Ok(enrollment) => {
-            tracing::info!("Enrolled successfully with node_id: {}", enrollment.node_id);
+    match tokio::time::timeout(std::time::Duration::from_secs(5), fleet_client.enroll(req)).await {
+        Ok(Ok(enrollment)) => {
+            tracing::info!("Enrolled with fleet server. node_id={}", enrollment.node_id);
         }
-        Err(e) => {
-            tracing::error!("Failed to enroll: {}", e);
-            // We would continue and buffer locally, but stub for now.
+        Ok(Err(e)) => {
+            tracing::warn!("Fleet enrollment failed (will continue offline): {}", e);
+        }
+        Err(_) => {
+            tracing::warn!("Fleet enrollment timed out after 5s — running in offline mode.");
         }
     }
 
-    // Stub: We would also create OsqueryCollector and route events here.
+    // ── Main loop — drain results & handle shutdown ───────────────────────
+    // rusqlite::Connection is !Send so we drive the buffer writes here on the
+    // main task rather than in a spawned task.
+    tracing::info!("Agent is running. Draining osquery results. Press Ctrl-C to stop.");
 
-    // Keeping main alive
-    tokio::time::sleep(tokio::time::Duration::from_secs(60)).await;
+    let (shutdown_tx, mut shutdown_rx) = mpsc::channel::<()>(1);
+    tokio::spawn(async move {
+        let _ = tokio::signal::ctrl_c().await;
+        tracing::info!("Ctrl-C received, signalling shutdown.");
+        let _ = shutdown_tx.send(()).await;
+    });
+
+    loop {
+        tokio::select! {
+            Some(result) = results_rx.recv() => {
+                let bytes = encode_result(&result);
+                match buffer.push(&bytes) {
+                    Ok(()) => tracing::debug!(
+                        "Buffered '{}' ({} rows, action={})",
+                        result.query_name,
+                        result.rows.len(),
+                        result.action,
+                    ),
+                    Err(e) => tracing::error!("Failed to buffer result: {}", e),
+                }
+            }
+            _ = shutdown_rx.recv() => {
+                tracing::info!("Shutting down agent.");
+                break;
+            }
+        }
+    }
 
     Ok(())
+}
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+
+/// Encode an OsqueryResult to raw bytes for storage in the event buffer.
+/// Uses prost protobuf encoding.
+fn encode_result(result: &OsqueryResult) -> Vec<u8> {
+    result.encode_to_vec()
+}
+
+/// Load scheduled_queries.toml, upsert into the scheduler's SQLite table.
+/// Returns the number of queries upserted.
+fn seed_scheduled_queries(toml_path: &std::path::Path, config: &AgentConfig) -> Result<usize> {
+    let content = std::fs::read_to_string(toml_path)
+        .map_err(|e| anyhow::anyhow!("Failed to read {:?}: {}", toml_path, e))?;
+
+    let file: ScheduledQueriesFile = toml::from_str(&content)
+        .map_err(|e| anyhow::anyhow!("Failed to parse {:?}: {}", toml_path, e))?;
+
+    let queries: Vec<ScheduledQuery> = file.queries.into_iter().map(Into::into).collect();
+    let n = queries.len();
+
+    let mut scheduler = osquery_client::scheduler::QueryScheduler::new(&config.agent.buffer_path)?;
+    scheduler.upsert_queries(&queries)?;
+
+    Ok(n)
+}
+
+fn hostname_or_default() -> String {
+    hostname::get()
+        .ok()
+        .and_then(|h| h.into_string().ok())
+        .unwrap_or_else(|| "unknown-host".to_string())
+}
+
+fn read_machine_id() -> String {
+    std::fs::read_to_string("/etc/machine-id")
+        .unwrap_or_default()
+        .trim()
+        .to_string()
 }

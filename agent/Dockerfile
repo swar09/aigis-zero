@@ -15,6 +15,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     openssh-server \
     sudo \
+    # Required for osquery audit event collection
+    auditd \
+    libaudit1 \
+    iproute2 \
     && rm -rf /var/lib/apt/lists/*
 
 # Add official OSQuery repository and install OSQuery
@@ -32,27 +36,31 @@ ENV CARGO_TARGET_DIR="/tmp/target"
 # Ensure required directories exist for osquery socket and configurations
 RUN mkdir -p /var/osquery /etc/osquery /var/log/osquery
 
-# Setup osquery.flags to enable the eventing and auditing subsystems
-RUN echo '\
---disable_events=true\n\
---disable_audit=true\n\
---audit_allow_process_events=false\n\
---audit_allow_sockets=false\n\
---audit_allow_config=false\n\
---audit_persist=false\n\
+# Setup osquery.flags — events and audit enabled.
+# The container must be run with --cap-add AUDIT_CONTROL --cap-add AUDIT_READ
+# (or --privileged) for the audit subsystem to function.
+RUN printf -- \
+'--disable_events=false\n\
+--disable_audit=false\n\
+--audit_allow_process_events=true\n\
+--audit_allow_sockets=true\n\
+--audit_allow_config=true\n\
+--audit_persist=true\n\
 --events_max=50000\n\
 --socket=/var/osquery/osquery.em\n\
+--host_identifier=hostname\n\
+--schedule_splay_percent=10\n\
 ' > /etc/osquery/osquery.flags
 
-# Setup basic osquery.conf with options and schedules
-RUN echo '{\n\
+# Setup basic osquery.conf
+RUN printf '{\n\
   "options": {\n\
-    "disable_events": "true",\n\
-    "disable_audit": "true",\n\
-    "audit_allow_process_events": "false",\n\
-    "audit_allow_sockets": "false",\n\
-    "audit_allow_config": "false",\n\
-    "audit_persist": "false",\n\
+    "disable_events": "false",\n\
+    "disable_audit": "false",\n\
+    "audit_allow_process_events": "true",\n\
+    "audit_allow_sockets": "true",\n\
+    "audit_allow_config": "true",\n\
+    "audit_persist": "true",\n\
     "events_max": "50000",\n\
     "host_identifier": "hostname",\n\
     "schedule_splay_percent": "10"\n\
@@ -69,7 +77,7 @@ RUN echo '{\n\
 VOLUME ["/var/osquery", "/etc/osquery"]
 
 # Setup startup entrypoint script to launch osqueryd in background and start shell
-RUN echo '#!/bin/bash\n\
+RUN printf '#!/bin/bash\n\
 # Start osqueryd daemon in background\n\
 echo "Starting osqueryd..."\n\
 osqueryd --flagfile=/etc/osquery/osquery.flags --config_path=/etc/osquery/osquery.conf --verbose &\n\

@@ -8,6 +8,7 @@ use chrono::Utc;
 use rusqlite::Connection;
 use std::path::{Path, PathBuf};
 use tokio::sync::mpsc;
+
 pub struct QueryScheduler {
     conn: Connection,
 }
@@ -72,26 +73,38 @@ impl QueryScheduler {
             )?;
         }
 
-        // Remove old queries not in this update (if we consider this update to be the full state)
-        // Note: For now, we just upsert. If full replacement is needed, we'd delete missing ones.
-
         tx.commit()?;
         Ok(())
     }
 
+    /// Run the scheduler. Each scheduled query gets its own task with a persistent
+    /// OsqueryClient connection that reconnects on error.
+    ///
+    /// Queries are loaded *before* entering the async context so that the
+    /// rusqlite::Connection is never held across an await point.
     pub async fn run(
         self,
         tx: mpsc::Sender<OsqueryResult>,
         socket_path: PathBuf,
         agent_uuid: String,
     ) {
+        // Load queries synchronously before dropping self (and its Connection).
         let queries = match self.load_queries() {
             Ok(q) => q,
             Err(e) => {
-                tracing::error!("Failed to load scheduled queries: {}", e);
+                tracing::error!("Failed to load scheduled queries from SQLite: {}", e);
                 return;
             }
         };
+        // Drop self here — Connection is no longer held.
+        drop(self);
+
+        if queries.is_empty() {
+            tracing::warn!("No scheduled queries found in SQLite — nothing to run.");
+            return;
+        }
+
+        tracing::info!("Starting {} scheduled query task(s)", queries.len());
 
         for query in queries {
             let tx = tx.clone();
@@ -99,72 +112,77 @@ impl QueryScheduler {
             let agent_uuid = agent_uuid.clone();
 
             tokio::spawn(async move {
+                // Connect once per query task; reconnect on error inside the loop.
+                let mut client = loop {
+                    match OsqueryClient::connect(&socket_path).await {
+                        Ok(c) => break c,
+                        Err(e) => {
+                            tracing::warn!(
+                                "[{}] Cannot connect to osquery yet ({}), retrying in 5s...",
+                                query.name,
+                                e
+                            );
+                            tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+                        }
+                    }
+                };
+
                 let mut previous_rows: Vec<OsqueryRow> = Vec::new();
                 let mut first_run = true;
-
                 let mut interval =
                     tokio::time::interval(std::time::Duration::from_secs(query.interval_secs));
 
                 loop {
                     interval.tick().await;
 
-                    let mut client = match OsqueryClient::connect(&socket_path).await {
-                        Ok(c) => c,
-                        Err(e) => {
-                            tracing::warn!(
-                                "Failed to connect to osqueryd for query {}: {}",
-                                query.name,
-                                e
-                            );
-                            continue;
-                        }
-                    };
-
                     let response = match client.query(&query.query).await {
                         Ok(res) => res,
                         Err(e) => {
-                            tracing::warn!("Query {} failed: {}", query.name, e);
+                            tracing::warn!("[{}] Query error: {}", query.name, e);
+                            // Client will reconnect internally on next call.
                             continue;
                         }
                     };
 
                     if response.status.code != 0 {
                         tracing::warn!(
-                            "Query {} returned osquery error: {}",
+                            "[{}] osquery error (code {}): {}",
                             query.name,
+                            response.status.code,
                             response.status.message
                         );
                         continue;
                     }
 
                     let current_rows = response.rows;
+                    tracing::debug!("[{}] Got {} rows", query.name, current_rows.len());
 
                     if query.snapshot {
-                        // Snapshot mode: emit all rows every time
+                        // Snapshot mode: emit all rows every tick.
                         let result = Self::build_result(
                             &query.name,
                             &agent_uuid,
                             current_rows,
                             ResultAction::Snapshot,
                         );
-                        if let Err(e) = tx.send(result).await {
-                            tracing::error!(
-                                "Failed to send query result for {}: {}",
-                                query.name,
-                                e
-                            );
+                        if tx.send(result).await.is_err() {
+                            tracing::info!("[{}] Result channel closed, stopping task.", query.name);
                             break;
                         }
                     } else {
-                        // Differential mode
+                        // Differential mode.
                         if first_run {
+                            // First run: emit a full snapshot as the baseline.
                             let result = Self::build_result(
                                 &query.name,
                                 &agent_uuid,
                                 current_rows.clone(),
                                 ResultAction::Snapshot,
                             );
-                            let _ = tx.send(result).await;
+                            if tx.send(result).await.is_err() {
+                                tracing::info!("[{}] Result channel closed, stopping task.", query.name);
+                                break;
+                            }
                             first_run = false;
                         } else {
                             let (added, removed) =
@@ -177,7 +195,10 @@ impl QueryScheduler {
                                     added,
                                     ResultAction::Added,
                                 );
-                                let _ = tx.send(res).await;
+                                if tx.send(res).await.is_err() {
+                                    tracing::info!("[{}] Result channel closed, stopping task.", query.name);
+                                    break;
+                                }
                             }
                             if !removed.is_empty() {
                                 let res = Self::build_result(
@@ -186,7 +207,10 @@ impl QueryScheduler {
                                     removed,
                                     ResultAction::Removed,
                                 );
-                                let _ = tx.send(res).await;
+                                if tx.send(res).await.is_err() {
+                                    tracing::info!("[{}] Result channel closed, stopping task.", query.name);
+                                    break;
+                                }
                             }
                         }
                         previous_rows = current_rows;

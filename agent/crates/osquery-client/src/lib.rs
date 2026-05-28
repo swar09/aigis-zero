@@ -32,8 +32,13 @@ impl OsqueryCollector {
         let agent_uuid = agent_uuid.to_string();
 
         tokio::spawn(async move {
-            if let Ok(scheduler) = QueryScheduler::new(&scheduler_db_path) {
-                scheduler.run(tx, socket_path, agent_uuid).await;
+            match QueryScheduler::new(&scheduler_db_path) {
+                Ok(scheduler) => scheduler.run(tx, socket_path, agent_uuid).await,
+                Err(e) => tracing::error!(
+                    "Failed to open scheduler SQLite DB at {:?}: {}",
+                    scheduler_db_path,
+                    e
+                ),
             }
         });
 
