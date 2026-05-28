@@ -699,7 +699,7 @@ tonic-reflection = "0.11"                         # gRPC reflection for tooling
 tower = "0.4"
 tower-http = { version = "0.5", features = ["trace"] }
 prost = "0.12"
-rdkafka = { version = "0.36", features = ["cmake-build"] }
+<!-- rdkafka = { version = "0.36", features = ["cmake-build"] } -->
 sqlx = { version = "0.7", features = ["postgres", "runtime-tokio-native-tls", "uuid", "chrono", "migrate"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
