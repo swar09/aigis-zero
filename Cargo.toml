@@ -11,6 +11,8 @@ members = [
     "agent/crates/event-buffer",
     "agent/crates/fleet-client",
     "agent/crates/isolation",
+    "agent/crates/agent-bin",
+    "agent/crates/agent-tracing",
 ]
 exclude = [
     "agent/crates/ebpf-collector",
@@ -28,7 +30,7 @@ tokio-stream = "0.1"
 tokio-util = { version = "0.7", features = ["codec"] }
 tokio-tungstenite = "0.29"
 
-tonic = "0.14"
+tonic = { version = "0.14", features = ["prost"] }
 tonic-reflection = "0.14"
 tonic-build = "0.14"
 prost = "0.14"
@@ -39,7 +41,7 @@ tower-http = { version = "0.6", features = ["cors", "trace", "compression-gzip"]
 
 rdkafka = { version = "0.39", features = ["cmake-build"] }
 
-sqlx = { version = "0.8", features = ["postgres", "runtime-tokio-native-tls", "uuid", "chrono", "migrate"] }
+sqlx = { version = "0.8", default-features = false, features = ["postgres", "runtime-tokio-native-tls", "uuid", "chrono", "migrate", "macros"] }
 
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
@@ -69,3 +71,8 @@ osquery-client = { path = "agent/crates/osquery-client" }
 event-buffer = { path = "agent/crates/event-buffer" }
 fleet-client = { path = "agent/crates/fleet-client" }
 isolation = { path = "agent/crates/isolation" }
+agent-bin = { path = "agent/crates/agent-bin" }
+agent-tracing = { path = "agent/crates/agent-tracing" }
+rusqlite = { version = "0.31", features = ["bundled"] }
+toml = "0.8"
+thrift = "0.17"

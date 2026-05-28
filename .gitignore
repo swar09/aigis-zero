@@ -29,3 +29,6 @@ Thumbs.db
 *.key
 *.crt
 !infra/certs/.gitkeep
+.antigravitycli
+# Mock development tools
+agent/tools/mock-fleet-server/target/

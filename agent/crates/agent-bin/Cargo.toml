@@ -1,12 +1,14 @@
 [package]
-name = "event-buffer"
+name = "agent-bin"
 edition.workspace = true
 version.workspace = true
 rust-version.workspace = true
 
+[[bin]]
+name = "edr-agent"
+path = "src/main.rs"
+
 [dependencies]
-rusqlite = { workspace = true }
+agent-core = { workspace = true }
 tokio = { workspace = true }
 anyhow = { workspace = true }
-tracing = { workspace = true }
-chrono = { workspace = true }

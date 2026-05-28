@@ -1,0 +1,49 @@
+use anyhow::Result;
+use tracing_subscriber::{fmt, EnvFilter};
+
+/// Log output format.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LogFormat {
+    /// Pretty-printed, colored, human-readable (for development)
+    Human,
+    /// Structured JSON (for production / log aggregation)
+    Json,
+}
+
+impl Default for LogFormat {
+    fn default() -> Self {
+        Self::Human
+    }
+}
+
+/// Initialize the agent's tracing/logging infrastructure.
+pub fn init(log_level: &str, format: LogFormat) -> Result<()> {
+    let filter = EnvFilter::try_from_default_env()
+        .unwrap_or_else(|_| EnvFilter::new(log_level));
+
+    match format {
+        LogFormat::Human => {
+            fmt()
+                .with_env_filter(filter)
+                .with_target(true)
+                .with_thread_ids(true)
+                .with_thread_names(true)
+                .with_file(true)
+                .with_line_number(true)
+                .init();
+        }
+        LogFormat::Json => {
+            fmt()
+                .json()
+                .with_env_filter(filter)
+                .with_target(true)
+                .with_thread_ids(true)
+                .with_thread_names(true)
+                .with_file(true)
+                .with_line_number(true)
+                .init();
+        }
+    }
+
+    Ok(())
+}

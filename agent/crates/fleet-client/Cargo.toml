@@ -11,4 +11,7 @@ tokio-stream = { workspace = true }
 tower = { workspace = true }
 anyhow = { workspace = true }
 tracing = { workspace = true }
-edr-sdk = { workspace = true }
+prost = { workspace = true }
+uuid = { workspace = true }
+serde = { workspace = true }
+http = "1.4.1"

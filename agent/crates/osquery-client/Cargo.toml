@@ -10,4 +10,9 @@ tokio-util = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 anyhow = { workspace = true }
-edr-sdk = { workspace = true }
+tracing = { workspace = true }
+chrono = { workspace = true }
+uuid = { workspace = true }
+prost = { workspace = true }
+thrift = "0.17"
+rusqlite = { workspace = true }

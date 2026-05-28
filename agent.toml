@@ -1,0 +1,21 @@
+[fleet]
+endpoint = "http://host.docker.internal:50051"
+heartbeat_interval_secs = 30
+batch_size = 100
+
+[agent]
+buffer_path = "/tmp/edr_event_buffer.db"
+log_level = "info"
+log_format = "human"
+
+[osquery]
+socket_path = "/var/osquery/osquery.em"
+connect_timeout_secs = 10
+schedule = []
+
+[osquery.options]
+disable_logging = true
+disable_events = false
+disable_audit = false
+events_max = 50000
+watchdog_level = 0
