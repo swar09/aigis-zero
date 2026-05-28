@@ -10,7 +10,7 @@ path = "src/main.rs"
 
 [dependencies]
 tokio = { workspace = true }
-rdkafka = { workspace = true }
+# rdkafka = { workspace = true }
 yara-x = { workspace = true }
 sqlx = { workspace = true }
 serde = { workspace = true }
