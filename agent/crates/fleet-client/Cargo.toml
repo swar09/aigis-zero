@@ -12,6 +12,7 @@ tower = { workspace = true }
 anyhow = { workspace = true }
 tracing = { workspace = true }
 prost = { workspace = true }
+tonic-prost = { workspace = true }
 uuid = { workspace = true }
 serde = { workspace = true }
 http = "1.4.1"

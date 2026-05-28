@@ -2,9 +2,8 @@ use crate::types::{AgentEvent, ServerCommand};
 use anyhow::Result;
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
-use tonic::{
-    Request, client::Grpc, codec::ProstCodec, metadata::MetadataValue, transport::Channel,
-};
+use tonic::{Request, client::Grpc, metadata::MetadataValue, transport::Channel};
+use tonic_prost::ProstCodec;
 
 pub struct EventStreamManager;
 

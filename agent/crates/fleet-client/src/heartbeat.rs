@@ -2,9 +2,8 @@ use crate::types::{HeartbeatRequest, HeartbeatResponse};
 use anyhow::Result;
 use std::time::Duration;
 use tokio::time;
-use tonic::{
-    Request, client::Grpc, codec::ProstCodec, metadata::MetadataValue, transport::Channel,
-};
+use tonic::{Request, client::Grpc, metadata::MetadataValue, transport::Channel};
+use tonic_prost::ProstCodec;
 
 pub struct HeartbeatManager;
 

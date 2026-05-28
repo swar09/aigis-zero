@@ -1,6 +1,7 @@
 use crate::types::{EnrollmentResult, RegisterRequest, RegisterResponse};
 use anyhow::Result;
-use tonic::{Request, client::Grpc, codec::ProstCodec, transport::Channel};
+use tonic::{Request, client::Grpc, transport::Channel};
+use tonic_prost::ProstCodec;
 
 pub struct AgentEnrollment;
 
@@ -11,7 +12,7 @@ impl AgentEnrollment {
         let mut client = Grpc::new(channel);
         let path = http::uri::PathAndQuery::from_static("/edr.fleet.FleetService/RegisterAgent");
 
-        let res = client
+        let res: RegisterResponse = client
             .unary(Request::new(request), path, ProstCodec::default())
             .await?
             .into_inner();
