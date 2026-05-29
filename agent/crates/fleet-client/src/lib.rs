@@ -19,7 +19,7 @@ pub struct FleetConfig {
 
 pub struct FleetClient {
     connection: FleetConnection,
-    state_rx: watch::Receiver<ConnectionState>,
+    // state_rx: watch::Receiver<ConnectionState>,
     enrollment: Option<EnrollmentResult>,
 }
 
@@ -28,7 +28,7 @@ impl FleetClient {
         let (connection, state_rx) = FleetConnection::new(&config.endpoint);
         Ok(Self {
             connection,
-            state_rx,
+            // state_rx,
             enrollment: None,
         })
     }
