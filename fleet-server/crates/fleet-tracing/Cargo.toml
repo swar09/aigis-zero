@@ -1,0 +1,9 @@
+[package]
+name = "fleet-tracing"
+edition.workspace = true
+version.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }

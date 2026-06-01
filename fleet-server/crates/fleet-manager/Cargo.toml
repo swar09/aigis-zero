@@ -1,0 +1,8 @@
+[package]
+name = "fleet-manager"
+edition.workspace = true
+version.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+tracing = { workspace = true }

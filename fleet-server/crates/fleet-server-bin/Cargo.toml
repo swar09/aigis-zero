@@ -1,0 +1,20 @@
+[package]
+name = "fleet-server-bin"
+edition.workspace = true
+version.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "fleet-server-bin"
+path = "src/main.rs"
+
+[dependencies]
+tokio = { workspace = true }
+tracing = { workspace = true }
+grpc-listener = { path = "../grpc-listener" }
+fleet-manager = { path = "../fleet-manager" }
+node-enrollment = { path = "../node-enrollment" }
+health-tracker = { path = "../health-tracker" }
+fleet-tracing = { path = "../fleet-tracing" }
+postgres-interface = { path = "../postgres-interface" }
+kafka-handler = { path = "../kafka-handler" }

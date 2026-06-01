@@ -69,7 +69,7 @@ pub async fn run() -> Result<()> {
         }
     }
 
-    // Start OsqueryCollector 
+    // Start OsqueryCollector
     let collector = osquery_client::OsqueryCollector::new(osquery_client::OsqueryConfig {
         socket_path: config.osquery.socket_path.clone(),
         db_path: config.agent.buffer_path.clone(),
@@ -86,7 +86,7 @@ pub async fn run() -> Result<()> {
     let mut results_rx = collector.start(&agent_uuid).await;
     tracing::info!("OsqueryCollector started (agent_uuid={})", agent_uuid);
 
-    // Fleet enrollment (non-fatal, fleet server not ready yet) 
+    // Fleet enrollment (non-fatal, fleet server not ready yet)
     tracing::info!("Attempting fleet enrollment (non-fatal if server is down)...");
     let mut fleet_client = fleet_client::FleetClient::new(fleet_client::FleetConfig {
         endpoint: config.fleet.endpoint.clone(),
@@ -112,7 +112,7 @@ pub async fn run() -> Result<()> {
         }
     }
 
-    // Main loop — drain results & handle shutdown 
+    // Main loop — drain results & handle shutdown
     // rusqlite::Connection is !Send so we drive the buffer writes here on the
     // main task rather than in a spawned task.
     tracing::info!("Agent is running. Draining osquery results. Press Ctrl-C to stop.");
@@ -147,7 +147,6 @@ pub async fn run() -> Result<()> {
 
     Ok(())
 }
-
 
 /// Encode an OsqueryResult to raw bytes for storage in the event buffer.
 /// Uses prost protobuf encoding.

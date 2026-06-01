@@ -54,7 +54,7 @@ pub struct OsqueryConfig {
     /// Connection timeout in seconds when connecting to the socket
     pub connect_timeout_secs: Option<u64>,
 
-    // Daemon Options (mirrors osquery.conf "options") 
+    // Daemon Options (mirrors osquery.conf "options")
     pub options: OsqueryOptions,
 
     /// Bootstrap queries (overridden by fleet server push)

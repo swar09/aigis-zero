@@ -2,7 +2,14 @@
 resolver = "2"
 members = [
     "sdk",
-    "fleet-server",
+    "fleet-server/crates/fleet-server-bin",
+    "fleet-server/crates/grpc-listener",
+    "fleet-server/crates/fleet-manager",
+    "fleet-server/crates/node-enrollment",
+    "fleet-server/crates/health-tracker",
+    "fleet-server/crates/fleet-tracing",
+    "fleet-server/crates/postgres-interface",
+    "fleet-server/crates/kafka-handler",
     "api-backend",
     "kafka-pipeline",
     "rule-engine",
@@ -61,6 +68,7 @@ config = "0.15"
 
 anyhow = "1"
 thiserror = "2"
+async-trait = "0.1"
 
 yara-x = "1"
 
@@ -77,3 +85,12 @@ agent-tracing = { path = "agent/crates/agent-tracing" }
 rusqlite = { version = "0.31", features = ["bundled"] }
 toml = "0.8"
 thrift = "0.17"
+
+fleet-server-bin = { path = "fleet-server/crates/fleet-server-bin" }
+grpc-listener = { path = "fleet-server/crates/grpc-listener" }
+fleet-manager = { path = "fleet-server/crates/fleet-manager" }
+node-enrollment = { path = "fleet-server/crates/node-enrollment" }
+health-tracker = { path = "fleet-server/crates/health-tracker" }
+fleet-tracing = { path = "fleet-server/crates/fleet-tracing" }
+postgres-interface = { path = "fleet-server/crates/postgres-interface" }
+kafka-handler = { path = "fleet-server/crates/kafka-handler" }
