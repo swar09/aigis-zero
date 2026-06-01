@@ -18,3 +18,12 @@ health-tracker = { path = "../health-tracker" }
 fleet-tracing = { path = "../fleet-tracing" }
 postgres-interface = { path = "../postgres-interface" }
 kafka-handler = { path = "../kafka-handler" }
+config.workspace = true
+anyhow.workspace = true
+thiserror.workspace = true
+tokio-util.workspace = true
+serde = { workspace = true, features = ["derive"] }
+async-trait.workspace = true
+uuid.workspace = true
+jsonwebtoken.workspace = true
+tonic.workspace = true

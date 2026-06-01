@@ -21,7 +21,7 @@ use crate::auth::validate_token;
     clippy::too_many_lines,
     clippy::missing_errors_doc,
     clippy::must_use_candidate,
-    clippy::wildcard_imports,
+    clippy::wildcard_imports
 )]
 pub(crate) mod proto {
     tonic::include_proto!("edr.fleet");
@@ -30,10 +30,8 @@ pub(crate) mod proto {
 pub use proto::fleet_service_server::{FleetService, FleetServiceServer};
 
 use proto::{
-    AgentEvent, HeartbeatRequest, HeartbeatResponse, RegisterRequest, RegisterResponse,
-    ServerCommand,
-    server_command::Command,
-    AckCommand,
+    AckCommand, AgentEvent, HeartbeatRequest, HeartbeatResponse, RegisterRequest, RegisterResponse,
+    ServerCommand, server_command::Command,
 };
 
 type EventStream = Pin<Box<dyn Stream<Item = Result<ServerCommand, Status>> + Send + 'static>>;

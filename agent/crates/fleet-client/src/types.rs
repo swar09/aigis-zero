@@ -38,7 +38,6 @@ pub enum ConnectionState {
     Disconnected,
 }
 
-
 /// Sent by the agent to register with the fleet server.
 /// Proto tag numbers match fleet.proto RegisterRequest.
 #[derive(Clone, Message)]
@@ -108,7 +107,6 @@ pub struct AgentEvent {
     pub sequence_id: String,
 }
 
-
 /// A command sent from the fleet server to the agent.
 /// Uses prost oneof to match the proto3 `oneof command { ... }`.
 #[derive(Clone, Message)]
@@ -158,7 +156,6 @@ pub struct AckCommand {
     pub sequence_id: String,
 }
 
-
 /// Configuration payload sent from fleet server to agent.
 /// Stored locally in SQLite after receipt.
 #[derive(Clone, Message, Serialize, Deserialize)]
@@ -191,7 +188,6 @@ pub struct OsquerySchedule {
     #[prost(int32, tag = "3")]
     pub interval_secs: i32,
 }
-
 
 /// Periodic heartbeat sent from agent to fleet server.
 #[derive(Clone, Message)]

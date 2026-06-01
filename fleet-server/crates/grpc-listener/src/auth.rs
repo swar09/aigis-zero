@@ -39,8 +39,8 @@ pub fn validate_token(
         .strip_prefix("Bearer ")
         .ok_or_else(|| Status::unauthenticated("authorization header must use Bearer scheme"))?;
 
-    let token_data = decode::<NodeClaims>(token, decoding_key, &Validation::default())
-        .map_err(|e| {
+    let token_data =
+        decode::<NodeClaims>(token, decoding_key, &Validation::default()).map_err(|e| {
             tracing::debug!(err = %e, "jwt validation failed");
             Status::unauthenticated("invalid or expired token")
         })?;

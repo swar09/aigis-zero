@@ -63,8 +63,5 @@ pub trait HeartbeatPort: Send + Sync + 'static {
 /// Ingests agent events and forwards them. Implemented by `kafka-handler`.
 #[async_trait]
 pub trait EventIngestPort: Send + Sync + 'static {
-    async fn ingest_event(
-        &self,
-        event: IncomingEvent,
-    ) -> Result<Option<OutgoingCommand>, Status>;
+    async fn ingest_event(&self, event: IncomingEvent) -> Result<Option<OutgoingCommand>, Status>;
 }

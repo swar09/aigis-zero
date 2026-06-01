@@ -1,7 +1,7 @@
 use std::future::Future;
 
-use tonic::transport::Server;
 use tokio_util::sync::CancellationToken;
+use tonic::transport::Server;
 
 use crate::{
     config::GrpcListenerConfig,
