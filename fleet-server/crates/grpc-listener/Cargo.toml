@@ -6,17 +6,19 @@ rust-version.workspace = true
 
 [dependencies]
 tonic          = { workspace = true }
-tonic-prost    = { workspace = true }
-prost          = { workspace = true }
+tonic-prost.workspace = true
+prost.workspace = true
 tokio          = { workspace = true }
-tokio-stream   = { workspace = true }
-tokio-util     = { workspace = true }
+tokio-stream.workspace = true
+tokio-util.workspace = true
 tracing        = { workspace = true }
-thiserror      = { workspace = true }
-jsonwebtoken   = { workspace = true }
-anyhow         = { workspace = true }
-async-trait    = { workspace = true }
-fleet-manager  = { workspace = true }
+thiserror.workspace = true
+jsonwebtoken = { workspace = true, features = ["rust_crypto"] }
+anyhow.workspace = true
+async-trait.workspace = true
+fleet-manager.workspace = true
+serde.workspace = true
 
 [build-dependencies]
 tonic-build = { workspace = true }
+tonic-prost-build.workspace = true
