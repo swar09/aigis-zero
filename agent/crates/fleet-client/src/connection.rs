@@ -11,6 +11,7 @@ pub struct FleetConnection {
 }
 
 impl FleetConnection {
+    #[must_use]
     pub fn new(endpoint: &str) -> (Self, watch::Receiver<ConnectionState>) {
         let (state_tx, state_rx) = watch::channel(ConnectionState::Disconnected);
         (

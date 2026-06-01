@@ -25,11 +25,12 @@ pub enum AgentStatus {
 }
 
 impl AgentStatus {
-    pub fn as_str(&self) -> &'static str {
+    #[must_use]
+    pub const fn as_str(&self) -> &'static str {
         match self {
-            AgentStatus::Healthy => "healthy",
-            AgentStatus::Degraded => "degraded",
-            AgentStatus::Isolated => "isolated",
+            Self::Healthy => "healthy",
+            Self::Degraded => "degraded",
+            Self::Isolated => "isolated",
         }
     }
 }
@@ -47,7 +48,7 @@ pub enum ConnectionState {
 // ═════════════════════════════════════════════════════════
 
 /// Sent by the agent to register with the fleet server.
-/// Proto tag numbers match fleet.proto RegisterRequest.
+/// Proto tag numbers match fleet.proto `RegisterRequest`.
 #[derive(Clone, Message)]
 pub struct RegisterRequest {
     #[prost(string, tag = "1")]
@@ -95,7 +96,7 @@ pub struct EnrollmentResult {
 
 /// An event sent from the agent to the fleet server over the
 /// bidirectional gRPC stream. The `payload` field contains
-/// protobuf-encoded event data (e.g., OsqueryResult.encode_to_vec()).
+/// protobuf-encoded event data (e.g., `OsqueryResult.encode_to_vec()`).
 #[derive(Clone, Message)]
 pub struct AgentEvent {
     /// UUID of the agent (assigned during enrollment)
@@ -106,7 +107,7 @@ pub struct AgentEvent {
     #[prost(int32, tag = "2")]
     pub event_type: i32,
 
-    /// Protobuf-encoded payload (e.g., OsqueryResult bytes)
+    /// Protobuf-encoded payload (e.g., `OsqueryResult` bytes)
     #[prost(bytes = "vec", tag = "3")]
     pub payload: Vec<u8>,
 
@@ -167,7 +168,7 @@ pub struct ConfigUpdateCommand {
 /// Acknowledgment that the server received a specific event.
 #[derive(Clone, Message)]
 pub struct AckCommand {
-    /// The sequence_id of the AgentEvent being acknowledged
+    /// The `sequence_id` of the `AgentEvent` being acknowledged
     #[prost(string, tag = "1")]
     pub sequence_id: String,
 }
@@ -177,10 +178,10 @@ pub struct AckCommand {
 // ═════════════════════════════════════════════════════════
 
 /// Configuration payload sent from fleet server to agent.
-/// Stored locally in SQLite after receipt.
+/// Stored locally in `SQLite` after receipt.
 #[derive(Clone, Message, Serialize, Deserialize)]
 pub struct AgentConfigPayload {
-    /// List of scheduled queries to execute via OSQuery
+    /// List of scheduled queries to execute via `OSQuery`
     #[prost(message, repeated, tag = "1")]
     pub osquery_schedule: Vec<OsquerySchedule>,
 
@@ -196,7 +197,7 @@ pub struct AgentConfigPayload {
 /// A single scheduled query definition (from fleet server config).
 #[derive(Clone, Message, Serialize, Deserialize)]
 pub struct OsquerySchedule {
-    /// Unique name (e.g., "running_processes")
+    /// Unique name (e.g., "`running_processes`")
     #[prost(string, tag = "1")]
     pub name: String,
 
@@ -224,7 +225,7 @@ pub struct HeartbeatRequest {
     #[prost(string, tag = "2")]
     pub status: String,
 
-    /// Number of events currently buffered locally in SQLite
+    /// Number of events currently buffered locally in `SQLite`
     #[prost(int64, tag = "3")]
     pub events_buffered: i64,
 }

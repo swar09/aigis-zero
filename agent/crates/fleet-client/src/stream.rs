@@ -17,7 +17,7 @@ impl EventStreamManager {
         let path = http::uri::PathAndQuery::from_static("/edr.fleet.FleetService/EventStream");
 
         let mut req = Request::new(ReceiverStream::new(events_rx));
-        let meta_token = MetadataValue::try_from(format!("Bearer {}", token))?;
+        let meta_token = MetadataValue::try_from(format!("Bearer {token}"))?;
         req.metadata_mut().insert("authorization", meta_token);
 
         let response = client

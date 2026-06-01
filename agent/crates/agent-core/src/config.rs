@@ -14,7 +14,7 @@ pub struct AgentConfig {
 /// Fleet server connection settings.
 #[derive(Debug, Deserialize)]
 pub struct FleetConfig {
-    /// gRPC endpoint, e.g., "http://fleet.internal:50051"
+    /// gRPC endpoint, e.g., "<http://fleet.internal:50051>"
     pub endpoint: String,
 
     /// Heartbeat interval in seconds (default 30, overridden by fleet server)
@@ -30,7 +30,7 @@ pub struct AgentSection {
     /// UUID assigned after first enrollment. None = not yet enrolled.
     pub node_id: Option<Uuid>,
 
-    /// Path to the SQLite database for event buffering + query storage
+    /// Path to the `SQLite` database for event buffering + query storage
     pub buffer_path: PathBuf,
 
     /// Log level filter: "trace" | "debug" | "info" | "warn" | "error"
@@ -39,12 +39,12 @@ pub struct AgentSection {
     /// Log output format: "human" (default, colored) | "json" (structured)
     pub log_format: Option<String>,
 
-    /// Path to a TOML file containing scheduled queries to seed into SQLite.
+    /// Path to a TOML file containing scheduled queries to seed into `SQLite`.
     /// Testing only — remove path from config (or omit field) in production.
     pub scheduled_queries_path: Option<PathBuf>,
 }
 
-/// OSQuery daemon configuration.
+/// `OSQuery` daemon configuration.
 #[derive(Debug, Deserialize)]
 pub struct OsqueryConfig {
     /// Path to osqueryd's extension manager Unix socket
@@ -54,21 +54,21 @@ pub struct OsqueryConfig {
     /// Connection timeout in seconds when connecting to the socket
     pub connect_timeout_secs: Option<u64>,
 
-    // Daemon Options (mirrors osquery.conf "options") 
+    // Daemon Options (mirrors osquery.conf "options")
     pub options: OsqueryOptions,
 
     /// Bootstrap queries (overridden by fleet server push)
     pub schedule: Vec<ScheduledQueryConfig>,
 
-    /// FIM paths: category_name → list of glob paths
+    /// FIM paths: `category_name` → list of glob paths
     /// e.g., { "etc": ["/etc/%%", "/etc/ssh/%%"] }
     pub file_paths: Option<HashMap<String, Vec<String>>>,
 
-    /// Named packs: pack_name → path_to_pack_conf_file
+    /// Named packs: `pack_name` → `path_to_pack_conf_file`
     pub packs: Option<HashMap<String, String>>,
 }
 
-/// OSQuery daemon option flags.
+/// `OSQuery` daemon option flags.
 /// Maps to the "options" section of osquery.conf.
 /// All fields are Optional — only set values override osquery defaults.
 #[derive(Debug, Deserialize)]

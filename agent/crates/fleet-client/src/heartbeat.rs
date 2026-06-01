@@ -31,7 +31,7 @@ impl HeartbeatManager {
                 let path =
                     http::uri::PathAndQuery::from_static("/edr.fleet.FleetService/Heartbeat");
                 let mut req = Request::new(req_payload);
-                if let Ok(meta_token) = MetadataValue::try_from(format!("Bearer {}", token)) {
+                if let Ok(meta_token) = MetadataValue::try_from(format!("Bearer {token}")) {
                     req.metadata_mut().insert("authorization", meta_token);
                 }
 

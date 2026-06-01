@@ -6,7 +6,7 @@ use prost::Message as _;
 use serde::Deserialize;
 use tokio::sync::mpsc;
 
-/// Top-level structure of scheduled_queries.toml.
+/// Top-level structure of `scheduled_queries.toml`.
 #[derive(Debug, Deserialize)]
 struct ScheduledQueriesFile {
     queries: Vec<ScheduledQueryEntry>,
@@ -24,7 +24,7 @@ struct ScheduledQueryEntry {
 
 impl From<ScheduledQueryEntry> for ScheduledQuery {
     fn from(e: ScheduledQueryEntry) -> Self {
-        ScheduledQuery {
+        Self {
             name: e.name,
             query: e.query,
             interval_secs: e.interval_secs,
@@ -38,10 +38,10 @@ pub async fn run() -> Result<()> {
         std::env::var("EDR_AGENT_CONFIG").unwrap_or_else(|_| "agent.toml".to_string());
 
     let config_str = std::fs::read_to_string(&config_path)
-        .map_err(|e| anyhow::anyhow!("Failed to read config file at {}: {}", config_path, e))?;
+        .map_err(|e| anyhow::anyhow!("Failed to read config file at {config_path}: {e}"))?;
 
     let config: AgentConfig = toml::from_str(&config_str)
-        .map_err(|e| anyhow::anyhow!("Failed to parse TOML config: {}", e))?;
+        .map_err(|e| anyhow::anyhow!("Failed to parse TOML config: {e}"))?;
 
     let format = match config.agent.log_format.as_deref() {
         Some("json") => agent_tracing::LogFormat::Json,
@@ -54,7 +54,7 @@ pub async fn run() -> Result<()> {
     // EventBuffer wraps rusqlite::Connection which is !Send, so we keep it
     // on this task and never move it into tokio::spawn.
     let buffer = EventBuffer::new(&config.agent.buffer_path)
-        .map_err(|e| anyhow::anyhow!("Failed to open event buffer: {}", e))?;
+        .map_err(|e| anyhow::anyhow!("Failed to open event buffer: {e}"))?;
     tracing::info!("Initialized event buffer at {:?}", config.agent.buffer_path);
 
     // ── Seed scheduled queries from TOML file (testing only) ──────────────
@@ -69,7 +69,7 @@ pub async fn run() -> Result<()> {
         }
     }
 
-    // Start OsqueryCollector 
+    // Start OsqueryCollector
     let collector = osquery_client::OsqueryCollector::new(osquery_client::OsqueryConfig {
         socket_path: config.osquery.socket_path.clone(),
         db_path: config.agent.buffer_path.clone(),
@@ -80,13 +80,12 @@ pub async fn run() -> Result<()> {
     let agent_uuid = config
         .agent
         .node_id
-        .map(|u| u.to_string())
-        .unwrap_or_else(|| "unregistered".to_string());
+        .map_or_else(|| "unregistered".to_string(), |u| u.to_string());
 
     let mut results_rx = collector.start(&agent_uuid).await;
     tracing::info!("OsqueryCollector started (agent_uuid={})", agent_uuid);
 
-    // Fleet enrollment (non-fatal, fleet server not ready yet) 
+    // Fleet enrollment (non-fatal, fleet server not ready yet)
     tracing::info!("Attempting fleet enrollment (non-fatal if server is down)...");
     let mut fleet_client = fleet_client::FleetClient::new(fleet_client::FleetConfig {
         endpoint: config.fleet.endpoint.clone(),
@@ -112,7 +111,7 @@ pub async fn run() -> Result<()> {
         }
     }
 
-    // Main loop — drain results & handle shutdown 
+    // Main loop — drain results & handle shutdown
     // rusqlite::Connection is !Send so we drive the buffer writes here on the
     // main task rather than in a spawned task.
     tracing::info!("Agent is running. Draining osquery results. Press Ctrl-C to stop.");
@@ -148,21 +147,20 @@ pub async fn run() -> Result<()> {
     Ok(())
 }
 
-
-/// Encode an OsqueryResult to raw bytes for storage in the event buffer.
+/// Encode an `OsqueryResult` to raw bytes for storage in the event buffer.
 /// Uses prost protobuf encoding.
 fn encode_result(result: &OsqueryResult) -> Vec<u8> {
     result.encode_to_vec()
 }
 
-/// Load scheduled_queries.toml, upsert into the scheduler's SQLite table.
+/// Load `scheduled_queries.toml`, upsert into the scheduler's `SQLite` table.
 /// Returns the number of queries upserted.
 fn seed_scheduled_queries(toml_path: &std::path::Path, config: &AgentConfig) -> Result<usize> {
     let content = std::fs::read_to_string(toml_path)
-        .map_err(|e| anyhow::anyhow!("Failed to read {:?}: {}", toml_path, e))?;
+        .map_err(|e| anyhow::anyhow!("Failed to read {toml_path:?}: {e}"))?;
 
     let file: ScheduledQueriesFile = toml::from_str(&content)
-        .map_err(|e| anyhow::anyhow!("Failed to parse {:?}: {}", toml_path, e))?;
+        .map_err(|e| anyhow::anyhow!("Failed to parse {toml_path:?}: {e}"))?;
 
     let queries: Vec<ScheduledQuery> = file.queries.into_iter().map(Into::into).collect();
     let n = queries.len();
