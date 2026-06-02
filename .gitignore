@@ -33,3 +33,21 @@ Thumbs.db
 # Mock development tools
 agent/tools/mock-fleet-server/target/
 .gemini/*
+
+# Frontend logs and build outputs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+dist-ssr/
+
+# IDE and Project files
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
