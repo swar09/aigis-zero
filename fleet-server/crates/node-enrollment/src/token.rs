@@ -46,7 +46,11 @@ pub fn sign_token(node_id: &str, secret: &[u8]) -> Result<String, NodeEnrollment
 }
 
 #[cfg(test)]
-#[allow(clippy::expect_used, clippy::unwrap_used, clippy::cast_possible_truncation)]
+#[allow(
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::cast_possible_truncation
+)]
 mod tests {
     use super::*;
     use jsonwebtoken::{DecodingKey, Validation, decode};

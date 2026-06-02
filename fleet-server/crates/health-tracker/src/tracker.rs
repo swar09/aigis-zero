@@ -92,7 +92,10 @@ mod tests {
         fn call_count(&self) -> usize {
             // Lock poisoning only happens if a test panicked while holding it.
             // Recovering the inner value is correct here.
-            self.calls.lock().unwrap_or_else(std::sync::PoisonError::into_inner).len()
+            self.calls
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .len()
         }
 
         fn last_call(&self) -> Option<HeartbeatRecord> {
