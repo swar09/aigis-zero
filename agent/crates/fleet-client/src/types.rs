@@ -1,10 +1,6 @@
 use prost::Message;
 use serde::{Deserialize, Serialize};
 
-// ═════════════════════════════════════════════════════════
-// ENUMS
-// ═════════════════════════════════════════════════════════
-
 /// Type of event being sent from agent to fleet server.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(i32)]
@@ -41,10 +37,6 @@ pub enum ConnectionState {
     Reconnecting,
     Disconnected,
 }
-
-// ═════════════════════════════════════════════════════════
-// ENROLLMENT MESSAGES
-// ═════════════════════════════════════════════════════════
 
 /// Sent by the agent to register with the fleet server.
 /// Proto tag numbers match fleet.proto RegisterRequest.
@@ -89,10 +81,6 @@ pub struct EnrollmentResult {
     pub config: Option<AgentConfigPayload>,
 }
 
-// ═════════════════════════════════════════════════════════
-// EVENT STREAM MESSAGES
-// ═════════════════════════════════════════════════════════
-
 /// An event sent from the agent to the fleet server over the
 /// bidirectional gRPC stream. The `payload` field contains
 /// protobuf-encoded event data (e.g., OsqueryResult.encode_to_vec()).
@@ -118,10 +106,6 @@ pub struct AgentEvent {
     #[prost(string, tag = "5")]
     pub sequence_id: String,
 }
-
-// ═════════════════════════════════════════════════════════
-// SERVER COMMAND MESSAGES (fleet server → agent)
-// ═════════════════════════════════════════════════════════
 
 /// A command sent from the fleet server to the agent.
 /// Uses prost oneof to match the proto3 `oneof command { ... }`.
@@ -172,10 +156,6 @@ pub struct AckCommand {
     pub sequence_id: String,
 }
 
-// ═════════════════════════════════════════════════════════
-// AGENT CONFIGURATION (pushed by fleet server)
-// ═════════════════════════════════════════════════════════
-
 /// Configuration payload sent from fleet server to agent.
 /// Stored locally in SQLite after receipt.
 #[derive(Clone, Message, Serialize, Deserialize)]
@@ -208,10 +188,6 @@ pub struct OsquerySchedule {
     #[prost(int32, tag = "3")]
     pub interval_secs: i32,
 }
-
-// ═════════════════════════════════════════════════════════
-// HEARTBEAT MESSAGES
-// ═════════════════════════════════════════════════════════
 
 /// Periodic heartbeat sent from agent to fleet server.
 #[derive(Clone, Message)]

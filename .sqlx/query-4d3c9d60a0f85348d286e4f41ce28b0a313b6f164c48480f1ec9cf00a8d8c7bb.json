@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n                    UPDATE nodes\n                    SET hostname          = $1,\n                        os_version        = $2,\n                        agent_version     = $3,\n                        last_enrolled_at  = now()\n                    WHERE node_id = $4\n                    ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "4d3c9d60a0f85348d286e4f41ce28b0a313b6f164c48480f1ec9cf00a8d8c7bb"
+}

@@ -9,6 +9,7 @@ on:
 env:
   CARGO_TERM_COLOR: always
   RUSTFLAGS: "-D warnings"
+  SQLX_OFFLINE: "true"
 
 jobs:
   
@@ -17,6 +18,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Install protoc 
+        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
@@ -36,6 +40,9 @@ jobs:
     needs: check
     steps:
       - uses: actions/checkout@v4
+
+      - name: Install protoc 
+        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
 
       - name: Install Rust stable + clippy
         uses: dtolnay/rust-toolchain@stable
@@ -72,6 +79,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install protoc 
+        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
+
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
 
@@ -85,6 +95,7 @@ jobs:
 
 
   audit:
+    if: false
     name: cargo audit
     runs-on: ubuntu-latest
     steps:

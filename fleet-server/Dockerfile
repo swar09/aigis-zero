@@ -1,33 +1,36 @@
-# Stage 1: Build
-FROM rust:1.85-slim-bookworm AS builder
+# syntax=docker/dockerfile:1.7
 
-RUN apt-get update && apt-get install -y \
-    pkg-config libssl-dev libpq-dev cmake \
+# Stage 1: build
+FROM rust:1.85-slim AS builder
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    pkg-config \
+    libssl-dev \
+    protobuf-compiler \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /build
+
 COPY Cargo.toml Cargo.lock ./
-# Cache dependencies layer
-RUN mkdir src && echo "fn main(){}" > src/main.rs
-RUN cargo build --release
-RUN rm -f target/release/deps/edr_*
+COPY fleet-server/crates ./fleet-server/crates
+COPY sdk ./sdk
 
-COPY src ./src
-RUN cargo build --release
+# For CI: set SQLX_OFFLINE=true and commit .sqlx/ directory.
+# For local dev with live DB: set SQLX_OFFLINE=false.
+ARG SQLX_OFFLINE=true
+ENV SQLX_OFFLINE=${SQLX_OFFLINE}
 
-# Stage 2: Runtime
+RUN cargo build --release -p fleet-server-bin
+
+# Stage 2: runtime
 FROM debian:bookworm-slim AS runtime
 
-RUN apt-get update && apt-get install -y \
-    libssl3 libpq5 ca-certificates \
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    libssl3 \
     && rm -rf /var/lib/apt/lists/*
 
-RUN useradd -m -u 1001 -s /bin/bash edr
+COPY --from=builder /build/target/release/fleet-server-bin /usr/local/bin/fleet-server
 
-COPY --from=builder /build/target/release/edr-fleet-server /usr/local/bin/
-RUN chmod +x /usr/local/bin/edr-fleet-server
-
-USER edr
-EXPOSE 50051 8080
-
-ENTRYPOINT ["edr-fleet-server"]
+EXPOSE 50051
+ENTRYPOINT ["/usr/local/bin/fleet-server"]

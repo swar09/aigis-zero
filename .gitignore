@@ -32,3 +32,4 @@ Thumbs.db
 .antigravitycli
 # Mock development tools
 agent/tools/mock-fleet-server/target/
+.gemini/*

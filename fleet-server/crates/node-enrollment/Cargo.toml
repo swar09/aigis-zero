@@ -1,0 +1,17 @@
+[package]
+name = "node-enrollment"
+edition.workspace    = true
+version.workspace    = true
+rust-version.workspace = true
+
+[dependencies]
+async-trait.workspace   = true
+fleet-manager.workspace = true
+jsonwebtoken.workspace  = true
+thiserror.workspace     = true
+tokio.workspace         = true
+tracing.workspace       = true
+uuid.workspace          = true
+serde.workspace         = true
+chrono.workspace        = true
+tonic.workspace         = true
