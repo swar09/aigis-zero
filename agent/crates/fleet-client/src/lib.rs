@@ -1,4 +1,3 @@
-#[expect(dead_code)]
 pub mod connection;
 pub mod enrollment;
 pub mod heartbeat;
@@ -9,9 +8,9 @@ use crate::connection::FleetConnection;
 use crate::enrollment::AgentEnrollment;
 use crate::heartbeat::HeartbeatManager;
 use crate::stream::EventStreamManager;
-use crate::types::{AgentEvent, ConnectionState, EnrollmentResult, RegisterRequest, ServerCommand};
+use crate::types::{AgentEvent, EnrollmentResult, RegisterRequest, ServerCommand};
 use anyhow::{Result, anyhow};
-use tokio::sync::{mpsc, watch};
+use tokio::sync::mpsc;
 
 pub struct FleetConfig {
     pub endpoint: String,
@@ -25,7 +24,7 @@ pub struct FleetClient {
 
 impl FleetClient {
     pub async fn new(config: FleetConfig) -> Result<Self> {
-        let (connection, state_rx) = FleetConnection::new(&config.endpoint);
+        let (connection, _state_rx) = FleetConnection::new(&config.endpoint);
         Ok(Self {
             connection,
             // state_rx,

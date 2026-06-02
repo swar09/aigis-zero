@@ -1,6 +1,5 @@
-use config::{Config, ConfigError, Environment, File};
+use config::{Config, ConfigError, Environment};
 use serde::Deserialize;
-use std::path::Path;
 
 /// Flat settings struct populated from `.env` + environment variables.
 ///
@@ -20,9 +19,11 @@ pub struct Settings {
     #[serde(default = "default_log_format")]
     pub log_format: String,
 
-    // These fields are read by postgres-interface and kafka-handler once implemented.
-    #[allow(dead_code)]
-    pub database_url: Option<String>,
+    // Required — no default. The server refuses to start without a valid DB URL.
+    // Set DATABASE_URL in .env or as an environment variable.
+    pub database_url: String,
+
+    // Kafka is stubbed — keep optional until kafka-handler is implemented.
     #[allow(dead_code)]
     pub kafka_brokers: Option<String>,
     #[allow(dead_code)]
@@ -62,18 +63,10 @@ impl Settings {
     ///
     /// Returns `ConfigError` if a present `.env` file cannot be parsed,
     /// or if a required field cannot be deserialised.
-    pub fn load(env_path: &Path) -> Result<Self, ConfigError> {
-        let mut builder = Config::builder();
-
-        if env_path.exists() {
-            // The `config` crate can read .env-style files via its Ini source.
-            // We use the Ini source rather than the `dotenv` crate to keep deps lean.
-            builder = builder.add_source(File::from(env_path).format(config::FileFormat::Ini));
-        }
-
-        // Environment variables override file values. Prefix is empty so
-        // PORT=50051 maps to `port`, RUST_LOG=debug maps to `rust_log`, etc.
-        builder = builder.add_source(Environment::default().try_parsing(true));
+    pub fn load() -> Result<Self, ConfigError> {
+        let builder = Config::builder()
+            // Environment variables (including those loaded from .env) override defaults.
+            .add_source(Environment::default().try_parsing(true));
 
         builder.build()?.try_deserialize()
     }

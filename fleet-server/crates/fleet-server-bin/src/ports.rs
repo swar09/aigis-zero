@@ -3,55 +3,17 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use tonic::Status;
 
-use fleet_manager::{
-    AgentHeartbeat, AgentRegistration, EnrollmentPort, EventIngestPort, HeartbeatPort,
-    IncomingEvent, OutgoingCommand, RegistrationResult,
-};
+use fleet_manager::{EventIngestPort, IncomingEvent, OutgoingCommand};
+use health_tracker::HealthTracker;
+use node_enrollment::NodeEnroller;
+use postgres_interface::{PgHealthStore, PgNodeStore};
 
-// These are temporary stub implementations that will be replaced once
-// node-enrollment, health-tracker, and kafka-handler are implemented.
-// They compile, log what they receive, and return sensible responses.
-
-pub struct StubEnrollment;
-
-#[async_trait]
-impl EnrollmentPort for StubEnrollment {
-    async fn register_agent(
-        &self,
-        registration: AgentRegistration,
-    ) -> Result<RegistrationResult, Status> {
-        let node_id = uuid::Uuid::new_v4().to_string();
-
-        // Build a JWT that expires in 24 hours.
-        let token = build_stub_token(&node_id);
-
-        tracing::info!(
-            hostname    = %registration.hostname,
-            machine_id  = %registration.machine_id,
-            os_version  = %registration.os_version,
-            node_id     = %node_id,
-            "stub: agent enrolled"
-        );
-
-        Ok(RegistrationResult { node_id, token })
-    }
-}
-
-pub struct StubHeartbeat;
-
-#[async_trait]
-impl HeartbeatPort for StubHeartbeat {
-    async fn record_heartbeat(&self, heartbeat: AgentHeartbeat) -> Result<(), Status> {
-        tracing::debug!(
-            node_id         = %heartbeat.node_id,
-            status          = %heartbeat.status,
-            events_buffered = heartbeat.events_buffered,
-            "stub: heartbeat received"
-        );
-        Ok(())
-    }
-}
-
+/// Stub event ingest — holds the place of `kafka-handler` until that crate is
+/// implemented. Acks every event to unblock agent buffer clearing.
+///
+/// WARNING: event payloads are discarded. This is intentional while Kafka is
+/// out of scope. See the implementation plan for the full data flow once
+/// `kafka-handler` is wired.
 pub struct StubEventIngest;
 
 #[async_trait]
@@ -62,59 +24,29 @@ impl EventIngestPort for StubEventIngest {
             event_type  = %event.event_type,
             sequence_id = %event.sequence_id,
             payload_len = event.payload.len(),
-            "stub: event received"
+            "stub: event received (kafka-handler not yet implemented — payload discarded)"
         );
-
-        // Ack every event so the agent can clear its buffer.
+        // Ack so the agent can advance its sequence and clear its local buffer.
         Ok(Some(OutgoingCommand::Ack {
             sequence_id: event.sequence_id,
         }))
     }
 }
 
-/// Builds a stub JWT signed with the same secret the listener will validate.
-/// In production this is replaced by the real enrollment crate.
-fn build_stub_token(node_id: &str) -> String {
-    use jsonwebtoken::{EncodingKey, Header, encode};
-    use serde::{Deserialize, Serialize};
-    use std::time::{SystemTime, UNIX_EPOCH};
+/// Builds the real port implementations backed by PostgreSQL.
+///
+/// Call once at startup after the DB pool is ready. The returned `Arc`s are
+/// injected into `FleetServiceImpl`.
+pub fn build_ports(
+    pg_pool: sqlx::PgPool,
+    jwt_secret: &str,
+) -> (Arc<NodeEnroller>, Arc<HealthTracker>, Arc<StubEventIngest>) {
+    let node_store = Arc::new(PgNodeStore::new(pg_pool.clone()));
+    let health_store = Arc::new(PgHealthStore::new(pg_pool));
 
-    #[derive(Serialize, Deserialize)]
-    struct Claims {
-        node_id: String,
-        exp: usize,
-    }
+    let enroller = Arc::new(NodeEnroller::new(node_store, jwt_secret.as_bytes()));
+    let tracker = Arc::new(HealthTracker::new(health_store));
+    let event_ingest = Arc::new(StubEventIngest);
 
-    let exp = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs() as usize
-        + 86400; // 24 hours
-
-    // The secret here must match what is loaded into GrpcListenerConfig.
-    // fleet-server-bin passes it through — stubs don't hardcode it separately.
-    let secret = std::env::var("JWT_SECRET").unwrap_or_else(|_| "change-me-in-production".into());
-
-    encode(
-        &Header::default(),
-        &Claims {
-            node_id: node_id.to_string(),
-            exp,
-        },
-        &EncodingKey::from_secret(secret.as_bytes()),
-    )
-    .unwrap_or_else(|_| "stub-token-encode-failed".into())
-}
-
-/// Convenience: wraps the stubs in `Arc` and returns the three port objects.
-pub fn stub_ports() -> (
-    Arc<StubEnrollment>,
-    Arc<StubHeartbeat>,
-    Arc<StubEventIngest>,
-) {
-    (
-        Arc::new(StubEnrollment),
-        Arc::new(StubHeartbeat),
-        Arc::new(StubEventIngest),
-    )
+    (enroller, tracker, event_ingest)
 }

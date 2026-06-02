@@ -1,7 +1,6 @@
 mod ports;
 mod settings;
 
-use std::path::PathBuf;
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
@@ -12,11 +11,11 @@ use grpc_listener::{FleetServiceImpl, GrpcListenerConfig, GrpcServer, shutdown_s
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    // Locate .env relative to the crate root at runtime.
-    // In a Docker container this is next to the binary; in dev it is in fleet-server/.
-    let env_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../.env");
+    // Load .env file into standard environment variables.
+    // .env should be at the workspace root or the current working directory.
+    dotenvy::dotenv().ok();
 
-    let settings = settings::Settings::load(&env_path).context("failed to load settings")?;
+    let settings = settings::Settings::load().context("failed to load settings")?;
 
     // Tracing must be initialised before anything else emits spans.
     let log_format = settings
@@ -37,9 +36,16 @@ async fn main() -> Result<()> {
         "fleet server starting"
     );
 
-    // Build stub port implementations.
-    // Swap these out for real impls as each crate is completed.
-    let (enrollment, heartbeat, event_ingest) = ports::stub_ports();
+    // Connect to Postgres and run pending migrations before accepting any traffic.
+    // If DATABASE_URL is wrong or Postgres is down, we fail here with a clear error
+    // rather than silently dropping every enrollment that comes in.
+    let pg_pool = postgres_interface::connect(&settings.database_url)
+        .await
+        .context(
+            "failed to connect to postgres — check DATABASE_URL and ensure the DB is running",
+        )?;
+
+    let (enrollment, heartbeat, event_ingest) = ports::build_ports(pg_pool, &settings.jwt_secret);
 
     let service = FleetServiceImpl::new(
         Arc::clone(&enrollment) as Arc<dyn fleet_manager::EnrollmentPort>,
