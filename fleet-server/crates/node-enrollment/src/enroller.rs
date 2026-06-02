@@ -79,6 +79,7 @@ impl EnrollmentPort for NodeEnroller {
 }
 
 #[cfg(test)]
+#[allow(clippy::expect_used, clippy::unwrap_used)]
 mod tests {
     use super::*;
     use crate::{error::NodeEnrollmentError, store::NodeRecord};

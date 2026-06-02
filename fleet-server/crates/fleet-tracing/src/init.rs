@@ -86,6 +86,7 @@ pub fn init(config: &TracingConfig) -> Result<(), InitError> {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use crate::config::{LogFormat, TracingConfig};
 

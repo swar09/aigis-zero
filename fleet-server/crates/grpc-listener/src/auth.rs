@@ -49,6 +49,12 @@ pub fn validate_token(
 }
 
 #[cfg(test)]
+#[allow(
+    clippy::unwrap_used,
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss,
+    clippy::cast_possible_wrap
+)]
 mod tests {
     use super::*;
     use jsonwebtoken::{EncodingKey, Header, encode};

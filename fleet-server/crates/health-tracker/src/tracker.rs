@@ -72,6 +72,7 @@ impl HeartbeatPort for HealthTracker {
 }
 
 #[cfg(test)]
+#[allow(clippy::expect_used, clippy::unwrap_used)]
 mod tests {
     use super::*;
     use crate::{error::HealthTrackerError, store::HeartbeatRecord};
@@ -91,13 +92,13 @@ mod tests {
         fn call_count(&self) -> usize {
             // Lock poisoning only happens if a test panicked while holding it.
             // Recovering the inner value is correct here.
-            self.calls.lock().unwrap_or_else(|p| p.into_inner()).len()
+            self.calls.lock().unwrap_or_else(std::sync::PoisonError::into_inner).len()
         }
 
         fn last_call(&self) -> Option<HeartbeatRecord> {
             self.calls
                 .lock()
-                .unwrap_or_else(|p| p.into_inner())
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
                 .last()
                 .cloned()
         }
@@ -111,7 +112,7 @@ mod tests {
         ) -> Result<(), HealthTrackerError> {
             self.calls
                 .lock()
-                .unwrap_or_else(|p| p.into_inner())
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
                 .push(record);
             Ok(())
         }
