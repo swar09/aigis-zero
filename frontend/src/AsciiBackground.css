@@ -1,0 +1,74 @@
+.ascii-bg-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  z-index: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-evenly;
+  pointer-events: none;
+  background-color: transparent;
+}
+
+.ascii-layer {
+  width: 100%;
+  display: flex;
+  white-space: nowrap;
+  overflow: visible;
+  opacity: 0.15; /* White but slightly dim to not hurt eyes */
+}
+
+.ascii-track {
+  display: flex;
+  width: max-content;
+}
+
+.ascii-half {
+  display: flex;
+}
+
+.layer-1 .ascii-track {
+  animation: scroll-left 50s linear infinite;
+}
+
+.layer-2 .ascii-track {
+  animation: scroll-right 40s linear infinite;
+}
+
+.layer-3 .ascii-track {
+  animation: scroll-left 60s linear infinite;
+}
+
+.layer-4 .ascii-track {
+  animation: scroll-right 55s linear infinite;
+}
+
+@keyframes scroll-left {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+@keyframes scroll-right {
+  0% { transform: translateX(-50%); }
+  100% { transform: translateX(0); }
+}
+
+.ascii-half pre {
+  margin: 0;
+  padding: 0 4vw;
+  font-family: var(--font-mono);
+  font-size: 1vw;
+  line-height: 1.2;
+  color: #ffffff;
+  user-select: none;
+}
+
+@media (max-width: 900px) {
+  .ascii-half pre {
+    font-size: 8px;
+    padding: 0 16px;
+  }
+}

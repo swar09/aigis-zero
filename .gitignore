@@ -51,3 +51,5 @@ dist-ssr/
 *.sln
 *.sw?
 
+*/frontendprompt.md
+.agent/*
