@@ -1,5 +1,4 @@
 use event_buffer::EventBuffer;
-use std::time::Duration;
 
 #[tokio::test]
 async fn test_event_buffer_flow() {
