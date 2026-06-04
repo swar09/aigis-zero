@@ -2,7 +2,6 @@ use crate::config::AgentConfig;
 use anyhow::Result;
 use event_buffer::EventBuffer;
 use osquery_client::types::{OsqueryResult, ScheduledQuery};
-use prost::Message as _;
 use serde::Deserialize;
 use tokio::sync::mpsc;
 
@@ -130,7 +129,7 @@ pub async fn run() -> Result<()> {
                 let bytes = encode_result(&result);
                 match buffer.push(&bytes) {
                     Ok(()) => tracing::debug!(
-                        "Buffered '{}' ({} rows, action={})",
+                        "Buffered '{}' ({} rows, action={:?})",
                         result.query_name,
                         result.rows.len(),
                         result.action,
@@ -148,10 +147,17 @@ pub async fn run() -> Result<()> {
     Ok(())
 }
 
-/// Encode an OsqueryResult to raw bytes for storage in the event buffer.
-/// Uses prost protobuf encoding.
-fn encode_result(result: &OsqueryResult) -> Vec<u8> {
-    result.encode_to_vec()
+/// Encode an OsqueryResult into a JSON AgentEvent string for the event buffer.
+fn encode_result(result: &OsqueryResult) -> String {
+    let payload = serde_json::to_value(result).unwrap_or(serde_json::Value::Null);
+    let event = fleet_client::types::AgentEvent {
+        node_id: result.agent_uuid.clone(),
+        event_type: fleet_client::types::EventType::Osquery as i32,
+        payload,
+        timestamp_ns: result.timestamp_ns,
+        sequence_id: uuid::Uuid::new_v4().to_string(),
+    };
+    serde_json::to_string(&event).unwrap_or_default()
 }
 
 /// Load scheduled_queries.toml, upsert into the scheduler's SQLite table.

@@ -1,9 +1,9 @@
+use crate::codec::JsonCodec;
 use crate::types::{AgentEvent, ServerCommand};
 use anyhow::Result;
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 use tonic::{Request, client::Grpc, metadata::MetadataValue, transport::Channel};
-use tonic_prost::ProstCodec;
 
 pub struct EventStreamManager;
 
@@ -21,11 +21,7 @@ impl EventStreamManager {
         req.metadata_mut().insert("authorization", meta_token);
 
         let response = client
-            .streaming(
-                req,
-                path,
-                ProstCodec::<AgentEvent, ServerCommand>::default(),
-            )
+            .streaming(req, path, JsonCodec::<AgentEvent, ServerCommand>::default())
             .await?;
         let mut stream = response.into_inner();
 

@@ -1,9 +1,9 @@
+use crate::codec::JsonCodec;
 use crate::types::{HeartbeatRequest, HeartbeatResponse};
 use anyhow::Result;
 use std::time::Duration;
 use tokio::time;
 use tonic::{Request, client::Grpc, metadata::MetadataValue, transport::Channel};
-use tonic_prost::ProstCodec;
 
 pub struct HeartbeatManager;
 
@@ -39,7 +39,7 @@ impl HeartbeatManager {
                     .unary(
                         req,
                         path,
-                        ProstCodec::<HeartbeatRequest, HeartbeatResponse>::default(),
+                        JsonCodec::<HeartbeatRequest, HeartbeatResponse>::default(),
                     )
                     .await
                 {

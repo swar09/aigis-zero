@@ -2,7 +2,7 @@ use anyhow::Result;
 use rusqlite::Connection;
 use std::path::Path;
 
-/// Local SQLite-backed buffer for protobuf-encoded AgentEvent bytes.
+/// Local SQLite-backed buffer for JSON-encoded AgentEvent objects.
 /// Used when the fleet server is unreachable.
 pub struct EventBuffer {
     conn: Connection,
@@ -17,7 +17,7 @@ impl EventBuffer {
         conn.execute(
             "CREATE TABLE IF NOT EXISTS event_buffer (
                 id         INTEGER PRIMARY KEY AUTOINCREMENT,
-                payload    BLOB    NOT NULL,
+                payload    JSON    NOT NULL,
                 created_at INTEGER NOT NULL
             )",
             [],
@@ -26,21 +26,20 @@ impl EventBuffer {
         Ok(Self { conn })
     }
 
-    /// Store a protobuf-encoded AgentEvent as a BLOB.
-    /// The bytes come from AgentEvent::encode_to_vec().
-    pub fn push(&self, event_bytes: &[u8]) -> Result<()> {
+    /// Store a JSON-encoded AgentEvent.
+    /// The string comes from serde_json::to_string().
+    pub fn push(&self, event_json: &str) -> Result<()> {
         let now = chrono::Utc::now().timestamp();
         self.conn.execute(
             "INSERT INTO event_buffer (payload, created_at) VALUES (?1, ?2)",
-            rusqlite::params![event_bytes, now],
+            rusqlite::params![event_json, now],
         )?;
         Ok(())
     }
 
     /// Read and remove the oldest `batch_size` events.
-    /// Returns raw protobuf bytes that can be decoded back
-    /// with AgentEvent::decode(&bytes).
-    pub fn drain(&self, batch_size: usize) -> Result<Vec<Vec<u8>>> {
+    /// Returns raw JSON strings that can be parsed back.
+    pub fn drain(&self, batch_size: usize) -> Result<Vec<String>> {
         let mut stmt = self
             .conn
             .prepare("SELECT id, payload FROM event_buffer ORDER BY id ASC LIMIT ?1")?;
@@ -50,7 +49,7 @@ impl EventBuffer {
 
         let rows = stmt.query_map([batch_size], |row| {
             let id: i64 = row.get(0)?;
-            let payload: Vec<u8> = row.get(1)?;
+            let payload: String = row.get(1)?;
             Ok((id, payload))
         })?;
 

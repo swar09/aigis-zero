@@ -252,7 +252,7 @@ impl QueryScheduler {
             agent_uuid: agent_uuid.to_string(),
             timestamp_ns: Utc::now().timestamp_nanos_opt().unwrap_or(0),
             rows: result_rows,
-            action: action as i32,
+            action,
         }
     }
 }
