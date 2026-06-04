@@ -1,4 +1,3 @@
-use prost::Message;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -46,56 +45,45 @@ pub struct QueryStatus {
 pub type OsqueryRow = HashMap<String, String>;
 
 // ─────────────────────────────────────────────────────────
-// Processed Query Result (protobuf-encodable)
+// Processed Query Result (JSON-encodable)
 // ─────────────────────────────────────────────────────────
 
 /// A complete, processed query result ready for downstream consumption.
-/// Derives prost::Message for protobuf serialization — this is what
-/// gets encoded into the AgentEvent.payload field.
-#[derive(Clone, Message)]
+/// This gets embedded into AgentEvent.payload as structured JSON.
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct OsqueryResult {
     /// Name of the scheduled query that produced this result
-    #[prost(string, tag = "1")]
     pub query_name: String,
 
     /// UUID of the agent that produced this result
-    #[prost(string, tag = "2")]
     pub agent_uuid: String,
 
     /// Unix timestamp in nanoseconds
-    #[prost(int64, tag = "3")]
     pub timestamp_ns: i64,
 
     /// The result rows, each encoded as an OsqueryResultRow
-    #[prost(message, repeated, tag = "4")]
     pub rows: Vec<OsqueryResultRow>,
 
     /// Whether this is a snapshot, added diff, or removed diff
-    #[prost(enumeration = "ResultAction", tag = "5")]
-    pub action: i32,
+    pub action: ResultAction,
 }
 
 /// A single row in an OsqueryResult, represented as key-value pairs.
-/// Protobuf doesn't have a native map-in-repeated, so we use a message
-/// with repeated entries.
-#[derive(Clone, Message)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct OsqueryResultRow {
-    #[prost(message, repeated, tag = "1")]
     pub columns: Vec<ColumnEntry>,
 }
 
 /// A single column name-value pair within a row.
-#[derive(Clone, Message)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ColumnEntry {
-    #[prost(string, tag = "1")]
     pub name: String,
-    #[prost(string, tag = "2")]
     pub value: String,
 }
 
 /// The type of result action for differential queries.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, prost::Enumeration)]
-#[repr(i32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum ResultAction {
     /// Full table dump (first execution or snapshot mode)
     Snapshot = 0,
@@ -105,7 +93,6 @@ pub enum ResultAction {
     Removed = 2,
 }
 
-// Implement prost::Enumeration for ResultAction so prost can encode it
 impl ResultAction {
     pub fn as_str(&self) -> &'static str {
         match self {

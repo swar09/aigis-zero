@@ -1,7 +1,7 @@
+use crate::codec::JsonCodec;
 use crate::types::{EnrollmentResult, RegisterRequest, RegisterResponse};
 use anyhow::Result;
 use tonic::{Request, client::Grpc, transport::Channel};
-use tonic_prost::ProstCodec;
 
 pub struct AgentEnrollment;
 
@@ -13,7 +13,7 @@ impl AgentEnrollment {
         let path = http::uri::PathAndQuery::from_static("/edr.fleet.FleetService/RegisterAgent");
 
         let res: RegisterResponse = client
-            .unary(Request::new(request), path, ProstCodec::default())
+            .unary(Request::new(request), path, JsonCodec::default())
             .await?
             .into_inner();
 
