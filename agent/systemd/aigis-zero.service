@@ -1,0 +1,45 @@
+[Unit]
+Description=Aigis-Zero Agent
+Documentation=https://github.com/swar09/project-edr
+After=network-online.target osqueryd.service
+Wants=network-online.target
+Requires=osqueryd.service
+
+# Services that conflict with our isolation mode
+Conflicts=firewalld.service ufw.service
+
+[Service]
+Type=notify
+User=root
+Group=root
+ExecStart=/usr/sbin/aigis-zero --config /etc/aigis-zero/config.toml
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=on-failure
+RestartSec=5s
+TimeoutStopSec=30
+TimeoutStartSec=45
+
+# Systemd watchdog — agent must send sd_notify WATCHDOG=1 every 30s
+WatchdogSec=30s
+NotifyAccess=main
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=aigis-zero
+
+# Security hardening
+NoNewPrivileges=yes
+ProtectSystem=strict
+ReadWritePaths=/var/lib/aigis-zero /var/log/aigis-zero /etc/osquery /run/osquery
+ProtectHome=yes
+PrivateTmp=yes
+CapabilityBoundingSet=CAP_NET_ADMIN CAP_SYS_PTRACE CAP_DAC_READ_SEARCH CAP_KILL
+
+# Resource limits
+LimitNOFILE=65536
+LimitNPROC=4096
+MemoryMax=512M
+
+[Install]
+WantedBy=multi-user.target

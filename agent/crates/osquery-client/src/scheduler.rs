@@ -256,3 +256,46 @@ impl QueryScheduler {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_upsert_and_load_queries() {
+        let dir = tempfile::tempdir().unwrap();
+        let db_path = dir.path().join("queries.db");
+        let mut scheduler = QueryScheduler::new(&db_path).unwrap();
+
+        let q1 = ScheduledQuery {
+            name: "test_query".to_string(),
+            query: "SELECT 1".to_string(),
+            interval_secs: 60,
+            snapshot: false,
+        };
+
+        scheduler.upsert_queries(&[q1.clone()]).unwrap();
+
+        let loaded = scheduler.load_queries().unwrap();
+        assert_eq!(loaded.len(), 1);
+        assert_eq!(loaded[0].name, "test_query");
+        assert_eq!(loaded[0].query, "SELECT 1");
+        assert_eq!(loaded[0].interval_secs, 60);
+        assert_eq!(loaded[0].snapshot, false);
+
+        // Update the query
+        let q2 = ScheduledQuery {
+            name: "test_query".to_string(),
+            query: "SELECT 2".to_string(),
+            interval_secs: 120,
+            snapshot: true,
+        };
+        scheduler.upsert_queries(&[q2]).unwrap();
+
+        let loaded = scheduler.load_queries().unwrap();
+        assert_eq!(loaded.len(), 1);
+        assert_eq!(loaded[0].query, "SELECT 2");
+        assert_eq!(loaded[0].interval_secs, 120);
+        assert_eq!(loaded[0].snapshot, true);
+    }
+}

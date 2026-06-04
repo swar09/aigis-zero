@@ -19,4 +19,5 @@ fleet-client = { workspace = true }
 osquery-client = { workspace = true }
 event-buffer = { workspace = true }
 hostname = "0.4"
+notify = { version = "6", features = ["macos_fsevent"] }
 

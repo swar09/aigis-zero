@@ -12,3 +12,8 @@ path = "src/main.rs"
 agent-core = { workspace = true }
 tokio = { workspace = true }
 anyhow = { workspace = true }
+tracing = { workspace = true }
+clap = { version = "4", features = ["derive", "env"] }
+sd-notify = "0.4"
+libc = "0.2"
+toml = { workspace = true }

@@ -1,0 +1,59 @@
+name: Aigis-Zero Agent Release
+
+on:
+  push:
+    tags:
+      - 'agent-v*'
+
+jobs:
+  build:
+    name: Build and Package Agent
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-unknown-linux-musl
+
+      - name: Install cross
+        run: cargo install cross --git https://github.com/cross-rs/cross
+
+      - name: Build Agent (x86_64-musl)
+        run: |
+          cd agent
+          cross build --bin edr-agent --target x86_64-unknown-linux-musl --release
+
+      - name: Package Release
+        run: |
+          mkdir -p aigis-zero-agent
+          # Copy binary
+          cp target/x86_64-unknown-linux-musl/release/edr-agent aigis-zero-agent/aigis-zero
+          # Copy scripts
+          cp agent/install.sh aigis-zero-agent/
+          cp agent/uninstall.sh aigis-zero-agent/
+          # Copy configs
+          cp agent/agent.toml aigis-zero-agent/
+          cp -r agent/osquery aigis-zero-agent/
+          cp -r agent/sysctl aigis-zero-agent/
+          cp -r agent/limits aigis-zero-agent/
+          cp -r agent/systemd aigis-zero-agent/
+          
+          # Create tarball
+          tar -czvf aigis-zero-agent-linux-x86_64.tar.gz aigis-zero-agent/
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: aigis-zero-agent-linux-x86_64
+          path: aigis-zero-agent-linux-x86_64.tar.gz
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: aigis-zero-agent-linux-x86_64.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

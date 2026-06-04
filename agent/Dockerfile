@@ -1,90 +1,102 @@
-FROM ubuntu:24.04
+# ==========================================
+# Stage 1: Build the Aigis-Zero Agent
+# ==========================================
+FROM rust:1.85-slim-bookworm AS builder
+
+# Install build dependencies for compiling static musl binary + Protobuf
+RUN apt-get update && apt-get install -y \
+    musl-tools \
+    protobuf-compiler \
+    libprotobuf-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN rustup target add x86_64-unknown-linux-musl
+
+WORKDIR /workspace
+# Copy the entire workspace (assumes docker build is run from the root directory)
+COPY . .
+
+# Build the edr-agent statically
+RUN cargo build --bin edr-agent --target x86_64-unknown-linux-musl --release
+
+# ==========================================
+# Stage 2: Runtime Image with Systemd + Osquery
+# ==========================================
+FROM ubuntu:22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install dependencies, GPG, and repository tools
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates \
+# Install systemd, nftables, and utilities
+RUN apt-get update && apt-get install -y \
+    systemd \
+    systemd-sysv \
+    nftables \
     curl \
     gnupg \
-    wget \
-    net-tools \
-    iptables \
-    ipset \
-    netfilter-persistent \
-    git \
-    openssh-server \
-    sudo \
-    # Required for osquery audit event collection
-    auditd \
-    libaudit1 \
-    iproute2 \
+    software-properties-common \
     && rm -rf /var/lib/apt/lists/*
 
-# Add official OSQuery repository and install OSQuery
-RUN curl -L https://pkg.osquery.io/deb/pubkey.gpg | gpg --dearmor -o /usr/share/keyrings/osquery.gpg && \
-    echo "deb [signed-by=/usr/share/keyrings/osquery.gpg] https://pkg.osquery.io/deb deb main" | tee /etc/apt/sources.list.d/osquery.list && \
-    apt-get update && \
-    apt-get install -y osquery protobuf-compiler build-essential pkg-config libssl-dev cmake && \
+# Install osquery
+RUN curl -L https://pkg.osquery.io/deb/osquery_key.pub | apt-key add - && \
+    add-apt-repository 'deb [arch=amd64] https://pkg.osquery.io/deb deb main' && \
+    apt-get update && apt-get install -y osquery && \
     rm -rf /var/lib/apt/lists/*
 
-# Install Rust
-RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-ENV PATH="/root/.cargo/bin:${PATH}"
-ENV CARGO_TARGET_DIR="/tmp/target"
+# Mask unnecessary systemd services inside a container
+RUN systemctl mask systemd-udevd.service \
+                   systemd-udevd-kernel.socket \
+                   systemd-udevd-control.socket \
+                   systemd-modules-load.service \
+                   sys-kernel-debug.mount \
+                   sys-kernel-tracing.mount \
+                   systemd-journald-audit.socket
 
-# Ensure required directories exist for osquery socket and configurations
-RUN mkdir -p /var/osquery /etc/osquery /var/log/osquery
+# 1. Install agent binary
+COPY --from=builder /workspace/target/x86_64-unknown-linux-musl/release/edr-agent /usr/sbin/aigis-zero
+RUN chmod 755 /usr/sbin/aigis-zero
 
-# Setup osquery.flags — events and audit enabled.
-# The container must be run with --cap-add AUDIT_CONTROL --cap-add AUDIT_READ
-# (or --privileged) for the audit subsystem to function.
-RUN printf -- \
-'--disable_events=false\n\
---disable_audit=false\n\
---audit_allow_process_events=true\n\
---audit_allow_sockets=true\n\
---audit_allow_config=true\n\
---audit_persist=true\n\
---events_max=50000\n\
---socket=/var/osquery/osquery.em\n\
---host_identifier=hostname\n\
---schedule_splay_percent=10\n\
-' > /etc/osquery/osquery.flags
+# 2. Setup directories and permissions
+RUN mkdir -p /etc/aigis-zero /var/lib/aigis-zero /var/log/aigis-zero && \
+    chmod 700 /etc/aigis-zero /var/lib/aigis-zero /var/log/aigis-zero
 
-# Setup basic osquery.conf
-RUN printf '{\n\
-  "options": {\n\
-    "disable_events": "false",\n\
-    "disable_audit": "false",\n\
-    "audit_allow_process_events": "true",\n\
-    "audit_allow_sockets": "true",\n\
-    "audit_allow_config": "true",\n\
-    "audit_persist": "true",\n\
-    "events_max": "50000",\n\
-    "host_identifier": "hostname",\n\
-    "schedule_splay_percent": "10"\n\
-  },\n\
-  "schedule": {\n\
-    "running_processes": {\n\
-      "query": "SELECT pid, name, path, cmdline, uid, parent FROM processes;",\n\
-      "interval": 30\n\
-    }\n\
-  }\n\
-}' > /etc/osquery/osquery.conf
+# 3. Copy agent config
+COPY agent/agent.toml /etc/aigis-zero/config.toml
+RUN chmod 600 /etc/aigis-zero/config.toml
 
-# Expose directory for volume mounting if needed
-VOLUME ["/var/osquery", "/etc/osquery"]
+# 4. Copy osquery config
+COPY agent/osquery/osquery.conf /etc/osquery/
+COPY agent/osquery/osquery.flags /etc/osquery/
+RUN chmod 600 /etc/osquery/osquery.conf /etc/osquery/osquery.flags
 
-# Setup startup entrypoint script to launch osqueryd in background and start shell
-RUN printf '#!/bin/bash\n\
-# Start osqueryd daemon in background\n\
-echo "Starting osqueryd..."\n\
-osqueryd --flagfile=/etc/osquery/osquery.flags --config_path=/etc/osquery/osquery.conf --verbose &\n\
-\n\
-# Execute passed command or default to bash\n\
-exec "$@"\n\
-' > /usr/local/bin/entrypoint.sh && chmod +x /usr/local/bin/entrypoint.sh
+# 5. Copy tunables
+COPY agent/sysctl/60-aigis-zero.conf /etc/sysctl.d/
+COPY agent/limits/99-aigis-zero.conf /etc/security/limits.d/
 
-ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
-CMD ["/bin/bash"]
+# 6. Copy and enable systemd services
+COPY agent/systemd/aigis-zero.service /etc/systemd/system/
+RUN mkdir -p /etc/systemd/system/osqueryd.service.d
+COPY agent/systemd/osqueryd.service.d/aigis-zero.conf /etc/systemd/system/osqueryd.service.d/
+
+RUN systemctl enable osqueryd.service && \
+    systemctl enable aigis-zero.service
+
+# Use systemd as the entrypoint
+STOPSIGNAL SIGRTMIN+3
+CMD ["/lib/systemd/systemd"]
+
+# ==========================================
+# HOW TO BUILD AND RUN:
+# 
+# 1. Build (from the workspace root directory, NOT inside /agent):
+#    docker build -t aigis-zero-agent -f agent/Dockerfile .
+#
+# 2. Run with elevated privileges (required for eBPF, systemd, and nftables):
+#    docker run -d --name agent-node \
+#      --privileged \
+#      --cgroupns=host \
+#      -v /sys/fs/cgroup:/sys/fs/cgroup:rw \
+#      aigis-zero-agent
+#
+# 3. Check logs:
+#    docker exec -it agent-node journalctl -u aigis-zero -f
+# ==========================================
