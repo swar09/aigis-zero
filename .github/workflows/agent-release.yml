@@ -5,6 +5,9 @@ on:
     tags:
       - 'agent-v*'
 
+permissions:
+  contents: write
+
 jobs:
   build:
     name: Build and Package Agent
