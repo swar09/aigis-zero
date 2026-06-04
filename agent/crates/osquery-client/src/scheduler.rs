@@ -274,14 +274,14 @@ mod tests {
             snapshot: false,
         };
 
-        scheduler.upsert_queries(&[q1.clone()]).unwrap();
+        scheduler.upsert_queries(std::slice::from_ref(&q1)).unwrap();
 
         let loaded = scheduler.load_queries().unwrap();
         assert_eq!(loaded.len(), 1);
         assert_eq!(loaded[0].name, "test_query");
         assert_eq!(loaded[0].query, "SELECT 1");
         assert_eq!(loaded[0].interval_secs, 60);
-        assert_eq!(loaded[0].snapshot, false);
+        assert!(!loaded[0].snapshot);
 
         // Update the query
         let q2 = ScheduledQuery {
@@ -296,6 +296,6 @@ mod tests {
         assert_eq!(loaded.len(), 1);
         assert_eq!(loaded[0].query, "SELECT 2");
         assert_eq!(loaded[0].interval_secs, 120);
-        assert_eq!(loaded[0].snapshot, true);
+        assert!(loaded[0].snapshot);
     }
 }
