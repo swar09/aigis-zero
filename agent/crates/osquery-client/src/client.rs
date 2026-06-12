@@ -54,18 +54,23 @@ impl OsqueryClient {
 
         // 2. Connect to socket and write/read asynchronously
         let mut stream = UnixStream::connect(&self.socket_path).await?;
-        stream.write_all(&request_bytes).await?;
+
+        // Write FRAMED header (4 bytes, big endian length)
+        let len = request_bytes.len() as u32;
+        let mut frame = Vec::with_capacity(4 + request_bytes.len());
+        frame.extend_from_slice(&len.to_be_bytes());
+        frame.extend_from_slice(&request_bytes);
+        stream.write_all(&frame).await?;
         stream.flush().await?;
 
-        let mut buf = Vec::new();
-        // Since we don't know the size, we can read until we can parse a valid thrift message.
-        // Actually, let's just read 8KB which is usually enough for simple queries. If we need more, we read more.
-        let mut chunk = vec![0u8; 8192];
-        let n = stream.read(&mut chunk).await?;
-        if n == 0 {
-            return Err(anyhow!("Connection closed by osquery"));
-        }
-        buf.extend_from_slice(&chunk[..n]);
+        // Read FRAMED header (4 bytes)
+        let mut len_buf = [0u8; 4];
+        stream.read_exact(&mut len_buf).await?;
+        let len = u32::from_be_bytes(len_buf) as usize;
+
+        // Read exactly the payload length
+        let mut buf = vec![0u8; len];
+        stream.read_exact(&mut buf).await?;
 
         Self::parse_query_response(&buf)
     }

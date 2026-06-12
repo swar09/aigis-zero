@@ -1,0 +1,63 @@
+# Aigis-Zero Agent — osquery flags
+# eBPF-only: auditd disabled, BPF events enabled
+# Managed by: /agent/install.sh — do not edit manually on the host.
+
+# ─── Core paths ───────────────────────────────────────────────────────────────
+--config_plugin=filesystem
+--config_path=/etc/osquery/osquery.conf
+--config_refresh=300
+--config_accelerated_refresh=120
+--database_path=/var/osquery/osquery.db
+--pidfile=/var/osquery/osqueryd.pidfile
+--force=true
+
+# ─── Logging ──────────────────────────────────────────────────────────────────
+--logger_plugin=filesystem
+--logger_path=/var/log/osquery/
+--logger_mode=0640
+--logger_rotate=true
+--logger_rotate_size=26214400
+--logger_rotate_max_files=25
+--logger_event_type=true
+--logger_snapshot_event_type=true
+--logger_min_status=0
+--logger_stderr=true
+
+# ─── Events subsystem ─────────────────────────────────────────────────────────
+# Master toggle — must be false to enable any *_events table
+--disable_events=false
+
+# Audit subsystem: disabled — we use eBPF only
+# PRE-CONDITION: auditd must be stopped/masked before starting osqueryd
+--disable_audit=true
+
+# eBPF events (kernel >= 4.18 required)
+# Provides: bpf_process_events, bpf_socket_events
+--enable_bpf_events=true
+
+# inotify-based FIM (file_events table)
+--enable_file_events=true
+
+# Event buffer: retain events for up to 1 hour, cap at 500k rows
+--events_expiry=3600
+--events_max=500000
+
+# ─── Watchdog ─────────────────────────────────────────────────────────────────
+--watchdog_level=0
+--watchdog_memory_limit=400
+--watchdog_utilization_limit=25
+--watchdog_delay=90
+--watchdog_forced_shutdown_delay=4
+
+# ─── Scheduling ───────────────────────────────────────────────────────────────
+--schedule_splay_percent=10
+--schedule_max_drift=60
+--schedule_default_interval=3600
+
+# ─── Host identity ────────────────────────────────────────────────────────────
+# uuid = DMTF/SMBIOS UUID — stable across reboots, unique per physical host
+--host_identifier=uuid
+
+# ─── Misc ─────────────────────────────────────────────────────────────────────
+--utc=true
+--verbose=false

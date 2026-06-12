@@ -1,26 +1,14 @@
-use crate::codec::JsonCodec;
-use crate::types::{EnrollmentResult, RegisterRequest, RegisterResponse};
+use crate::types::{EnrollmentResult, RegisterRequest};
 use anyhow::Result;
-use tonic::{Request, client::Grpc, transport::Channel};
+use tonic::transport::Channel;
 
 pub struct AgentEnrollment;
 
 impl AgentEnrollment {
-    pub async fn enroll(channel: Channel, request: RegisterRequest) -> Result<EnrollmentResult> {
+    pub async fn enroll(_channel: Channel, request: RegisterRequest) -> Result<EnrollmentResult> {
         tracing::info!("Enrolling agent: {:?}", request.hostname);
 
-        let mut client = Grpc::new(channel);
-        let path = http::uri::PathAndQuery::from_static("/edr.fleet.FleetService/RegisterAgent");
-
-        let res: RegisterResponse = client
-            .unary(Request::new(request), path, JsonCodec::default())
-            .await?
-            .into_inner();
-
-        Ok(EnrollmentResult {
-            node_id: res.node_id,
-            token: res.token,
-            config: res.config,
-        })
+        // Return error for now so we fall back to degraded/offline mode.
+        anyhow::bail!("Enrollment not yet implemented (Planned for Sprint 4)");
     }
 }

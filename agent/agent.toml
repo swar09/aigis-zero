@@ -1,0 +1,48 @@
+[agent]
+# node_id is filled in after enrollment by fleet server
+# node_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+name = ""                           # auto-set from hostname on first run
+log_level = "info"                  # trace | debug | info | warn | error
+log_format = "json"                 # json | human
+log_dir = "/var/log/aigis-zero"
+data_dir = "/var/lib/aigis-zero"
+event_buffer_db = "/var/lib/aigis-zero/events.db"
+event_buffer_max = 500000           # max events in SQLite before oldest are dropped
+event_drain_batch = 100             # rows per flush cycle
+event_drain_interval_secs = 5      # how often to attempt shipping buffered events
+
+[osquery]
+socket_path = "/var/osquery/osquery.em"
+conf_path = "/etc/osquery/osquery.conf"
+flags_path = "/etc/osquery/osquery.flags"
+pid_file = "/run/osquery/osqueryd.pid"
+log_path = "/var/log/osquery"
+connect_timeout_secs = 30
+query_timeout_secs = 60
+
+[fleet]
+# Fleet server connection
+host = "fleet.example.com"          # fleet server hostname or IP
+port = 8443                         # fleet server gRPC port
+endpoint = "https://fleet.example.com:8443"   # derived, kept for convenience
+enrollment_secret = ""              # pre-shared secret (scaffold, implemented later)
+
+# TLS (scaffold only — cert paths populated after enrollment)
+tls_ca_cert = "/etc/aigis-zero/ca.crt"
+# tls_client_cert = "/etc/aigis-zero/agent.crt"  # populated after enrollment
+# tls_client_key  = "/etc/aigis-zero/agent.key"  # populated after enrollment
+
+# Timing
+heartbeat_interval_secs = 60
+reconnect_interval_secs = 10
+max_reconnect_attempts = 0          # 0 = retry forever
+
+[agent.server]
+# Agent's own gRPC/HTTP listener (for local health checks, future use)
+bind_addr = "127.0.0.1"
+port = 9100                         # agent metrics/health port (localhost only)
+
+[isolation]
+enabled = false                     # toggled by fleet server command
+fleet_ip = ""                       # auto-resolved from fleet.host
+fleet_port = 8443

@@ -1,36 +1,8 @@
 use crate::config::AgentConfig;
 use anyhow::Result;
 use event_buffer::EventBuffer;
-use osquery_client::types::{OsqueryResult, ScheduledQuery};
-use serde::Deserialize;
+use osquery_client::types::OsqueryResult;
 use tokio::sync::mpsc;
-
-/// Top-level structure of scheduled_queries.toml.
-#[derive(Debug, Deserialize)]
-struct ScheduledQueriesFile {
-    queries: Vec<ScheduledQueryEntry>,
-}
-
-/// One entry inside [[queries]] in the TOML file.
-#[derive(Debug, Deserialize)]
-struct ScheduledQueryEntry {
-    name: String,
-    query: String,
-    interval_secs: u64,
-    #[serde(default)]
-    snapshot: bool,
-}
-
-impl From<ScheduledQueryEntry> for ScheduledQuery {
-    fn from(e: ScheduledQueryEntry) -> Self {
-        ScheduledQuery {
-            name: e.name,
-            query: e.query,
-            interval_secs: e.interval_secs,
-            snapshot: e.snapshot,
-        }
-    }
-}
 
 pub async fn run() -> Result<()> {
     let config_path =
@@ -42,36 +14,63 @@ pub async fn run() -> Result<()> {
     let config: AgentConfig = toml::from_str(&config_str)
         .map_err(|e| anyhow::anyhow!("Failed to parse TOML config: {}", e))?;
 
-    let format = match config.agent.log_format.as_deref() {
-        Some("json") => agent_tracing::LogFormat::Json,
+    let format = match config.agent.log_format.as_str() {
+        "json" => agent_tracing::LogFormat::Json,
         _ => agent_tracing::LogFormat::Human,
     };
 
     agent_tracing::init(&config.agent.log_level, format)?;
-    tracing::info!("Starting EDR Agent Orchestrator");
+    tracing::info!("Starting Aigis-Zero Agent Orchestrator");
+
+    let config_path_clone = config_path.clone();
+    tokio::task::spawn_blocking(move || {
+        use notify::{RecursiveMode, Watcher};
+        let (tx, rx) = std::sync::mpsc::channel();
+        let mut watcher = match notify::recommended_watcher(tx) {
+            Ok(w) => w,
+            Err(e) => {
+                tracing::error!("Failed to create config watcher: {}", e);
+                return;
+            }
+        };
+
+        if let Err(e) = watcher.watch(
+            std::path::Path::new(&config_path_clone),
+            RecursiveMode::NonRecursive,
+        ) {
+            tracing::warn!("Could not watch config file {}: {}", config_path_clone, e);
+        } else {
+            tracing::info!("Watching {} for changes", config_path_clone);
+        }
+
+        for res in rx {
+            match res {
+                Ok(event) => {
+                    if event.kind.is_modify() {
+                        tracing::info!(
+                            "Config file {} modified (Hot-reload to be implemented in future sprint)",
+                            config_path_clone
+                        );
+                    }
+                }
+                Err(e) => tracing::error!("watch error: {:?}", e),
+            }
+        }
+    });
 
     // EventBuffer wraps rusqlite::Connection which is !Send, so we keep it
     // on this task and never move it into tokio::spawn.
-    let buffer = EventBuffer::new(&config.agent.buffer_path)
+    let buffer = EventBuffer::new(&config.agent.event_buffer_db, config.agent.event_buffer_max)
         .map_err(|e| anyhow::anyhow!("Failed to open event buffer: {}", e))?;
-    tracing::info!("Initialized event buffer at {:?}", config.agent.buffer_path);
-
-    // ── Seed scheduled queries from TOML file (testing only) ──────────────
-    if let Some(sq_path) = &config.agent.scheduled_queries_path {
-        match seed_scheduled_queries(sq_path, &config) {
-            Ok(n) => tracing::info!(
-                "Seeded {} scheduled queries into SQLite from {:?}",
-                n,
-                sq_path
-            ),
-            Err(e) => tracing::warn!("Could not seed scheduled queries from {:?}: {}", sq_path, e),
-        }
-    }
+    tracing::info!(
+        "Initialized event buffer at {:?}",
+        config.agent.event_buffer_db
+    );
 
     // Start OsqueryCollector
     let collector = osquery_client::OsqueryCollector::new(osquery_client::OsqueryConfig {
         socket_path: config.osquery.socket_path.clone(),
-        db_path: config.agent.buffer_path.clone(),
+        db_path: config.agent.event_buffer_db.clone(),
     })
     .await?;
 
@@ -127,7 +126,7 @@ pub async fn run() -> Result<()> {
         tokio::select! {
             Some(result) = results_rx.recv() => {
                 let bytes = encode_result(&result);
-                match buffer.push(&bytes) {
+                match buffer.push(bytes).await {
                     Ok(()) => tracing::debug!(
                         "Buffered '{}' ({} rows, action={:?})",
                         result.query_name,
@@ -160,24 +159,6 @@ fn encode_result(result: &OsqueryResult) -> String {
     serde_json::to_string(&event).unwrap_or_default()
 }
 
-/// Load scheduled_queries.toml, upsert into the scheduler's SQLite table.
-/// Returns the number of queries upserted.
-fn seed_scheduled_queries(toml_path: &std::path::Path, config: &AgentConfig) -> Result<usize> {
-    let content = std::fs::read_to_string(toml_path)
-        .map_err(|e| anyhow::anyhow!("Failed to read {:?}: {}", toml_path, e))?;
-
-    let file: ScheduledQueriesFile = toml::from_str(&content)
-        .map_err(|e| anyhow::anyhow!("Failed to parse {:?}: {}", toml_path, e))?;
-
-    let queries: Vec<ScheduledQuery> = file.queries.into_iter().map(Into::into).collect();
-    let n = queries.len();
-
-    let mut scheduler = osquery_client::scheduler::QueryScheduler::new(&config.agent.buffer_path)?;
-    scheduler.upsert_queries(&queries)?;
-
-    Ok(n)
-}
-
 fn hostname_or_default() -> String {
     hostname::get()
         .ok()
@@ -190,4 +171,41 @@ fn read_machine_id() -> String {
         .unwrap_or_default()
         .trim()
         .to_string()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use osquery_client::types::{ColumnEntry, OsqueryResultRow, ResultAction};
+    use serde_json::Value;
+
+    #[test]
+    fn test_encode_result() {
+        let result = OsqueryResult {
+            query_name: "test_query".to_string(),
+            agent_uuid: "uuid-123".to_string(),
+            timestamp_ns: 123456789,
+            rows: vec![OsqueryResultRow {
+                columns: vec![ColumnEntry {
+                    name: "col1".to_string(),
+                    value: "val1".to_string(),
+                }],
+            }],
+            action: ResultAction::Snapshot,
+        };
+
+        let encoded = encode_result(&result);
+
+        let parsed: fleet_client::types::AgentEvent = serde_json::from_str(&encoded).unwrap();
+        assert_eq!(parsed.node_id, "uuid-123");
+        assert_eq!(
+            parsed.event_type,
+            fleet_client::types::EventType::Osquery as i32
+        );
+        assert_eq!(parsed.timestamp_ns, 123456789);
+
+        let payload: Value = parsed.payload;
+        assert_eq!(payload["query_name"].as_str().unwrap(), "test_query");
+        assert_eq!(payload["action"].as_str().unwrap(), "SNAPSHOT");
+    }
 }

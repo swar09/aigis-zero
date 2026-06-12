@@ -27,7 +27,7 @@ exclude = [
 
 [workspace.package]
 edition = "2024"
-rust-version = "1.85"
+rust-version = "1.91"
 version = "0.1.0"
 license = "MIT"
 
@@ -70,8 +70,6 @@ config = "0.15"
 anyhow = "1"
 thiserror = "2"
 async-trait = "0.1"
-
-yara-x = "1"
 
 sled = "0.34"
 

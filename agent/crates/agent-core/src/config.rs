@@ -1,109 +1,128 @@
 use serde::Deserialize;
-use std::collections::HashMap;
 use std::path::PathBuf;
 use uuid::Uuid;
 
-/// Root agent configuration. Read from /etc/edr/agent.toml
-#[derive(Debug, Deserialize)]
+/// Root agent configuration. Read from /etc/aigis-zero/config.toml
+#[derive(Debug, Deserialize, Clone)]
 pub struct AgentConfig {
-    pub fleet: FleetConfig,
     pub agent: AgentSection,
-    pub osquery: OsqueryConfig,
-}
-
-/// Fleet server connection settings.
-#[derive(Debug, Deserialize)]
-pub struct FleetConfig {
-    /// gRPC endpoint, e.g., "http://fleet.internal:50051"
-    pub endpoint: String,
-
-    /// Heartbeat interval in seconds (default 30, overridden by fleet server)
-    pub heartbeat_interval_secs: u64,
-
-    /// Max events per gRPC batch send
-    pub batch_size: u32,
+    pub osquery: OsquerySection,
+    pub fleet: FleetSection,
+    pub isolation: IsolationSection,
 }
 
 /// Agent identity and runtime settings.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct AgentSection {
     /// UUID assigned after first enrollment. None = not yet enrolled.
     pub node_id: Option<Uuid>,
-
-    /// Path to the SQLite database for event buffering + query storage
-    pub buffer_path: PathBuf,
-
-    /// Log level filter: "trace" | "debug" | "info" | "warn" | "error"
+    pub name: String,
     pub log_level: String,
+    pub log_format: String,
+    pub log_dir: PathBuf,
+    pub data_dir: PathBuf,
+    pub event_buffer_db: PathBuf,
+    pub event_buffer_max: u64,
+    pub event_drain_batch: u32,
+    pub event_drain_interval_secs: u64,
+    pub server: AgentServerSection,
+}
 
-    /// Log output format: "human" (default, colored) | "json" (structured)
-    pub log_format: Option<String>,
-
-    /// Path to a TOML file containing scheduled queries to seed into SQLite.
-    /// Testing only — remove path from config (or omit field) in production.
-    pub scheduled_queries_path: Option<PathBuf>,
+#[derive(Debug, Deserialize, Clone)]
+pub struct AgentServerSection {
+    pub bind_addr: String,
+    pub port: u16,
 }
 
 /// OSQuery daemon configuration.
-#[derive(Debug, Deserialize)]
-pub struct OsqueryConfig {
-    /// Path to osqueryd's extension manager Unix socket
-    /// Default: /var/osquery/osquery.em
+#[derive(Debug, Deserialize, Clone)]
+pub struct OsquerySection {
     pub socket_path: PathBuf,
-
-    /// Connection timeout in seconds when connecting to the socket
-    pub connect_timeout_secs: Option<u64>,
-
-    // Daemon Options (mirrors osquery.conf "options")
-    pub options: OsqueryOptions,
-
-    /// Bootstrap queries (overridden by fleet server push)
-    pub schedule: Vec<ScheduledQueryConfig>,
-
-    /// FIM paths: category_name → list of glob paths
-    /// e.g., { "etc": ["/etc/%%", "/etc/ssh/%%"] }
-    pub file_paths: Option<HashMap<String, Vec<String>>>,
-
-    /// Named packs: pack_name → path_to_pack_conf_file
-    pub packs: Option<HashMap<String, String>>,
+    pub conf_path: PathBuf,
+    pub flags_path: PathBuf,
+    pub pid_file: PathBuf,
+    pub log_path: PathBuf,
+    pub connect_timeout_secs: u64,
+    pub query_timeout_secs: u64,
 }
 
-/// OSQuery daemon option flags.
-/// Maps to the "options" section of osquery.conf.
-/// All fields are Optional — only set values override osquery defaults.
-#[derive(Debug, Deserialize)]
-pub struct OsqueryOptions {
-    pub config_plugin: Option<String>,
-    pub logger_plugin: Option<String>,
-    pub disable_logging: Option<bool>,
-    pub disable_events: Option<bool>,
-    pub disable_audit: Option<bool>,
-    pub audit_allow_process_events: Option<bool>,
-    pub audit_allow_sockets: Option<bool>,
-    pub audit_allow_config: Option<bool>,
-    pub audit_persist: Option<bool>,
-    pub events_max: Option<u64>,
-    pub schedule_splay_percent: Option<u32>,
-    pub watchdog_level: Option<u32>,
-    pub worker_threads: Option<u32>,
-    pub host_identifier: Option<String>,
-    pub specified_identifier: Option<String>,
-    pub database_path: Option<PathBuf>,
-    pub disable_tables: Option<String>,
-    pub enable_tables: Option<String>,
-    pub utc: Option<bool>,
+/// Fleet server connection settings.
+#[derive(Debug, Deserialize, Clone)]
+pub struct FleetSection {
+    pub host: String,
+    pub port: u16,
+    pub endpoint: String,
+    pub enrollment_secret: String,
+    pub tls_ca_cert: PathBuf,
+    pub tls_client_cert: Option<PathBuf>,
+    pub tls_client_key: Option<PathBuf>,
+    pub heartbeat_interval_secs: u64,
+    pub reconnect_interval_secs: u64,
+    pub max_reconnect_attempts: u32,
 }
 
-/// A scheduled query definition in the TOML config file.
-#[derive(Debug, Deserialize)]
-pub struct ScheduledQueryConfig {
-    pub name: String,
-    pub query: String,
-    pub interval_secs: u64,
-    /// true = full snapshot each time, false = differential (default)
-    pub snapshot: Option<bool>,
-    /// Track removed rows in differential mode (default true)
-    pub removed: Option<bool>,
-    /// Restrict to specific platform: "linux" | "darwin" | "windows"
-    pub platform: Option<String>,
+#[derive(Debug, Deserialize, Clone)]
+pub struct IsolationSection {
+    pub enabled: bool,
+    pub fleet_ip: String,
+    pub fleet_port: u16,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_agent_toml() {
+        let toml_str = r#"
+[agent]
+name = "test-agent"
+log_level = "debug"
+log_format = "human"
+log_dir = "/var/log"
+data_dir = "/var/lib"
+event_buffer_db = "/var/lib/events.db"
+event_buffer_max = 1000
+event_drain_batch = 100
+event_drain_interval_secs = 5
+
+[agent.server]
+bind_addr = "127.0.0.1"
+port = 9100
+
+[osquery]
+socket_path = "/var/osquery/osquery.em"
+conf_path = "/etc/osquery/osquery.conf"
+flags_path = "/etc/osquery/osquery.flags"
+pid_file = "/run/osquery/osqueryd.pid"
+log_path = "/var/log/osquery"
+connect_timeout_secs = 30
+query_timeout_secs = 60
+
+[fleet]
+host = "fleet.test"
+port = 8443
+endpoint = "https://fleet.test:8443"
+enrollment_secret = "secret"
+tls_ca_cert = "/etc/ca.crt"
+heartbeat_interval_secs = 60
+reconnect_interval_secs = 10
+max_reconnect_attempts = 0
+
+[isolation]
+enabled = false
+fleet_ip = "192.168.1.100"
+fleet_port = 8443
+"#;
+
+        let config: AgentConfig = toml::from_str(toml_str).expect("Failed to parse TOML");
+        assert_eq!(config.agent.name, "test-agent");
+        assert_eq!(config.agent.server.port, 9100);
+        assert_eq!(
+            config.osquery.socket_path.to_str().unwrap(),
+            "/var/osquery/osquery.em"
+        );
+        assert_eq!(config.fleet.host, "fleet.test");
+        assert!(!config.isolation.enabled);
+    }
 }

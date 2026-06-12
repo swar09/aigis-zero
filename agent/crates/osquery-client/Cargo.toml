@@ -16,3 +16,6 @@ uuid = { workspace = true }
 prost = { workspace = true }
 thrift = "0.17"
 rusqlite = { workspace = true }
+
+[dev-dependencies]
+tempfile = "3"
