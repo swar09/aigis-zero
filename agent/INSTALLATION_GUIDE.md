@@ -68,9 +68,8 @@ curl -fsSL \
   -o aigis-zero-agent.tar.gz
 ```
 
-> **Note:** The current GitHub Actions workflow (`agent-release.yml`) builds
-> `x86_64` only. The `aarch64` tarball will be available once the aarch64
-> build target is added to the release workflow.
+> **Note:** The release workflow builds both `x86_64` and `aarch64` tarballs.
+> The auto-detected `ARCH` variable will select the correct one for your machine.
 
 ### Extract and Install
 
