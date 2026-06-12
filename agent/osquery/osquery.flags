@@ -1,24 +1,17 @@
 # Aigis-Zero Agent — osquery flags
 # eBPF-only: auditd disabled, BPF events enabled
-# Managed by aigis-zero. Do not edit manually.
+# Managed by: /agent/install.sh — do not edit manually on the host.
 
-# Core paths
+# ─── Core paths ───────────────────────────────────────────────────────────────
 --config_plugin=filesystem
 --config_path=/etc/osquery/osquery.conf
 --config_refresh=300
 --config_accelerated_refresh=120
 --database_path=/var/osquery/osquery.db
---pidfile=/run/osquery/osqueryd.pid
+--pidfile=/var/osquery/osqueryd.pidfile
 --force=true
 
-# Extensions socket (our Thrift client connects here)
---disable_extensions=false
---extensions_socket=/var/osquery/osquery.em
---extensions_autoload=/etc/osquery/extensions.load
---extensions_timeout=10
---extensions_interval=3
-
-# Logging
+# ─── Logging ──────────────────────────────────────────────────────────────────
 --logger_plugin=filesystem
 --logger_path=/var/log/osquery/
 --logger_mode=0640
@@ -30,41 +23,41 @@
 --logger_min_status=0
 --logger_stderr=true
 
-# Events — eBPF only
+# ─── Events subsystem ─────────────────────────────────────────────────────────
+# Master toggle — must be false to enable any *_events table
 --disable_events=false
+
+# Audit subsystem: disabled — we use eBPF only
+# PRE-CONDITION: auditd must be stopped/masked before starting osqueryd
 --disable_audit=true
+
+# eBPF events (kernel >= 4.18 required)
+# Provides: bpf_process_events, bpf_socket_events
 --enable_bpf_events=true
+
+# inotify-based FIM (file_events table)
+--enable_file_events=true
+
+# Event buffer: retain events for up to 1 hour, cap at 500k rows
 --events_expiry=3600
 --events_max=500000
---events_optimize=true
---events_enforce_denylist=false
 
-# BPF tuning (adjust bpf_buffer_storage_size=64 on VMs with many virtual CPUs)
-# --bpf_perf_event_array_exp=10
-# --bpf_buffer_storage_size=512
-
-# Watchdog
+# ─── Watchdog ─────────────────────────────────────────────────────────────────
 --watchdog_level=0
 --watchdog_memory_limit=400
 --watchdog_utilization_limit=25
 --watchdog_delay=90
 --watchdog_forced_shutdown_delay=4
 
-# Scheduling
+# ─── Scheduling ───────────────────────────────────────────────────────────────
 --schedule_splay_percent=10
 --schedule_max_drift=60
 --schedule_default_interval=3600
 
-# Host identity (stable across reboots)
+# ─── Host identity ────────────────────────────────────────────────────────────
+# uuid = DMTF/SMBIOS UUID — stable across reboots, unique per physical host
 --host_identifier=uuid
 
-# Performance
---table_delay=0
---malloc_trim_threshold=200
---value_max=512
---hash_cache_max=500
---hash_delay=20
---read_max=52428800
-
+# ─── Misc ─────────────────────────────────────────────────────────────────────
 --utc=true
 --verbose=false

@@ -1,12 +1,13 @@
 [Unit]
 Description=Aigis-Zero Agent
 Documentation=https://github.com/swar09/project-edr
-After=network-online.target osqueryd.service
+After=network-online.target
 Wants=network-online.target
-Requires=osqueryd.service
 
-# Services that conflict with our isolation mode
-Conflicts=firewalld.service ufw.service
+# osqueryd is intentionally NOT listed here.
+# The two services are fully independent: each can be started, stopped,
+# and restarted without affecting the other. The agent's Thrift client
+# retries the osquery extension socket connection internally.
 
 [Service]
 Type=notify
@@ -31,7 +32,7 @@ SyslogIdentifier=aigis-zero
 # Security hardening
 NoNewPrivileges=yes
 ProtectSystem=strict
-ReadWritePaths=/var/lib/aigis-zero /var/log/aigis-zero /etc/osquery /run/osquery
+ReadWritePaths=/var/lib/aigis-zero /var/log/aigis-zero /var/osquery /run/osquery
 ProtectHome=yes
 PrivateTmp=yes
 CapabilityBoundingSet=CAP_NET_ADMIN CAP_SYS_PTRACE CAP_DAC_READ_SEARCH CAP_KILL
