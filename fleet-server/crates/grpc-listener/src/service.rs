@@ -13,26 +13,7 @@ use fleet_manager::{
 
 use crate::auth::validate_token;
 
-// Include the code generated from fleet.proto by build.rs.
-// Lints are suppressed on generated code we do not own.
-#[allow(
-    clippy::doc_markdown,
-    clippy::default_trait_access,
-    clippy::too_many_lines,
-    clippy::missing_errors_doc,
-    clippy::must_use_candidate,
-    clippy::wildcard_imports
-)]
-pub(crate) mod proto {
-    tonic::include_proto!("edr.fleet");
-}
-
-pub use proto::fleet_service_server::{FleetService, FleetServiceServer};
-
-use proto::{
-    AckCommand, AgentEvent, HeartbeatRequest, HeartbeatResponse, RegisterRequest, RegisterResponse,
-    ServerCommand, server_command::Command,
-};
+// Protobuf removed; JSON-over-gRPC structures will be defined here later
 
 type EventStream = Pin<Box<dyn Stream<Item = Result<ServerCommand, Status>> + Send + 'static>>;
 

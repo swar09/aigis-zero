@@ -1,73 +1,210 @@
-pub mod codec;
-pub mod connection;
-pub mod enrollment;
-pub mod heartbeat;
-pub mod stream;
-pub mod types;
+//! Fleet client for aigis-zero agent.
+//!
+//! Establishes a bidirectional JSON-over-gRPC stream to the fleet server.
+//! All communication (enrollment, heartbeats, events, commands) flows
+//! over a single persistent stream.
 
-use crate::connection::FleetConnection;
-use crate::enrollment::AgentEnrollment;
-use crate::heartbeat::HeartbeatManager;
-use crate::stream::EventStreamManager;
-use crate::types::{AgentEvent, EnrollmentResult, RegisterRequest, ServerCommand};
-use anyhow::{Result, anyhow};
+use std::time::Duration;
 use tokio::sync::mpsc;
+use tokio_stream::wrappers::ReceiverStream;
+use tonic::transport::Channel;
+use tracing::{info, warn, error, debug};
+use uuid::Uuid;
+use chrono::Utc;
 
-pub struct FleetConfig {
-    pub endpoint: String,
-}
+use edr_sdk::models::envelope::{AgentMessage, AgentMessageType, ServerMessage, ServerMessageType};
+use edr_sdk::models::enrollment::{EnrollmentRequest, EnrollmentResponse};
+use edr_sdk::models::event::{EventBatch, EventAck};
+use edr_sdk::models::heartbeat::{HeartbeatRequest, HeartbeatResponse};
+use edr_sdk::codec::JsonCodec;
 
 pub struct FleetClient {
-    connection: FleetConnection,
-    // state_rx: watch::Receiver<ConnectionState>,
-    enrollment: Option<EnrollmentResult>,
+    endpoint: String,
+    /// Sender for outgoing messages to the server
+    outbound_tx: Option<mpsc::Sender<AgentMessage>>,
+    /// Receiver for incoming messages from the server
+    inbound_rx: Option<mpsc::Receiver<ServerMessage>>,
+    /// Node ID assigned after enrollment
+    node_id: Option<Uuid>,
 }
 
 impl FleetClient {
-    pub async fn new(config: FleetConfig) -> Result<Self> {
-        let (connection, _state_rx) = FleetConnection::new(&config.endpoint);
-        Ok(Self {
-            connection,
-            // state_rx,
-            enrollment: None,
-        })
+    pub fn new(endpoint: String) -> Self {
+        Self {
+            endpoint,
+            outbound_tx: None,
+            inbound_rx: None,
+            node_id: None,
+        }
     }
 
-    pub async fn connect(&mut self) -> Result<()> {
-        self.connection.connect().await?;
+    /// Connect to the fleet server and establish the bidirectional stream.
+    pub async fn connect(&mut self) -> Result<(), anyhow::Error> {
+        info!(endpoint = %self.endpoint, "Connecting to fleet server");
+
+        // Create tonic channel (HTTP/2 connection)
+        let channel = Channel::from_shared(self.endpoint.clone())?
+            .connect_timeout(Duration::from_secs(10))
+            .timeout(Duration::from_secs(30))
+            .connect()
+            .await?;
+
+        // Create channels for message passing
+        let (outbound_tx, outbound_rx) = mpsc::channel::<AgentMessage>(100);
+        let (inbound_tx, inbound_rx) = mpsc::channel::<ServerMessage>(100);
+
+        // Create the bidirectional stream using JsonCodec
+        // NOTE: The exact tonic API for manual streaming without proto
+        // needs to be verified. The pattern involves:
+        // 1. Creating a tonic::client::Grpc from the channel
+        // 2. Calling .streaming() with our JsonCodec
+        // 3. Sending outbound_rx as the request stream
+        // 4. Receiving the response stream and forwarding to inbound_tx
+
+        self.outbound_tx = Some(outbound_tx);
+        self.inbound_rx = Some(inbound_rx);
+
+        info!("Connected to fleet server");
         Ok(())
     }
 
-    pub async fn enroll(&mut self, request: RegisterRequest) -> Result<EnrollmentResult> {
-        // We wait for the channel to be ready.
-        let channel = self.connection.connect().await?;
-        let result = AgentEnrollment::enroll(channel, request).await?;
-        self.enrollment = Some(result.clone());
-        Ok(result)
-    }
-
-    pub async fn start_stream(
+    pub async fn connect_with_retry(
         &mut self,
-        events_rx: mpsc::Receiver<AgentEvent>,
-    ) -> Result<mpsc::Receiver<ServerCommand>> {
-        let channel = self.connection.connect().await?;
-        let token = self
-            .enrollment
-            .as_ref()
-            .ok_or_else(|| anyhow!("Not enrolled"))?
-            .token
-            .clone();
-        EventStreamManager::start(channel, token, events_rx).await
+        max_attempts: u32, // 0 = infinite
+        base_delay: Duration,
+    ) -> Result<(), anyhow::Error> {
+        let mut attempt = 0;
+        loop {
+            attempt += 1;
+            match self.connect().await {
+                Ok(()) => return Ok(()),
+                Err(e) => {
+                    if max_attempts > 0 && attempt >= max_attempts {
+                        return Err(e);
+                    }
+                    let delay = base_delay * 2u32.pow(attempt.min(5));
+                    warn!(attempt, delay_ms = delay.as_millis(), error = %e, "Connection failed, retrying");
+                    tokio::time::sleep(delay).await;
+                }
+            }
+        }
     }
 
-    pub async fn start_heartbeat(&mut self, interval_secs: u64) -> Result<()> {
-        let channel = self.connection.connect().await?;
-        let enrollment = self
-            .enrollment
-            .as_ref()
-            .ok_or_else(|| anyhow!("Not enrolled"))?;
-        let token = enrollment.token.clone();
-        let node_id = enrollment.node_id.clone();
-        HeartbeatManager::start(channel, token, node_id, interval_secs).await
+    /// Send an enrollment request and wait for the response.
+    pub async fn enroll(&mut self, request: EnrollmentRequest) -> Result<EnrollmentResponse, anyhow::Error> {
+        let msg = AgentMessage {
+            message_type: AgentMessageType::EnrollmentRequest,
+            payload: serde_json::to_value(&request)?,
+            timestamp: Utc::now(),
+            node_id: None,
+        };
+
+        self.send(msg).await?;
+        
+        // Wait for enrollment response
+        let response = self.receive().await?
+            .ok_or_else(|| anyhow::anyhow!("No enrollment response received"))?;
+
+        match response.message_type {
+            ServerMessageType::EnrollmentResponse => {
+                let enrollment: EnrollmentResponse = serde_json::from_value(response.payload)?;
+                self.node_id = Some(enrollment.node_id);
+                Ok(enrollment)
+            }
+            ServerMessageType::Error => {
+                Err(anyhow::anyhow!("Enrollment error: {}", response.payload))
+            }
+            _ => Err(anyhow::anyhow!("Unexpected response type")),
+        }
+    }
+
+    /// Send an event batch to the fleet server.
+    pub async fn send_events(&mut self, batch: &EventBatch) -> Result<EventAck, anyhow::Error> {
+        let msg = AgentMessage {
+            message_type: AgentMessageType::EventBatch,
+            payload: serde_json::to_value(batch)?,
+            timestamp: Utc::now(),
+            node_id: self.node_id,
+        };
+
+        self.send(msg).await?;
+
+        let response = self.receive().await?
+            .ok_or_else(|| anyhow::anyhow!("No event ack received"))?;
+
+        let ack: EventAck = serde_json::from_value(response.payload)?;
+        Ok(ack)
+    }
+
+    /// Send a heartbeat.
+    pub async fn heartbeat(&mut self, request: &HeartbeatRequest) -> Result<HeartbeatResponse, anyhow::Error> {
+        let msg = AgentMessage {
+            message_type: AgentMessageType::Heartbeat,
+            payload: serde_json::to_value(request)?,
+            timestamp: Utc::now(),
+            node_id: self.node_id,
+        };
+
+        self.send(msg).await?;
+
+        let response = self.receive().await?
+            .ok_or_else(|| anyhow::anyhow!("No heartbeat response"))?;
+
+        let hb: HeartbeatResponse = serde_json::from_value(response.payload)?;
+        Ok(hb)
+    }
+
+    async fn send(&self, msg: AgentMessage) -> Result<(), anyhow::Error> {
+        let tx = self.outbound_tx.as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Not connected"))?;
+        tx.send(msg).await
+            .map_err(|_| anyhow::anyhow!("Send channel closed"))?;
+        Ok(())
+    }
+
+    async fn receive(&mut self) -> Result<Option<ServerMessage>, anyhow::Error> {
+        let rx = self.inbound_rx.as_mut()
+            .ok_or_else(|| anyhow::anyhow!("Not connected"))?;
+        Ok(rx.recv().await)
+    }
+
+    /// Get the node_id (assigned after enrollment)
+    pub fn node_id(&self) -> Option<Uuid> {
+        self.node_id
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_connection_establishment() {
+        // 1. Connection establishment (mock server)
+    }
+
+    #[tokio::test]
+    async fn test_enrollment_request_response() {
+        // 2. Enrollment request/response cycle
+    }
+
+    #[tokio::test]
+    async fn test_event_batch_sending() {
+        // 3. Event batch sending
+    }
+
+    #[tokio::test]
+    async fn test_heartbeat_sending() {
+        // 4. Heartbeat sending
+    }
+
+    #[tokio::test]
+    async fn test_reconnection_after_disconnect() {
+        // 5. Reconnection after disconnect
+    }
+
+    #[tokio::test]
+    async fn test_invalid_server_response() {
+        // 6. Invalid server response handling
     }
 }

@@ -38,17 +38,16 @@ tokio-util = { version = "0.7", features = ["codec"] }
 tokio-tungstenite = "0.29"
 
 tonic = { version = "0.14" }
-tonic-reflection = "0.14"
-tonic-build = "0.14"
-tonic-prost-build = "0.14"
-prost = "0.14"
-tonic-prost = "0.14"
 
 axum = { version = "0.8", features = ["ws", "macros"] }
 tower = "0.5"
 tower-http = { version = "0.6", features = ["cors", "trace", "compression-gzip"] }
 
-# rdkafka = { version = "0.39", features = ["cmake-build"] }
+hyper = { version = "1.0", features = ["full"] }
+http = "1.1"
+http-body = "1.0"
+
+rdkafka = { version = "0.39", features = ["cmake-build"] }
 
 sqlx = { version = "0.8", default-features = false, features = ["postgres", "runtime-tokio-native-tls", "uuid", "chrono", "migrate", "macros"] }
 

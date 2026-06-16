@@ -17,3 +17,11 @@ clap = { version = "4", features = ["derive", "env"] }
 sd-notify = "0.4"
 libc = "0.2"
 toml = { workspace = true }
+hostname = "0.4"
+fleet-client = { workspace = true }
+event-buffer = { workspace = true }
+osquery-client = { workspace = true }
+edr-sdk = { workspace = true }
+serde_json = { workspace = true }
+uuid = { workspace = true }
+agent-tracing = { workspace = true }

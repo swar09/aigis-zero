@@ -6,8 +6,6 @@ rust-version.workspace = true
 
 [dependencies]
 tonic          = { workspace = true }
-tonic-prost.workspace = true
-prost.workspace = true
 tokio          = { workspace = true }
 tokio-stream.workspace = true
 tokio-util.workspace = true
@@ -18,7 +16,6 @@ anyhow.workspace = true
 async-trait.workspace = true
 fleet-manager.workspace = true
 serde.workspace = true
-
-[build-dependencies]
-tonic-build = { workspace = true }
-tonic-prost-build.workspace = true
+serde_json.workspace = true
+bytes.workspace = true
+edr-sdk.workspace = true
