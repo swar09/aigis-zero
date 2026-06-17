@@ -1,31 +1,35 @@
-/target/
-**/target/
-Cargo.lock
-!sdk/Cargo.lock
-
+# dependencies
 node_modules/
+
+# build outputs
 dist/
+target/
+
+# env files
 .env
 .env.local
 .env.*.local
 
+# logs
+npm-debug.log*
+
+# IDE files
 .idea/
 .vscode/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# swap files
 *.swp
 *.swo
 *~
-.DS_Store
 
+# docker override
 docker-compose.override.yml
 
-Thumbs.db
-.DS_Store
-
-*.o
-*.so
-*.dylib
-
+# certificates / keys
 *.pem
 *.key
 *.crt
-!infra/certs/.gitkeep
