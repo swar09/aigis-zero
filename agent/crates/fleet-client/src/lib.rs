@@ -64,7 +64,11 @@ impl FleetClient {
         let req = tonic::Request::new(stream);
 
         let response = client
-            .streaming(req, path, JsonCodec::<AgentMessage, ServerMessage>::default())
+            .streaming(
+                req,
+                path,
+                JsonCodec::<AgentMessage, ServerMessage>::default(),
+            )
             .await?;
 
         let mut inbound_stream = response.into_inner();
