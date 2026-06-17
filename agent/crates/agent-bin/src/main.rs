@@ -190,6 +190,10 @@ async fn main() -> anyhow::Result<()> {
     });
 
     // Start heartbeat loop (every heartbeat_interval_secs)
+    // TODO: Implement Heartbeat Loop
+    // 1. Query local buffer size: let count = buffer.len().await.unwrap_or(0) as i64;
+    // 2. Build HeartbeatRequest with node_id and count
+    // 3. Lock fleet_hb and invoke f.heartbeat(&req).await
     let fleet_hb = fleet.clone();
     let hb_interval = config.fleet.heartbeat_interval_secs;
     tokio::spawn(async move {
@@ -215,10 +219,35 @@ async fn main() -> anyhow::Result<()> {
             if let Ok(events) = buffer.drain(batch_size as usize).await
                 && !events.is_empty()
             {
-                let mut f = fleet_drain.lock().await;
-                // Let's assume EventBatch has this structure
-                // let batch = EventBatch { ... };
-                // let _ = f.send_events(&batch).await;
+                let parsed_events = events
+                    .iter()
+                    .filter_map(|e| serde_json::from_str::<serde_json::Value>(e).ok())
+                    .collect::<Vec<_>>();
+
+                if !parsed_events.is_empty() {
+                    let batch = EventBatch {
+                        node_id,
+                        events: parsed_events,
+                    };
+                    let mut f = fleet_drain.lock().await;
+                    match f.send_events(&batch).await {
+                        Ok(ack) if ack.success => {
+                            // Successfully sent
+                        }
+                        Ok(ack) => {
+                            warn!(error = ?ack.error, "Fleet rejected event batch, re-queuing");
+                            for event in events {
+                                let _ = buffer.push(event).await;
+                            }
+                        }
+                        Err(e) => {
+                            warn!(?e, "Failed to send events to fleet, re-queuing");
+                            for event in events {
+                                let _ = buffer.push(event).await;
+                            }
+                        }
+                    }
+                }
             }
         }
     });

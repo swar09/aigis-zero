@@ -16,3 +16,4 @@ anyhow = { workspace = true }
 uuid = { workspace = true }
 chrono = { workspace = true }
 edr-sdk = { workspace = true }
+http = { workspace = true }

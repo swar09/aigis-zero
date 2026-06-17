@@ -38,6 +38,10 @@ impl FleetClient {
     }
 
     /// Connect to the fleet server and establish the bidirectional stream.
+    // TODO: Fix Circular Auth Deadlock
+    // 1. Accept token option: connect(&mut self, token: Option<&str>)
+    // 2. If token is Some(t), insert `authorization` Bearer metadata into req:
+    //    req.metadata_mut().insert("authorization", MetadataValue::try_from(format!("Bearer {}", t))?)
     pub async fn connect(&mut self) -> Result<(), anyhow::Error> {
         info!(endpoint = %self.endpoint, "Connecting to fleet server");
 
@@ -53,12 +57,25 @@ impl FleetClient {
         let (inbound_tx, inbound_rx) = mpsc::channel::<ServerMessage>(100);
 
         // Create the bidirectional stream using JsonCodec
-        // NOTE: The exact tonic API for manual streaming without proto
-        // needs to be verified. The pattern involves:
-        // 1. Creating a tonic::client::Grpc from the channel
-        // 2. Calling .streaming() with our JsonCodec
-        // 3. Sending outbound_rx as the request stream
-        // 4. Receiving the response stream and forwarding to inbound_tx
+        let mut client = tonic::client::Grpc::new(channel);
+        let path = http::uri::PathAndQuery::from_static("/edr.fleet.FleetService/EventStream");
+
+        let stream = ReceiverStream::new(outbound_rx);
+        let req = tonic::Request::new(stream);
+
+        let response = client
+            .streaming(req, path, JsonCodec::<AgentMessage, ServerMessage>::default())
+            .await?;
+
+        let mut inbound_stream = response.into_inner();
+
+        tokio::spawn(async move {
+            while let Ok(Some(msg)) = inbound_stream.message().await {
+                if inbound_tx.send(msg).await.is_err() {
+                    break;
+                }
+            }
+        });
 
         self.outbound_tx = Some(outbound_tx);
         self.inbound_rx = Some(inbound_rx);
@@ -176,6 +193,7 @@ impl FleetClient {
         Ok(())
     }
 
+    // TODO: Make this method public (`pub async fn receive`) so that AgentCore command listener task can call it to retrieve incoming gRPC commands.
     async fn receive(&mut self) -> Result<Option<ServerMessage>, anyhow::Error> {
         let rx = self
             .inbound_rx

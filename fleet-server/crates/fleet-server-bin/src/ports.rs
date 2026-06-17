@@ -14,6 +14,11 @@ use postgres_interface::{PgHealthStore, PgNodeStore};
 /// WARNING: event payloads are discarded. This is intentional while Kafka is
 /// out of scope. See the implementation plan for the full data flow once
 /// `kafka-handler` is wired.
+// TODO: Replace StubEventIngest with a real Kafka-integrated EventIngestPort.
+// 1. The implementation should load `kafka_brokers` and `kafka_topic_agents_events` from Settings.
+// 2. Instantiate a FutureProducer from rdkafka via the `kafka-handler` crate.
+// 3. Publish the serialized incoming event payload to Kafka on the specified topic, using the node_id or sequence_id as key.
+// 4. Return OutgoingCommand::Ack only after the event has been successfully written to Kafka.
 pub struct StubEventIngest;
 
 #[async_trait]

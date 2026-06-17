@@ -15,6 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+      - run: sudo apt-get update && sudo apt-get install -y protobuf-compiler libcurl4-openssl-dev pkg-config
       - uses: dtolnay/rust-toolchain@stable
       - run: cargo check --manifest-path kafka-pipeline/Cargo.toml
       - run: cargo clippy --manifest-path kafka-pipeline/Cargo.toml -- -D warnings
@@ -29,11 +30,15 @@ jobs:
           KAFKA_NODE_ID: 1
           KAFKA_PROCESS_ROLES: broker,controller
           KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+          KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,CONTROLLER://kafka:9093
+          KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
           KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+          CLUSTER_ID: MkQkQzE4NTJjYTEyODQ4MTcwMw
         ports:
           - 9092:9092
     steps:
       - uses: actions/checkout@v3
+      - run: sudo apt-get update && sudo apt-get install -y protobuf-compiler libcurl4-openssl-dev pkg-config
       - uses: dtolnay/rust-toolchain@stable
       - run: cargo test --manifest-path kafka-pipeline/Cargo.toml
 
@@ -41,6 +46,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+      - run: sudo apt-get update && sudo apt-get install -y protobuf-compiler libcurl4-openssl-dev pkg-config
       - uses: dtolnay/rust-toolchain@stable
       - run: cargo build --release --manifest-path kafka-pipeline/Cargo.toml
 

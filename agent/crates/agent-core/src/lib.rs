@@ -25,6 +25,10 @@ impl AgentCore {
         let shutdown = self.shutdown.clone();
 
         // Task 1: Osquery polling loop
+        // TODO: Implement OSQuery Polling and Buffering Loop
+        // 1. Change AgentCore::run signature to: pub async fn run(&self, agent_uuid: &str) -> Result<()>
+        // 2. Obtain receiver via results_rx = self.osquery.start(agent_uuid).await
+        // 3. Receive results in loop, map to fleet_client::types::AgentEvent, serialize to JSON, and buffer1.push(bytes).await
         let osquery = self.osquery.clone();
         let buffer1 = self.buffer.clone();
         let osquery_task = tokio::spawn(async move {
@@ -32,6 +36,9 @@ impl AgentCore {
         });
 
         // Task 2: Command listener
+        // TODO: Implement Command Listener Loop
+        // 1. Make fleet_client.receive() method public
+        // 2. Lock fleet client, call receive().await, and pass ServerMessage to cmd_handler.handle(msg).await
         let cmd_handler = self.command_handler.clone();
         let fleet = self.fleet_client.clone();
         let command_task = tokio::spawn(async move {

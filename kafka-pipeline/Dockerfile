@@ -1,6 +1,6 @@
-FROM rust:1.80 as builder
+FROM rust:1.80 AS builder
 WORKDIR /usr/src/app
-RUN apt-get update && apt-get install -y cmake g++
+RUN apt-get update && apt-get install -y cmake g++ protobuf-compiler
 COPY . .
 RUN cd kafka-pipeline && cargo build --release
 
