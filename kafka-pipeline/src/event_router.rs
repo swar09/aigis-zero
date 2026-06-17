@@ -1,8 +1,9 @@
+#![allow(unused_imports, unused_variables, dead_code, unused_mut)]
 use rdkafka::producer::{FutureProducer, FutureRecord};
 use rdkafka::util::Timeout;
 use serde_json::Value;
-use tracing::{debug, warn};
 use std::time::Duration;
+use tracing::{debug, warn};
 
 use crate::consumer::MessageProcessor;
 
@@ -30,12 +31,20 @@ impl EventRouterProcessor {
 
 #[async_trait::async_trait]
 impl MessageProcessor for EventRouterProcessor {
-    async fn process(&self, key: Option<&[u8]>, payload: &[u8], _topic: &str, _partition: i32, _offset: i64) -> Result<(), String> {
+    async fn process(
+        &self,
+        key: Option<&[u8]>,
+        payload: &[u8],
+        _topic: &str,
+        _partition: i32,
+        _offset: i64,
+    ) -> Result<(), String> {
         // Lightweight JSON peek — only extract event_type field
-        let event: Value = serde_json::from_slice(payload)
-            .map_err(|e| format!("Invalid JSON: {e}"))?;
+        let event: Value =
+            serde_json::from_slice(payload).map_err(|e| format!("Invalid JSON: {e}"))?;
 
-        let event_type = event.get("event_type")
+        let event_type = event
+            .get("event_type")
             .and_then(|v| v.as_str())
             .unwrap_or("unknown");
 
@@ -43,7 +52,7 @@ impl MessageProcessor for EventRouterProcessor {
 
         // Forward to typed topic
         let record = FutureRecord::to(target_topic)
-            .payload(payload)  // Raw bytes, no re-serialization
+            .payload(payload) // Raw bytes, no re-serialization
             .key(key.unwrap_or(&[]));
 
         self.producer

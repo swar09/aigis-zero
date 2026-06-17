@@ -1,3 +1,4 @@
+#![allow(unused_imports, unused_variables, dead_code, unused_mut)]
 use crate::config::AgentConfig;
 use anyhow::Result;
 use event_buffer::EventBuffer;
@@ -86,16 +87,14 @@ pub async fn run() -> Result<()> {
 
     // Fleet enrollment (non-fatal, fleet server not ready yet)
     tracing::info!("Attempting fleet enrollment (non-fatal if server is down)...");
-    let mut fleet_client = fleet_client::FleetClient::new(fleet_client::FleetConfig {
-        endpoint: config.fleet.endpoint.clone(),
-    })
-    .await?;
+    let mut fleet_client = fleet_client::FleetClient::new(config.fleet.endpoint.clone());
 
-    let req = fleet_client::types::RegisterRequest {
+    let req = edr_sdk::models::enrollment::EnrollmentRequest {
+        enrollment_secret: config.fleet.enrollment_secret.clone(),
         hostname: hostname_or_default(),
         os_version: "linux".to_string(),
         agent_version: env!("CARGO_PKG_VERSION").to_string(),
-        machine_id: read_machine_id(),
+        platform: "linux".to_string(),
     };
 
     match tokio::time::timeout(std::time::Duration::from_secs(5), fleet_client.enroll(req)).await {

@@ -25,3 +25,5 @@ edr-sdk = { workspace = true }
 serde_json = { workspace = true }
 uuid = { workspace = true }
 agent-tracing = { workspace = true }
+isolation = { workspace = true }
+tokio-util = { workspace = true }

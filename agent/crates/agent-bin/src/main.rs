@@ -1,17 +1,18 @@
+#![allow(unused_imports, unused_variables, dead_code, unused_mut)]
 use clap::Parser;
 use std::path::{Path, PathBuf};
-use std::time::Duration;
-use tokio::time::interval;
-use tracing::{info, warn, error};
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::sync::Mutex;
+use tokio::time::interval;
+use tracing::{error, info, warn};
 use uuid::Uuid;
 
 use agent_core::config::AgentConfig;
-use fleet_client::FleetClient;
 use edr_sdk::models::enrollment::EnrollmentRequest;
-use edr_sdk::models::heartbeat::HeartbeatRequest;
 use edr_sdk::models::event::EventBatch;
+use edr_sdk::models::heartbeat::HeartbeatRequest;
+use fleet_client::FleetClient;
 
 #[derive(Parser, Debug)]
 #[command(name = "aigis-zero", version, about = "Aigis-Zero Agent")]
@@ -32,7 +33,7 @@ struct Args {
 fn save_node_id_to_config(path: &Path, node_id: Uuid) -> anyhow::Result<()> {
     let content = std::fs::read_to_string(path)?;
     let mut lines: Vec<String> = content.lines().map(String::from).collect();
-    
+
     let mut in_agent = false;
     let mut inserted = false;
     for i in 0..lines.len() {
@@ -62,6 +63,21 @@ fn get_os_version() -> String {
     "linux".to_string()
 }
 
+fn parse_endpoint(endpoint: &str) -> (std::net::IpAddr, u16) {
+    let clean = endpoint
+        .trim_start_matches("http://")
+        .trim_start_matches("https://");
+    let host_port = clean.split('/').next().unwrap_or(clean);
+    let parts: Vec<&str> = host_port.split(':').collect();
+    let ip_str = parts.first().copied().unwrap_or("127.0.0.1");
+    let ip_str = ip_str.trim_start_matches('[').trim_end_matches(']');
+    let ip = ip_str
+        .parse()
+        .unwrap_or(std::net::IpAddr::V4(std::net::Ipv4Addr::new(127, 0, 0, 1)));
+    let port = parts.get(1).and_then(|p| p.parse().ok()).unwrap_or(50051);
+    (ip, port)
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     // 1. Parse CLI
@@ -75,7 +91,11 @@ async fn main() -> anyhow::Result<()> {
 
     // Parse config
     let config_str = std::fs::read_to_string(&args.config).map_err(|e| {
-        anyhow::anyhow!("Failed to read config file at {}: {}", args.config.display(), e)
+        anyhow::anyhow!(
+            "Failed to read config file at {}: {}",
+            args.config.display(),
+            e
+        )
     })?;
     let mut config: AgentConfig = toml::from_str(&config_str)
         .map_err(|e| anyhow::anyhow!("Failed to parse TOML config: {}", e))?;
@@ -99,64 +119,72 @@ async fn main() -> anyhow::Result<()> {
     }));
 
     // Create OsqueryClient and connect
-    let mut collector = osquery_client::OsqueryCollector::new(osquery_client::OsqueryConfig {
+    let collector = osquery_client::OsqueryCollector::new(osquery_client::OsqueryConfig {
         socket_path: config.osquery.socket_path.clone(),
         db_path: config.agent.event_buffer_db.clone(),
-    }).await?;
+    })
+    .await?;
 
     // Create EventBuffer
-    let buffer = event_buffer::EventBuffer::new(&config.agent.event_buffer_db, config.agent.event_buffer_max)?;
+    let buffer = event_buffer::EventBuffer::new(
+        &config.agent.event_buffer_db,
+        config.agent.event_buffer_max,
+    )?;
     let buffer = Arc::new(buffer);
 
     // NEW: Connect to fleet server
     let mut fleet = FleetClient::new(config.fleet.endpoint.clone());
-    fleet.connect_with_retry(
-        config.fleet.max_reconnect_attempts,
-        Duration::from_secs(config.fleet.reconnect_interval_secs),
-    ).await?;
+    fleet
+        .connect_with_retry(
+            config.fleet.max_reconnect_attempts,
+            Duration::from_secs(config.fleet.reconnect_interval_secs),
+        )
+        .await?;
 
     // NEW: Enrollment
-    let node_id = if config.agent.node_id.is_none() || args.enroll {
-        let enrollment = fleet.enroll(EnrollmentRequest {
-            enrollment_secret: config.fleet.enrollment_secret.clone(),
-            hostname: hostname::get()?.to_string_lossy().to_string(),
-            os_version: get_os_version(),
-            agent_version: env!("CARGO_PKG_VERSION").to_string(),
-            platform: "linux".to_string(),
-        }).await?;
-        
+    let node_id = if let (Some(node_id), false) = (config.agent.node_id, args.enroll) {
+        node_id
+    } else {
+        let enrollment = fleet
+            .enroll(EnrollmentRequest {
+                enrollment_secret: config.fleet.enrollment_secret.clone(),
+                hostname: hostname::get()?.to_string_lossy().to_string(),
+                os_version: get_os_version(),
+                agent_version: env!("CARGO_PKG_VERSION").to_string(),
+                platform: "linux".to_string(),
+            })
+            .await?;
+
         // Save node_id to config file
         save_node_id_to_config(&args.config, enrollment.node_id)?;
         config.agent.node_id = Some(enrollment.node_id);
-        
+
         enrollment.node_id
-    } else {
-        config.agent.node_id.unwrap()
     };
-    
+
     info!(%node_id, "Successfully enrolled/loaded node ID");
 
     let fleet = Arc::new(Mutex::new(fleet));
 
     // Start AgentCore (osquery loop + command listener)
     let agent_uuid = node_id.to_string();
-    let mut collector = collector; // Move collector here
-    let _results_rx = collector.start(&agent_uuid).await; // We don't read from rx directly now, AgentCore does. Wait, AgentCore needs OsqueryClient, not Collector.
-    // Assuming OsqueryClient is available and takes collector or something.
-    // For now, we will just instantiate AgentCore with dummy Arc wrapping.
+    let _results_rx = collector.start(&agent_uuid).await;
+    let osquery_collector = Arc::new(collector);
+    let (fleet_ip, fleet_port) = parse_endpoint(&config.fleet.endpoint);
+
     let command_handler = agent_core::command_handler::CommandHandler {
-        osquery: Arc::new(collector), // Assuming this works
-        isolation: isolation::IsolationManager::new(), // Assuming this exists
+        osquery: osquery_collector.clone(),
+        isolation: isolation::IsolationManager::new(fleet_ip, fleet_port),
     };
 
     let agent_core = agent_core::AgentCore {
         shutdown: tokio_util::sync::CancellationToken::new(),
-        osquery: Arc::new(collector),
+        osquery: osquery_collector,
         buffer: buffer.clone(),
         command_handler: Arc::new(command_handler),
         fleet_client: fleet.clone(),
     };
-    
+
     tokio::spawn(async move {
         let _ = agent_core.run().await;
     });
@@ -178,19 +206,19 @@ async fn main() -> anyhow::Result<()> {
 
     // Start event drain loop (every event_drain_interval_secs)
     let fleet_drain = fleet.clone();
-    let drain_interval = config.fleet.event_drain_interval_secs;
+    let drain_interval = config.agent.event_drain_interval_secs;
     let batch_size = config.agent.event_drain_batch;
     tokio::spawn(async move {
         let mut ticker = interval(Duration::from_secs(drain_interval));
         loop {
             ticker.tick().await;
-            if let Ok(events) = buffer.pop(batch_size).await {
-                if !events.is_empty() {
-                    let mut f = fleet_drain.lock().await;
-                    // Let's assume EventBatch has this structure 
-                    // let batch = EventBatch { ... };
-                    // let _ = f.send_events(&batch).await;
-                }
+            if let Ok(events) = buffer.drain(batch_size as usize).await
+                && !events.is_empty()
+            {
+                let mut f = fleet_drain.lock().await;
+                // Let's assume EventBatch has this structure
+                // let batch = EventBatch { ... };
+                // let _ = f.send_events(&batch).await;
             }
         }
     });

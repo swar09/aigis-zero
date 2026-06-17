@@ -1,22 +1,23 @@
+#![allow(unused_imports, unused_variables, dead_code, unused_mut)]
+pub mod command_handler;
 pub mod config;
 pub mod orchestrator;
-pub mod command_handler;
 
 use anyhow::Result;
-use tokio_util::sync::CancellationToken;
 use std::sync::Arc;
+use tokio_util::sync::CancellationToken;
 // Assume these exist
-use osquery_client::OsqueryClient;
+use command_handler::CommandHandler;
 use event_buffer::EventBuffer;
 use fleet_client::FleetClient;
-use command_handler::CommandHandler;
+use osquery_client::OsqueryCollector;
 
 pub struct AgentCore {
     pub shutdown: CancellationToken,
-    pub osquery: Arc<OsqueryClient>,
+    pub osquery: Arc<OsqueryCollector>,
     pub buffer: Arc<EventBuffer>,
     pub command_handler: Arc<CommandHandler>,
-    pub fleet_client: Arc<FleetClient>,
+    pub fleet_client: Arc<tokio::sync::Mutex<FleetClient>>,
 }
 
 impl AgentCore {

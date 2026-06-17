@@ -1,15 +1,24 @@
+#![allow(unused_imports, unused_variables, dead_code, unused_mut)]
 use async_trait::async_trait;
+
+use rdkafka::config::ClientConfig;
 use rdkafka::consumer::{Consumer, StreamConsumer};
 use rdkafka::message::Message;
-use rdkafka::config::ClientConfig;
-use tokio::sync::CancellationToken;
-use tracing::{info, warn, error, debug};
+use tokio_util::sync::CancellationToken;
+use tracing::{debug, error, info, warn};
 
 /// Trait for implementing Kafka message processors
 #[async_trait]
 pub trait MessageProcessor: Send + Sync + 'static {
     /// Process a single message. Return Ok(()) to commit, Err to skip.
-    async fn process(&self, key: Option<&[u8]>, payload: &[u8], topic: &str, partition: i32, offset: i64) -> Result<(), String>;
+    async fn process(
+        &self,
+        key: Option<&[u8]>,
+        payload: &[u8],
+        topic: &str,
+        partition: i32,
+        offset: i64,
+    ) -> Result<(), String>;
 }
 
 /// A consumer worker that reads from a topic and calls a processor
@@ -40,10 +49,15 @@ impl ConsumerWorker {
             .create()
             .map_err(|e| format!("Consumer creation error: {e}"))?;
 
-        consumer.subscribe(topics)
+        consumer
+            .subscribe(topics)
             .map_err(|e| format!("Topic subscription error: {e}"))?;
 
-        Ok(Self { consumer, processor, shutdown })
+        Ok(Self {
+            consumer,
+            processor,
+            shutdown,
+        })
     }
 
     pub async fn run(&self) {

@@ -13,7 +13,11 @@ use fleet_manager::{
 
 use crate::auth::validate_token;
 
-// Protobuf removed; JSON-over-gRPC structures will be defined here later
+pub use edr_sdk::proto::fleet::fleet_service_server::FleetServiceServer;
+use edr_sdk::proto::fleet::{
+    AckCommand, AgentEvent, HeartbeatRequest, HeartbeatResponse, RegisterRequest, RegisterResponse,
+    ServerCommand, fleet_service_server::FleetService, server_command::Command,
+};
 
 type EventStream = Pin<Box<dyn Stream<Item = Result<ServerCommand, Status>> + Send + 'static>>;
 

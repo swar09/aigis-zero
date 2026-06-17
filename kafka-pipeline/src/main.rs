@@ -1,4 +1,4 @@
-use tokio::sync::CancellationToken;
+use tokio_util::sync::CancellationToken;
 use tracing::info;
 
 pub mod consumer;
@@ -29,7 +29,8 @@ async fn main() -> anyhow::Result<()> {
         &["aigis.events.raw"],
         Box::new(processor),
         shutdown.clone(),
-    ).map_err(|e| anyhow::anyhow!(e))?;
+    )
+    .map_err(|e| anyhow::anyhow!(e))?;
 
     let shutdown_signal = shutdown.clone();
     tokio::spawn(async move {

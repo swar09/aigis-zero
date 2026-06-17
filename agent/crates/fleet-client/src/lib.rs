@@ -1,22 +1,21 @@
-//! Fleet client for aigis-zero agent.
-//!
-//! Establishes a bidirectional JSON-over-gRPC stream to the fleet server.
-//! All communication (enrollment, heartbeats, events, commands) flows
-//! over a single persistent stream.
+#![allow(unused_imports, unused_variables, dead_code, unused_mut)]
 
+pub mod codec;
+pub mod types;
+
+use chrono::Utc;
 use std::time::Duration;
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 use tonic::transport::Channel;
-use tracing::{info, warn, error, debug};
+use tracing::{debug, error, info, warn};
 use uuid::Uuid;
-use chrono::Utc;
 
-use edr_sdk::models::envelope::{AgentMessage, AgentMessageType, ServerMessage, ServerMessageType};
-use edr_sdk::models::enrollment::{EnrollmentRequest, EnrollmentResponse};
-use edr_sdk::models::event::{EventBatch, EventAck};
-use edr_sdk::models::heartbeat::{HeartbeatRequest, HeartbeatResponse};
 use edr_sdk::codec::JsonCodec;
+use edr_sdk::models::enrollment::{EnrollmentRequest, EnrollmentResponse};
+use edr_sdk::models::envelope::{AgentMessage, AgentMessageType, ServerMessage, ServerMessageType};
+use edr_sdk::models::event::{EventAck, EventBatch};
+use edr_sdk::models::heartbeat::{HeartbeatRequest, HeartbeatResponse};
 
 pub struct FleetClient {
     endpoint: String,
@@ -91,7 +90,10 @@ impl FleetClient {
     }
 
     /// Send an enrollment request and wait for the response.
-    pub async fn enroll(&mut self, request: EnrollmentRequest) -> Result<EnrollmentResponse, anyhow::Error> {
+    pub async fn enroll(
+        &mut self,
+        request: EnrollmentRequest,
+    ) -> Result<EnrollmentResponse, anyhow::Error> {
         let msg = AgentMessage {
             message_type: AgentMessageType::EnrollmentRequest,
             payload: serde_json::to_value(&request)?,
@@ -100,9 +102,11 @@ impl FleetClient {
         };
 
         self.send(msg).await?;
-        
+
         // Wait for enrollment response
-        let response = self.receive().await?
+        let response = self
+            .receive()
+            .await?
             .ok_or_else(|| anyhow::anyhow!("No enrollment response received"))?;
 
         match response.message_type {
@@ -129,7 +133,9 @@ impl FleetClient {
 
         self.send(msg).await?;
 
-        let response = self.receive().await?
+        let response = self
+            .receive()
+            .await?
             .ok_or_else(|| anyhow::anyhow!("No event ack received"))?;
 
         let ack: EventAck = serde_json::from_value(response.payload)?;
@@ -137,7 +143,10 @@ impl FleetClient {
     }
 
     /// Send a heartbeat.
-    pub async fn heartbeat(&mut self, request: &HeartbeatRequest) -> Result<HeartbeatResponse, anyhow::Error> {
+    pub async fn heartbeat(
+        &mut self,
+        request: &HeartbeatRequest,
+    ) -> Result<HeartbeatResponse, anyhow::Error> {
         let msg = AgentMessage {
             message_type: AgentMessageType::Heartbeat,
             payload: serde_json::to_value(request)?,
@@ -147,7 +156,9 @@ impl FleetClient {
 
         self.send(msg).await?;
 
-        let response = self.receive().await?
+        let response = self
+            .receive()
+            .await?
             .ok_or_else(|| anyhow::anyhow!("No heartbeat response"))?;
 
         let hb: HeartbeatResponse = serde_json::from_value(response.payload)?;
@@ -155,15 +166,20 @@ impl FleetClient {
     }
 
     async fn send(&self, msg: AgentMessage) -> Result<(), anyhow::Error> {
-        let tx = self.outbound_tx.as_ref()
+        let tx = self
+            .outbound_tx
+            .as_ref()
             .ok_or_else(|| anyhow::anyhow!("Not connected"))?;
-        tx.send(msg).await
+        tx.send(msg)
+            .await
             .map_err(|_| anyhow::anyhow!("Send channel closed"))?;
         Ok(())
     }
 
     async fn receive(&mut self) -> Result<Option<ServerMessage>, anyhow::Error> {
-        let rx = self.inbound_rx.as_mut()
+        let rx = self
+            .inbound_rx
+            .as_mut()
             .ok_or_else(|| anyhow::anyhow!("Not connected"))?;
         Ok(rx.recv().await)
     }

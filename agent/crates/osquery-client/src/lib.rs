@@ -3,7 +3,7 @@ pub mod diff;
 pub mod scheduler;
 pub mod types;
 
-use crate::client::OsqueryClient;
+pub use crate::client::OsqueryClient;
 use crate::scheduler::QueryScheduler;
 use crate::types::{OsqueryResult, QueryResponse, ScheduledQuery};
 use anyhow::Result;

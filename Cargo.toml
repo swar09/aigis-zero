@@ -38,6 +38,9 @@ tokio-util = { version = "0.7", features = ["codec"] }
 tokio-tungstenite = "0.29"
 
 tonic = { version = "0.14" }
+tonic-prost = { version = "0.14" }
+prost = { version = "0.14" }
+tonic-prost-build = { version = "0.14" }
 
 axum = { version = "0.8", features = ["ws", "macros"] }
 tower = "0.5"
@@ -48,8 +51,9 @@ http = "1.1"
 http-body = "1.0"
 
 rdkafka = { version = "0.39", features = ["cmake-build"] }
-
 sqlx = { version = "0.8", default-features = false, features = ["postgres", "runtime-tokio-native-tls", "uuid", "chrono", "migrate", "macros"] }
+
+
 
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
@@ -80,7 +84,7 @@ fleet-client = { path = "agent/crates/fleet-client" }
 isolation = { path = "agent/crates/isolation" }
 agent-bin = { path = "agent/crates/agent-bin" }
 agent-tracing = { path = "agent/crates/agent-tracing" }
-rusqlite = { version = "0.31", features = ["bundled"] }
+rusqlite = { version = "0.32", features = ["bundled"] }
 toml = "0.8"
 thrift = "0.17"
 
