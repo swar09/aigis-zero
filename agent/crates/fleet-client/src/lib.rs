@@ -31,6 +31,17 @@ pub struct FleetClient {
 }
 
 impl FleetClient {
+    /// Creates a new fleet client for the specified endpoint.
+    ///
+    /// The client is initialized but not connected. Call [`connect`](Self::connect) or
+    /// [`connect_with_retry`](Self::connect_with_retry) to establish a connection.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let client = FleetClient::new("http://localhost:50051".to_string());
+    /// assert!(client.node_id().is_none());
+    /// ```
     pub fn new(endpoint: String) -> Self {
         Self {
             endpoint,
@@ -42,6 +53,17 @@ impl FleetClient {
         }
     }
 
+    /// Connects to the fleet server.
+    ///
+    /// If a token is provided, establishes a bidirectional event stream for sending and receiving messages.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let mut client = FleetClient::new("http://fleet.example.com:8080".to_string());
+    /// client.connect(Some("auth_token")).await?;
+    /// # Ok::<(), anyhow::Error>(())
+    /// ```
     pub async fn connect(&mut self, token: Option<&str>) -> Result<(), anyhow::Error> {
         info!(endpoint = %self.endpoint, "Connecting to fleet server");
 
@@ -87,6 +109,20 @@ impl FleetClient {
         Ok(())
     }
 
+    /// Establishes a connection to the fleet server with automatic retries on failure.
+    ///
+    /// Attempts to connect up to `max_attempts` times, waiting between attempts with
+    /// delays that increase exponentially with each retry. If `max_attempts` is 0, retries
+    /// indefinitely until successful. The initial delay is `base_delay`; each subsequent
+    /// retry multiplies the delay by 2, capped at 2^5 multiplier.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let mut client = FleetClient::new("http://localhost:50051".to_string());
+    /// let result = client.connect_with_retry(5, Duration::from_millis(100), Some("token")).await;
+    /// assert!(result.is_ok());
+    /// ```
     pub async fn connect_with_retry(
         &mut self,
         max_attempts: u32,
@@ -110,6 +146,16 @@ impl FleetClient {
         }
     }
 
+    /// Enrolls the agent with the fleet service.
+    ///
+    /// Registers the agent and stores the assigned node ID and authentication token from the response.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let response = client.enroll(request).await?;
+    /// assert!(!response.node_id.is_empty());
+    /// ```
     pub async fn enroll(
         &mut self,
         request: RegisterRequest,
@@ -130,6 +176,19 @@ impl FleetClient {
         Ok(response)
     }
 
+    /// Sends a batch of events to the fleet server.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the outbound event stream is not connected or if sending fails.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let batch = EventBatch { events: vec![...] };
+    /// let ack = client.send_events(&batch).await?;
+    /// assert!(ack.success);
+    /// ```
     pub async fn send_events(&mut self, batch: &EventBatch) -> Result<EventAck, anyhow::Error> {
         let tx = self
             .outbound_tx
@@ -173,6 +232,14 @@ impl FleetClient {
         })
     }
 
+    /// Sends a heartbeat to the fleet server with the agent's status and event queue information.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// let request = HeartbeatRequest { status: "active".to_string(), events_buffered: 5 };
+    /// let response = client.heartbeat(&request).await?;
+    /// ```
     pub async fn heartbeat(
         &mut self,
         request: &HeartbeatRequest,
@@ -201,6 +268,12 @@ impl FleetClient {
         Ok(HeartbeatResponse { ok: response.ok })
     }
 
+    /// Attempts to receive a pending server command without blocking.
+    ///
+    /// # Returns
+    ///
+    /// `Some(ServerCommand)` if a message is available, `None` if the inbound channel
+    /// is empty, or an error if the channel is disconnected.
     pub fn try_receive(&mut self) -> Result<Option<ServerCommand>, anyhow::Error> {
         let rx = self
             .inbound_rx
@@ -216,6 +289,24 @@ impl FleetClient {
         }
     }
 
+    /// Waits for the next inbound server command.
+    ///
+    /// # Returns
+    ///
+    /// `Some(ServerCommand)` if a message is received, `None` if the channel is closed.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if not connected.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// match client.receive().await? {
+    ///     Some(cmd) => println!("Received: {:?}", cmd),
+    ///     None => println!("Server disconnected"),
+    /// }
+    /// ```
     pub async fn receive(&mut self) -> Result<Option<ServerCommand>, anyhow::Error> {
         let rx = self
             .inbound_rx
@@ -224,10 +315,21 @@ impl FleetClient {
         Ok(rx.recv().await)
     }
 
+    /// Gets the agent's node identifier.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let client = FleetClient::new("http://localhost:50051".to_string());
+    /// assert!(client.node_id().is_none()); // Before enrollment
+    /// ```
     pub fn node_id(&self) -> Option<Uuid> {
         self.node_id
     }
 
+    /// Retrieves the authentication token.
+    ///
+    /// `Some(&str)` containing the token if set, `None` otherwise.
     pub fn token(&self) -> Option<&str> {
         self.token.as_deref()
     }

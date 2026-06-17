@@ -13,6 +13,26 @@ pub struct PreflightReport {
 }
 
 impl PreflightReport {
+    /// Checks whether the system meets all required preflight conditions.
+    ///
+    /// Returns `true` if the configuration and log directories are writable, both osqueryd and nft
+    /// are installed, and the process is running as root.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let report = PreflightReport {
+    ///     config_dir_writable: Ok(()),
+    ///     data_dir_writable: Ok(()),
+    ///     log_dir_writable: Ok(()),
+    ///     osqueryd_installed: Ok("Found".to_string()),
+    ///     nft_installed: Ok("Found".to_string()),
+    ///     bpf_jit_enabled: Ok(true),
+    ///     inotify_watches: Ok(524288),
+    ///     is_root: true,
+    /// };
+    /// assert!(report.is_ok());
+    /// ```
     pub fn is_ok(&self) -> bool {
         self.config_dir_writable.is_ok()
             && self.data_dir_writable.is_ok()
@@ -22,6 +42,17 @@ impl PreflightReport {
             && self.is_root
     }
 
+    /// Prints a human-readable report of the preflight environment checks.
+    ///
+    /// Displays the status of all checks (root, directory accessibility, BPF JIT, inotify limits,
+    /// and required dependencies) using `[OK]`, `[WARN]`, or `[FAIL]` indicators.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let report = run_preflight(&config);
+    /// report.print();
+    /// ```
     pub fn print(&self) {
         println!("Aigis-Zero Agent Pre-flight Environment Check");
 
@@ -77,6 +108,22 @@ impl PreflightReport {
     }
 }
 
+/// Validates the system environment.
+///
+/// Checks root privilege, directory writability, BPF JIT status, inotify limits,
+/// and the presence of required executables (`osqueryd` and `nft`).
+///
+/// # Examples
+///
+/// ```no_run
+/// let config = /* ... */;
+/// let report = run_preflight(&config);
+/// if report.is_ok() {
+///     println!("Environment is ready");
+/// } else {
+///     report.print();
+/// }
+/// ```
 pub fn run_preflight(config: &crate::config::AgentConfig) -> PreflightReport {
     let is_root = unsafe { libc::getuid() } == 0;
 
@@ -151,6 +198,14 @@ pub fn run_preflight(config: &crate::config::AgentConfig) -> PreflightReport {
     }
 }
 
+/// Checks if a command is available in the system PATH.
+///
+/// # Examples
+///
+/// ```ignore
+/// assert!(which("sh"));
+/// assert!(!which("nonexistent_xyz_command"));
+/// ```
 fn which(cmd: &str) -> bool {
     Command::new("which")
         .arg(cmd)

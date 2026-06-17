@@ -8,6 +8,26 @@ use thrift::protocol::{
 };
 use thrift::transport::TBufferChannel;
 
+/// Tests registerExtension RPC communication with an osquery socket in framed and unframed modes.
+///
+/// Establishes connections to `/var/osquery/osquery.em`, builds a Thrift `registerExtension`
+/// request with extension info and an empty registry, and sends it in two transmission modes:
+/// - **Framed**: Prefixes the payload with a 4-byte big-endian length field.
+/// - **Unframed**: Sends the raw payload without a length prefix.
+///
+/// For each mode, attempts to read a response within a 2-second timeout and logs the outcome.
+///
+/// # Examples
+///
+/// ```no_run
+/// // Run to test both framed and unframed RPC modes
+/// // cargo run
+/// ```
+///
+/// # Returns
+///
+/// `Ok(())` if both test attempts complete, or an error if socket connection, write operations,
+/// or Thrift protocol serialization fail.
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let socket = Path::new("/var/osquery/osquery.em");

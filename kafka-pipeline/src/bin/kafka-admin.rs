@@ -57,7 +57,25 @@ const TOPICS: &[TopicSpec] = &[
     },
 ];
 
-#[tokio::main]
+/// Administers Kafka topics by executing a command specified via CLI arguments.
+///
+/// Parses command-line arguments to extract the command name and `--brokers` option, creates
+/// an admin client connected to the specified brokers, and dispatches to the command handler.
+/// Currently supports `create-topics`, which creates the predefined set of topics with their
+/// configured partition counts, retention periods, and cleanup policies. If fewer than four
+/// arguments are provided, prints usage information without performing any action. Prints a
+/// message for each topic creation attempt, indicating success or failure.
+///
+/// # Examples
+///
+/// ```no_run
+/// // Invoke the binary with:
+/// // cargo run -- create-topics --brokers localhost:9092
+/// ```
+///
+/// # Errors
+///
+/// Returns an error if the admin client cannot be created or if the topic creation request fails.
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = env::args().collect();
     if args.len() < 4 {

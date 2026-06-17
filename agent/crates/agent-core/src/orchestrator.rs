@@ -5,6 +5,19 @@ use event_buffer::EventBuffer;
 use osquery_client::types::OsqueryResult;
 use tokio::sync::mpsc;
 
+/// Runs the agent orchestrator, loading configuration and managing osquery event collection.
+///
+/// Reads configuration from the `EDR_AGENT_CONFIG` environment variable
+/// (defaulting to `"agent.toml"`), initializes logging, starts collecting events
+/// from osquery, and attempts to enroll with the fleet server. Processes collected
+/// events until interrupted by Ctrl-C. Fleet enrollment failures do not prevent
+/// the agent from continuing to operate offline.
+///
+/// # Examples
+///
+/// ```no_run
+/// run().await?;
+/// ```
 pub async fn run() -> Result<()> {
     let config_path =
         std::env::var("EDR_AGENT_CONFIG").unwrap_or_else(|_| "agent.toml".to_string());
@@ -157,6 +170,14 @@ fn encode_result(result: &OsqueryResult) -> String {
     serde_json::to_string(&event).unwrap_or_default()
 }
 
+/// Retrieves the system hostname, or a fallback value if unavailable.
+///
+/// # Examples
+///
+/// ```
+/// let hostname = hostname_or_default();
+/// assert!(!hostname.is_empty());
+/// ```
 fn hostname_or_default() -> String {
     hostname::get()
         .ok()
@@ -164,6 +185,14 @@ fn hostname_or_default() -> String {
         .unwrap_or_else(|| "unknown-host".to_string())
 }
 
+/// Retrieves the system machine ID or a fallback value if unavailable.
+///
+/// # Examples
+///
+/// ```
+/// let machine_id = read_machine_id();
+/// assert!(!machine_id.is_empty());
+/// ```
 pub fn read_machine_id() -> String {
     if let Ok(id) = std::fs::read_to_string("/etc/machine-id") {
         let trimmed = id.trim();
@@ -180,6 +209,16 @@ pub fn read_machine_id() -> String {
     "unknown-machine-id".to_string()
 }
 
+/// Retrieves the operating system version string.
+///
+/// Reads the system's `/etc/os-release` file to determine the OS version. If the file is missing or cannot be read, returns a descriptive fallback message.
+///
+/// # Examples
+///
+/// ```
+/// let version = get_os_version();
+/// assert!(!version.is_empty());
+/// ```
 pub fn get_os_version() -> String {
     use std::fs::File;
     use std::io::{BufRead, BufReader};

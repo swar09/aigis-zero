@@ -9,6 +9,15 @@ use tokio_util::sync::CancellationToken;
 use fleet_tracing::{LogFormat, TracingConfig};
 use grpc_listener::{FleetServiceImpl, GrpcListenerConfig, GrpcServer, shutdown_signal};
 
+/// Initializes and runs the Fleet server.
+///
+/// Sets up application infrastructure and starts the gRPC server,
+/// gracefully shutting down on receipt of SIGINT or SIGTERM.
+///
+/// # Errors
+///
+/// Returns an error if settings cannot be loaded, tracing initialization fails,
+/// or the database connection fails.
 #[tokio::main]
 async fn main() -> Result<()> {
     // Load .env file into standard environment variables.

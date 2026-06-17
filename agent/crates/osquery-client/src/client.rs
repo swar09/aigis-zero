@@ -23,6 +23,17 @@ impl OsqueryClient {
         })
     }
 
+    /// Executes a SQL query against the osquery daemon.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # async fn example() -> anyhow::Result<()> {
+    /// let mut client = OsqueryClient::connect("/var/osquery/osquery.sock").await?;
+    /// let response = client.query("SELECT * FROM processes").await?;
+    /// # Ok(())
+    /// # }
+    /// ```
     pub async fn query(&mut self, sql: &str) -> Result<QueryResponse> {
         tracing::debug!("Executing query: {}", sql);
 
@@ -89,6 +100,11 @@ impl OsqueryClient {
         }
     }
 
+    /// Deserializes a Thrift-formatted buffer into a query response.
+    ///
+    /// Parses the binary buffer according to the Thrift protocol, extracting the query status
+    /// (code and message) and result rows (as a list of string key-value maps). Returns an error
+    /// if the buffer contains a Thrift exception or is malformed.
     fn parse_query_response(buf: &[u8]) -> Result<QueryResponse> {
         let mut t = TBufferChannel::with_capacity(buf.len(), 0);
         t.set_readable_bytes(buf);

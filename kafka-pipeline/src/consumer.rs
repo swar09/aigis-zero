@@ -29,6 +29,36 @@ pub struct ConsumerWorker {
 }
 
 impl ConsumerWorker {
+    /// Creates and configures a Kafka consumer worker.
+    ///
+    /// Initializes a consumer connected to the specified brokers, subscribes to the provided topics,
+    /// and prepares the worker to process messages via the given processor.
+    ///
+    /// # Arguments
+    ///
+    /// * `brokers` - Comma-separated Kafka broker addresses
+    /// * `group_id` - Consumer group identifier for offset management
+    /// * `topics` - Topics to subscribe to for message consumption
+    /// * `processor` - Handler for processing received messages
+    /// * `shutdown` - Cancellation token to trigger graceful shutdown
+    ///
+    /// # Errors
+    ///
+    /// Returns an error string if consumer creation or topic subscription fails.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let processor = Box::new(MyProcessor);
+    /// let shutdown = CancellationToken::new();
+    /// let worker = ConsumerWorker::new(
+    ///     "localhost:9092",
+    ///     "my-group",
+    ///     &["topic1"],
+    ///     processor,
+    ///     shutdown,
+    /// )?;
+    /// ```
     pub fn new(
         brokers: &str,
         group_id: &str,
@@ -60,6 +90,24 @@ impl ConsumerWorker {
         })
     }
 
+    /// Continuously processes Kafka messages until shutdown.
+    ///
+    /// Enters an infinite loop that awaits either a shutdown signal or the next message from the
+    /// Kafka stream. For each message, it extracts the key, payload, and metadata (topic, partition,
+    /// offset), and delegates processing to the configured `MessageProcessor`. If processing fails,
+    /// the error is logged and the loop continues.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let shutdown = CancellationToken::new();
+    /// let processor = Box::new(MyProcessor);
+    /// let worker = ConsumerWorker::new("localhost:9092", "my-group", &["my-topic"], processor, shutdown.clone()).unwrap();
+    ///
+    /// tokio::spawn(worker.run());
+    /// // ... handle messages in background ...
+    /// shutdown.cancel();
+    /// ```
     pub async fn run(&self) {
         use tokio_stream::StreamExt;
 
