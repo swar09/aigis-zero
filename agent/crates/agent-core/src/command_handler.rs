@@ -2,7 +2,6 @@
 use edr_sdk::models::envelope::{ServerMessage, ServerMessageType};
 use serde_json::Value;
 use tracing::{info, warn};
-// Assume these exist per the plan snippet
 use isolation::IsolationManager;
 use osquery_client::OsqueryCollector;
 use std::sync::Arc;

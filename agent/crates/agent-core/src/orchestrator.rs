@@ -92,7 +92,7 @@ pub async fn run() -> Result<()> {
     let req = edr_sdk::models::enrollment::EnrollmentRequest {
         enrollment_secret: config.fleet.enrollment_secret.clone(),
         hostname: hostname_or_default(),
-        os_version: "linux".to_string(),
+        os_version: get_os_version(),
         agent_version: env!("CARGO_PKG_VERSION").to_string(),
         platform: "linux".to_string(),
     };
@@ -170,6 +170,58 @@ fn read_machine_id() -> String {
         .unwrap_or_default()
         .trim()
         .to_string()
+}
+
+pub fn get_os_version() -> String {
+    use std::fs::File;
+    use std::io::{BufRead, BufReader};
+    use std::path::Path;
+
+    let path = Path::new("/etc/os-release");
+    if !path.exists() {
+        return "Unknown Linux (os-release not found)".to_string();
+    }
+    let file = match File::open(path) {
+        Ok(f) => f,
+        Err(_) => {
+            return "Unknown Linux (unable to open os-release)".to_string();
+        }
+    };
+
+    let reader = BufReader::new(file);
+    let mut name = None;
+    let mut version = None;
+    let mut pretty_name = None;
+
+    for line_content in reader.lines().flatten() {
+        let trimmed = line_content.trim();
+        if trimmed.starts_with('#') || trimmed.is_empty() {
+            continue;
+        }
+
+        if let Some(pos) = trimmed.find('=') {
+            let key = trimmed[..pos].trim();
+            let val = trimmed[pos + 1..].trim().trim_matches('"').to_string();
+
+            match key {
+                "PRETTY_NAME" => pretty_name = Some(val),
+                "NAME" => name = Some(val),
+                "VERSION" => version = Some(val),
+                _ => {}
+            }
+        }
+    }
+
+    if let Some(pretty) = pretty_name {
+        pretty
+    } else {
+        let os_name = name.unwrap_or_else(|| "Linux".to_string());
+        if let Some(ver) = version {
+            format!("{} {}", os_name, ver)
+        } else {
+            os_name
+        }
+    }
 }
 
 #[cfg(test)]

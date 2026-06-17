@@ -9,6 +9,7 @@ use tracing::{error, info, warn};
 use uuid::Uuid;
 
 use agent_core::config::AgentConfig;
+pub use agent_core::orchestrator::get_os_version;
 use edr_sdk::models::enrollment::EnrollmentRequest;
 use edr_sdk::models::event::EventBatch;
 use edr_sdk::models::heartbeat::HeartbeatRequest;
@@ -60,59 +61,6 @@ fn save_node_id_to_config(path: &Path, node_id: Uuid) -> anyhow::Result<()> {
     }
     std::fs::write(path, lines.join("\n"))?;
     Ok(())
-}
-
-fn get_os_version() -> String {
-       let path = Path::new("/etc/os-release");
-    if !path.exists() {
-        return "Unknown Linux (os-release not found)".to_string();
-    }
-    let file = match File::open(path) {
-        Ok(f) => f,
-        Err(_) => {
-            return "Unknown Linux (unable to
-  open os-release)"
-                .to_string();
-        }
-    };
-
-    let reader = BufReader::new(file);
-    let mut name = None;
-    let mut version = None;
-    let mut pretty_name = None;
-
-    for line in reader.lines() {
-        if let Ok(line_content) = line {
-            let trimmed = line_content.trim();
-            if trimmed.starts_with('#') || trimmed.is_empty() {
-                continue;
-            }
-
-            if let Some(pos) = trimmed.find('=') {
-                let key = trimmed[..pos].trim();
-                let val = trimmed[pos + 1..].trim().trim_matches('"').to_string();
-
-                match key {
-                    "PRETTY_NAME" => pretty_name = Some(val),
-                    "NAME" => name = Some(val),
-                    "VERSION" => version = Some(val),
-                    _ => {}
-                }
-            }
-        }
-    }
-
-    if let Some(pretty) = pretty_name {
-        pretty
-    } else {
-        let os_name = name.unwrap_or_else(|| "Linux".to_string());
-        if let Some(ver) = version {
-            format!("{} {}", os_name, ver)
-        } else {
-            os_name
-        }
-    
-    }
 }
 
 fn parse_endpoint(endpoint: &str) -> (std::net::IpAddr, u16) {
@@ -184,7 +132,7 @@ async fn main() -> anyhow::Result<()> {
     )?;
     let buffer = Arc::new(buffer);
 
-    // NEW: Connect to fleet server
+    // Connect to fleet server
     let mut fleet = FleetClient::new(config.fleet.endpoint.clone());
     fleet
         .connect_with_retry(
@@ -193,7 +141,7 @@ async fn main() -> anyhow::Result<()> {
         )
         .await?;
 
-    // NEW: Enrollment
+    // Enrollment
     let node_id = if let (Some(node_id), false) = (config.agent.node_id, args.enroll) {
         node_id
     } else {
