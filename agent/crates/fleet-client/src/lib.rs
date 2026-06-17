@@ -52,11 +52,7 @@ impl FleetClient {
     }
 
     /// Connect to the fleet server and establish the bidirectional stream.
-    // TODO: Fix Circular Auth Deadlock
-    // 1. Accept token option: connect(&mut self, token: Option<&str>)
-    // 2. If token is Some(t), insert `authorization` Bearer metadata into req:
-    //    req.metadata_mut().insert("authorization", MetadataValue::try_from(format!("Bearer {}", t))?)
-    pub async fn connect(&mut self) -> Result<(), anyhow::Error> {
+    pub async fn connect(&mut self, token: Option<&str>) -> Result<(), anyhow::Error> {
         info!(endpoint = %self.endpoint, "Connecting to fleet server");
 
         // Create tonic channel (HTTP/2 connection)
@@ -75,7 +71,14 @@ impl FleetClient {
         let path = http::uri::PathAndQuery::from_static("/edr.fleet.FleetService/EventStream");
 
         let stream = ReceiverStream::new(outbound_rx);
-        let req = tonic::Request::new(stream);
+        let mut req = tonic::Request::new(stream);
+        
+        if let Some(t) = token {
+            req.metadata_mut().insert(
+                "authorization",
+                tonic::metadata::MetadataValue::try_from(format!("Bearer {}", t))?
+            );
+        }
 
         let response = client
             .streaming(
@@ -106,11 +109,12 @@ impl FleetClient {
         &mut self,
         max_attempts: u32, // 0 = infinite
         base_delay: Duration,
+        token: Option<&str>,
     ) -> Result<(), anyhow::Error> {
         let mut attempt = 0;
         loop {
             attempt += 1;
-            match self.connect().await {
+            match self.connect(token).await {
                 Ok(()) => return Ok(()),
                 Err(e) => {
                     if max_attempts > 0 && attempt >= max_attempts {

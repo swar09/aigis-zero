@@ -138,6 +138,7 @@ async fn main() -> anyhow::Result<()> {
         .connect_with_retry(
             config.fleet.max_reconnect_attempts,
             Duration::from_secs(config.fleet.reconnect_interval_secs),
+            None,
         )
         .await?;
 
@@ -190,21 +191,26 @@ async fn main() -> anyhow::Result<()> {
     });
 
     // Start heartbeat loop (every heartbeat_interval_secs)
-    // TODO: Implement Heartbeat Loop
-    // 1. Query local buffer size: let count = buffer.len().await.unwrap_or(0) as i64;
-    // 2. Build HeartbeatRequest with node_id and count
-    // 3. Lock fleet_hb and invoke f.heartbeat(&req).await
     let fleet_hb = fleet.clone();
     let hb_interval = config.fleet.heartbeat_interval_secs;
+    let hb_buffer = buffer.clone();
+    let hb_node_id = node_id.to_string();
     tokio::spawn(async move {
         let mut ticker = interval(Duration::from_secs(hb_interval));
         loop {
             ticker.tick().await;
+            
+            let count = hb_buffer.len().await.unwrap_or(0) as i64;
+            let req = HeartbeatRequest {
+                node_id: hb_node_id.clone(),
+                status: "healthy".to_string(),
+                events_buffered: count,
+            };
+
             let mut f = fleet_hb.lock().await;
-            // Best effort HeartbeatRequest creation since Step-02 is missing
-            // We'll leave it out or do a dummy since it might not compile.
-            // let req = HeartbeatRequest { ... };
-            // let _ = f.heartbeat(&req).await;
+            if let Err(e) = f.heartbeat(&req).await {
+                warn!("Heartbeat failed: {}", e);
+            }
         }
     });
 

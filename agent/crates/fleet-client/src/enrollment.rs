@@ -1,6 +1,7 @@
-use crate::types::{EnrollmentResult, RegisterRequest};
+use crate::types::{EnrollmentResult, RegisterRequest, RegisterResponse};
 use anyhow::Result;
 use tonic::transport::Channel;
+use edr_sdk::codec::JsonCodec;
 
 pub struct AgentEnrollment;
 
@@ -8,12 +9,24 @@ impl AgentEnrollment {
     pub async fn enroll(channel: Channel, request: RegisterRequest) -> Result<EnrollmentResult> {
         tracing::info!("Enrolling agent: {:?}", request.hostname);
 
-        // TODO: Implement direct unary enrollment call
-        // 1. Initialize `client = tonic::client::Grpc::new(channel)`
-        // 2. Set path to "/edr.fleet.FleetService/RegisterAgent"
-        // 3. Make unary call passing `request` and using `JsonCodec::<RegisterRequest, RegisterResponse>::default()`
-        // 4. Return EnrollmentResult mapping fields from the server response (RegisterResponse)
+        let mut client = tonic::client::Grpc::new(channel);
+        let path = http::uri::PathAndQuery::from_static("/edr.fleet.FleetService/RegisterAgent");
+        let tonic_req = tonic::Request::new(request);
+        
+        let response = client
+            .unary(
+                tonic_req,
+                path,
+                JsonCodec::<RegisterRequest, RegisterResponse>::default()
+            )
+            .await?;
 
-        anyhow::bail!("Enrollment not yet implemented (Planned for Sprint 4)");
+        let res = response.into_inner();
+
+        Ok(EnrollmentResult {
+            node_id: res.node_id,
+            token: res.token,
+            config: res.config,
+        })
     }
 }
