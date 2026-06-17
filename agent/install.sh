@@ -95,32 +95,37 @@ step 3 "Installing dependencies and osquery"
 
 if is_debian_family; then
     # Runtime deps for osquery
-    apt-get update -qq 2>/dev/null
-    apt-get install -y -qq wget curl gnupg2 ca-certificates \
-        libcap2 libudev1 libblkid1 libaudit1 2>/dev/null
+    apt-get update -qq 2>/dev/null || true
+    for pkg in wget curl gnupg2 ca-certificates libcap2 libudev1 libblkid1 libaudit1 nftables; do
+        apt-get install -y -qq "$pkg" 2>/dev/null || true
+    done
 
     # osquery official repository
     if ! command -v osqueryd &>/dev/null; then
+        mkdir -p /usr/share/keyrings
         curl -fsSL https://pkg.osquery.io/deb/pubkey.gpg \
-          | gpg --dearmor -o /usr/share/keyrings/osquery.gpg 2>/dev/null
+          | gpg --dearmor -o /usr/share/keyrings/osquery.gpg 2>/dev/null || true
         echo "deb [signed-by=/usr/share/keyrings/osquery.gpg] https://pkg.osquery.io/deb deb main" \
           | tee /etc/apt/sources.list.d/osquery.list >/dev/null
-        apt-get update -qq 2>/dev/null
-        apt-get install -y -qq osquery 2>/dev/null
+        apt-get update -qq 2>/dev/null || true
+        apt-get install -y -qq osquery || fail "Failed to install osquery package via apt."
     fi
 
 elif is_rpm_family; then
     # Package manager (prefer dnf, fall back to yum)
     if command -v dnf &>/dev/null; then PKG_MGR=dnf; else PKG_MGR=yum; fi
 
-    # Runtime deps for osquery
-    $PKG_MGR install -y -q wget curl ca-certificates \
-        libcap audit-libs systemd-libs util-linux-libs 2>/dev/null
+    # Runtime deps for osquery and firewall
+    for pkg in wget curl ca-certificates libcap audit-libs systemd-libs util-linux-libs nftables; do
+        $PKG_MGR install -y -q "$pkg" 2>/dev/null || true
+    done
 
     # osquery official repository
     if ! command -v osqueryd &>/dev/null; then
+        mkdir -p /etc/pki/rpm-gpg
         curl -fsSL https://pkg.osquery.io/rpm/GPG \
-          | tee /etc/pki/rpm-gpg/RPM-GPG-KEY-osquery >/dev/null
+          | tee /etc/pki/rpm-gpg/RPM-GPG-KEY-osquery >/dev/null || true
+        mkdir -p /etc/yum.repos.d
         cat > /etc/yum.repos.d/osquery.repo << 'REPO'
 [osquery-s3-rpm-release]
 name=osquery-s3-rpm-release
@@ -130,7 +135,7 @@ repo_gpgcheck=1
 gpgcheck=0
 gpgkey=https://pkg.osquery.io/rpm/GPG
 REPO
-        $PKG_MGR install -y -q osquery 2>/dev/null
+        $PKG_MGR install -y -q osquery || fail "Failed to install osquery package via $PKG_MGR."
     fi
 
 else
@@ -261,6 +266,28 @@ install -o root -g root -m 644 \
 touch /etc/osquery/extensions.load
 chown root:root /etc/osquery/extensions.load
 chmod 644 /etc/osquery/extensions.load
+
+# Set up default environment file for osqueryd service (Debian /etc/default vs RPM /etc/sysconfig paths)
+if [ -d /etc/default ]; then
+    cat > /etc/default/osqueryd << 'ENV'
+FLAG_FILE="/etc/osquery/osquery.flags"
+CONFIG_FILE="/etc/osquery/osquery.conf"
+LOCAL_PIDFILE="/var/osquery/osqueryd.pidfile"
+PIDFILE="/var/run/osqueryd.pid"
+ENV
+    chown root:root /etc/default/osqueryd
+    chmod 644 /etc/default/osqueryd
+fi
+if [ -d /etc/sysconfig ]; then
+    cat > /etc/sysconfig/osqueryd << 'ENV'
+FLAG_FILE="/etc/osquery/osquery.flags"
+CONFIG_FILE="/etc/osquery/osquery.conf"
+LOCAL_PIDFILE="/var/osquery/osqueryd.pidfile"
+PIDFILE="/var/run/osqueryd.pid"
+ENV
+    chown root:root /etc/sysconfig/osqueryd
+    chmod 644 /etc/sysconfig/osqueryd
+fi
 
 ok
 

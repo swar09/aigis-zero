@@ -11,12 +11,12 @@ event_buffer_max = 500000           # max events in SQLite before oldest are dro
 event_drain_batch = 100             # rows per flush cycle
 event_drain_interval_secs = 5      # how often to attempt shipping buffered events
 
-node_id = "372c19d0-6997-47fc-b402-e0ee9b3ce63d"
+node_id = "e38eb47e-6dd5-4ae0-b576-17b65dbf0eed"
 [osquery]
 socket_path = "/var/osquery/osquery.em"
 conf_path = "/etc/osquery/osquery.conf"
 flags_path = "/etc/osquery/osquery.flags"
-pid_file = "/run/osquery/osqueryd.pid"
+pid_file = "/var/osquery/osqueryd.pidfile"
 log_path = "/var/log/osquery"
 connect_timeout_secs = 30
 query_timeout_secs = 60

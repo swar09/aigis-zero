@@ -164,11 +164,20 @@ fn hostname_or_default() -> String {
         .unwrap_or_else(|| "unknown-host".to_string())
 }
 
-fn read_machine_id() -> String {
-    std::fs::read_to_string("/etc/machine-id")
-        .unwrap_or_default()
-        .trim()
-        .to_string()
+pub fn read_machine_id() -> String {
+    if let Ok(id) = std::fs::read_to_string("/etc/machine-id") {
+        let trimmed = id.trim();
+        if !trimmed.is_empty() {
+            return trimmed.to_string();
+        }
+    }
+    if let Ok(id) = std::fs::read_to_string("/var/lib/dbus/machine-id") {
+        let trimmed = id.trim();
+        if !trimmed.is_empty() {
+            return trimmed.to_string();
+        }
+    }
+    "unknown-machine-id".to_string()
 }
 
 pub fn get_os_version() -> String {
@@ -192,7 +201,7 @@ pub fn get_os_version() -> String {
     let mut version = None;
     let mut pretty_name = None;
 
-    for line_content in reader.lines().flatten() {
+    for line_content in reader.lines().map_while(Result::ok) {
         let trimmed = line_content.trim();
         if trimmed.starts_with('#') || trimmed.is_empty() {
             continue;

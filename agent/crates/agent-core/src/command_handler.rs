@@ -1,10 +1,10 @@
 #![allow(unused_imports, unused_variables, dead_code, unused_mut)]
 use edr_sdk::proto::fleet::{ServerCommand, server_command::Command};
-use serde_json::Value;
-use tracing::{info, warn};
 use isolation::IsolationManager;
 use osquery_client::OsqueryCollector;
+use serde_json::Value;
 use std::sync::Arc;
+use tracing::{info, warn};
 
 pub struct CommandHandler {
     pub osquery: Arc<OsqueryCollector>,
@@ -21,16 +21,15 @@ impl CommandHandler {
                     self.isolation.isolate().await.map_err(|e| e.to_string())?;
                     Ok(serde_json::json!({"status": "isolated"}))
                 } else {
-                    self.isolation.de_isolate().await.map_err(|e| e.to_string())?;
+                    self.isolation
+                        .de_isolate()
+                        .await
+                        .map_err(|e| e.to_string())?;
                     Ok(serde_json::json!({"status": "unisolated"}))
                 }
             }
-            Command::ConfigUpdate(_cfg) => {
-                Ok(serde_json::json!({"status": "config_updated"}))
-            }
-            Command::Ack(_) => {
-                Ok(serde_json::json!({"status": "acked"}))
-            }
+            Command::ConfigUpdate(_cfg) => Ok(serde_json::json!({"status": "config_updated"})),
+            Command::Ack(_) => Ok(serde_json::json!({"status": "acked"})),
         }
     }
 }

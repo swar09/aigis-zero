@@ -5,9 +5,9 @@ use tonic::Status;
 
 use fleet_manager::{EventIngestPort, IncomingEvent, OutgoingCommand};
 use health_tracker::HealthTracker;
+use kafka_handler::KafkaPublisher;
 use node_enrollment::NodeEnroller;
 use postgres_interface::{PgHealthStore, PgNodeStore};
-use kafka_handler::KafkaPublisher;
 
 pub struct KafkaEventIngest {
     publisher: Arc<KafkaPublisher>,
@@ -23,13 +23,19 @@ impl EventIngestPort for KafkaEventIngest {
             event.payload.as_slice()
         };
 
-        match self.publisher.publish(&self.topic, &event.node_id, payload).await {
+        match self
+            .publisher
+            .publish(&self.topic, &event.node_id, payload)
+            .await
+        {
             Ok(_) => Ok(Some(OutgoingCommand::Ack {
                 sequence_id: event.sequence_id,
             })),
             Err(e) => {
                 tracing::error!(error = %e, "Failed to publish event to Kafka");
-                Err(Status::internal("Failed to publish event to message broker"))
+                Err(Status::internal(
+                    "Failed to publish event to message broker",
+                ))
             }
         }
     }
@@ -47,7 +53,8 @@ pub fn build_ports(
     let enroller = Arc::new(NodeEnroller::new(node_store, jwt_secret.as_bytes()));
     let tracker = Arc::new(HealthTracker::new(health_store));
 
-    let publisher = KafkaPublisher::new(kafka_brokers).expect("Failed to initialize KafkaPublisher");
+    let publisher =
+        KafkaPublisher::new(kafka_brokers).expect("Failed to initialize KafkaPublisher");
     let event_ingest = Arc::new(KafkaEventIngest {
         publisher: Arc::new(publisher),
         topic: kafka_topic.to_string(),

@@ -2,6 +2,7 @@
 pub mod command_handler;
 pub mod config;
 pub mod orchestrator;
+pub mod preflight;
 
 use anyhow::Result;
 use std::sync::Arc;
@@ -13,8 +14,8 @@ use uuid::Uuid;
 use command_handler::CommandHandler;
 use event_buffer::EventBuffer;
 use fleet_client::FleetClient;
-use osquery_client::OsqueryCollector;
 use fleet_client::types::{AgentEvent, EventType};
+use osquery_client::OsqueryCollector;
 
 /// Maximum number of consecutive `receive()` errors before the command
 /// listener backs off to the maximum delay ceiling.
@@ -49,9 +50,7 @@ impl AgentCore {
     pub async fn run(&self, agent_uuid: &str) -> Result<()> {
         let shutdown = self.shutdown.clone();
 
-        // ─────────────────────────────────────────────────────────────────
-        // TASK 1 — OSQuery Polling and Buffering Loop
-        // ─────────────────────────────────────────────────────────────────
+        // TASK 1: OSQuery Polling and Buffering Loop
         //
         // `OsqueryCollector::start` spawns its own internal scheduler task
         // and returns the *consumer* end of an MPSC channel (buffer = 100).
@@ -79,16 +78,15 @@ impl AgentCore {
                     _ = shutdown_osq.cancelled() => {
                         info!("OSQuery polling task: shutdown signal received, draining remaining events");
 
-                        // ── Graceful drain ─────────────────────────────
+                        // Graceful drain
                         // Consume whatever is already sitting in the MPSC
                         // buffer so we do not lose events that the scheduler
                         // already produced before the token fired.
                         while let Ok(result) = results_rx.try_recv() {
-                            if let Some(json) = encode_osquery_result(&result) {
-                                if let Err(e) = buffer_task.push(json).await {
+                            if let Some(json) = encode_osquery_result(&result)
+                                && let Err(e) = buffer_task.push(json).await {
                                     error!(error = %e, "Failed to buffer OSQuery result during shutdown drain");
                                 }
-                            }
                         }
                         break;
                     }
@@ -103,7 +101,7 @@ impl AgentCore {
                                 break;
                             }
                             Some(osq_result) => {
-                                // ── Serialisation ─────────────────────
+                                // Serialisation
                                 // `encode_osquery_result` handles both
                                 // serde errors and clock-jump edge cases
                                 // internally; it never panics.
@@ -118,7 +116,7 @@ impl AgentCore {
                                     "Buffering OSQuery event"
                                 );
 
-                                // ── Buffer push ───────────────────────
+                                // Buffer push
                                 // `EventBuffer::push` offloads the actual
                                 // SQLite INSERT onto `spawn_blocking`, so
                                 // this await yields the async thread back to
@@ -145,9 +143,7 @@ impl AgentCore {
             info!("OSQuery polling task exited cleanly");
         });
 
-        // ─────────────────────────────────────────────────────────────────
-        // TASK 2 — Command Listener Loop
-        // ─────────────────────────────────────────────────────────────────
+        // TASK 2: Command Listener Loop
         //
         // LOCK CONTENTION DESIGN — why we do NOT do:
         //
@@ -182,8 +178,8 @@ impl AgentCore {
         // (inbound_rx, method: receive) so the two halves can be locked
         // independently, eliminating the poll interval entirely.
 
-        let cmd_handler  = self.command_handler.clone();
-        let fleet        = self.fleet_client.clone();
+        let cmd_handler = self.command_handler.clone();
+        let fleet = self.fleet_client.clone();
         let shutdown_cmd = shutdown.clone();
 
         let command_task = tokio::spawn(async move {
@@ -193,13 +189,13 @@ impl AgentCore {
             let mut consecutive_errors: u32 = 0;
 
             loop {
-                // ── Check shutdown first (biased) ──────────────────────
+                // Check shutdown first (biased)
                 if shutdown_cmd.is_cancelled() {
                     info!("Command listener task: shutdown signal received, exiting");
                     break;
                 }
 
-                // ── Non-blocking poll (lock held < 1 µs) ──────────────
+                // Non-blocking poll (lock held < 1 µs)
                 //
                 // We acquire the lock, call try_receive (synchronous, no
                 // await), then immediately drop the guard.  The total time
@@ -212,7 +208,7 @@ impl AgentCore {
                 };
 
                 match poll_result {
-                    // ── No message yet ────────────────────────────────
+                    // No message yet
                     Ok(None) => {
                         // Reset error counter: the transport is healthy.
                         consecutive_errors = 0;
@@ -231,7 +227,7 @@ impl AgentCore {
                         }
                     }
 
-                    // ── Message received ──────────────────────────────
+                    // Message received
                     Ok(Some(msg)) => {
                         consecutive_errors = 0;
 
@@ -251,7 +247,7 @@ impl AgentCore {
                         }
                     }
 
-                    // ── Transport / channel error ─────────────────────
+                    // Transport / channel error
                     Err(e) => {
                         consecutive_errors = consecutive_errors.saturating_add(1);
 
@@ -295,9 +291,7 @@ impl AgentCore {
             info!("Command listener task exited cleanly");
         });
 
-        // ─────────────────────────────────────────────────────────────────
         // Wait for shutdown signal
-        // ─────────────────────────────────────────────────────────────────
         shutdown.cancelled().await;
         info!("AgentCore: shutdown token fired, awaiting task cleanup");
 
@@ -314,9 +308,7 @@ impl AgentCore {
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Helper — OsqueryResult → AgentEvent JSON
-// ─────────────────────────────────────────────────────────────────────────────
+// Helper — OsqueryResult to AgentEvent JSON
 
 /// Converts an `OsqueryResult` into a JSON string suitable for `EventBuffer::push`.
 ///
@@ -346,8 +338,8 @@ fn encode_osquery_result(result: &osquery_client::types::OsqueryResult) -> Optio
     };
 
     let event = AgentEvent {
-        node_id:     result.agent_uuid.clone(),
-        event_type:  EventType::Osquery as i32,
+        node_id: result.agent_uuid.clone(),
+        event_type: EventType::Osquery as i32,
         payload,
         // Pass through the scheduler's nanosecond timestamp verbatim.
         // The scheduler already checked `timestamp_nanos_opt()`; if it
@@ -373,24 +365,122 @@ fn encode_osquery_result(result: &osquery_client::types::OsqueryResult) -> Optio
 #[cfg(test)]
 mod tests {
     use super::*;
+    use edr_sdk::proto::fleet::{
+        AckCommand, ConfigUpdateCommand, ServerCommand, server_command::Command,
+    };
+    use osquery_client::types::{ColumnEntry, OsqueryResult, OsqueryResultRow, ResultAction};
+    use std::path::PathBuf;
 
-    #[tokio::test]
-    async fn test_osquery_loop_produces_events() {
-        // 1. Osquery loop produces events
+    #[test]
+    fn test_osquery_result_encoding_happy_path() {
+        let result = OsqueryResult {
+            query_name: "test_query".to_string(),
+            agent_uuid: "test-agent-123".to_string(),
+            timestamp_ns: 1718660000000000000,
+            rows: vec![OsqueryResultRow {
+                columns: vec![ColumnEntry {
+                    name: "col1".to_string(),
+                    value: "val1".to_string(),
+                }],
+            }],
+            action: ResultAction::Snapshot,
+        };
+
+        let encoded = encode_osquery_result(&result);
+        assert!(encoded.is_some());
+
+        let json_str = encoded.unwrap();
+        let event: serde_json::Value = serde_json::from_str(&json_str).unwrap();
+
+        assert_eq!(event["node_id"], "test-agent-123");
+        assert_eq!(event["event_type"], EventType::Osquery as i32);
+        assert_eq!(event["timestamp_ns"], 1718660000000000000i64);
+
+        let payload = &event["payload"];
+        assert_eq!(payload["query_name"], "test_query");
+        assert_eq!(payload["action"], "SNAPSHOT");
     }
 
     #[tokio::test]
-    async fn test_command_handling() {
-        // 2. Command handling (run_query, isolate, unisolate)
+    async fn test_command_handling_ack() {
+        let collector = OsqueryCollector::new(osquery_client::OsqueryConfig {
+            socket_path: PathBuf::from("/tmp/osquery-test.em"),
+            db_path: PathBuf::from("/tmp/events-test.db"),
+        })
+        .await
+        .unwrap();
+
+        let handler = CommandHandler {
+            osquery: Arc::new(collector),
+            isolation: isolation::IsolationManager::new(
+                std::net::IpAddr::V4(std::net::Ipv4Addr::new(127, 0, 0, 1)),
+                50051,
+            ),
+        };
+
+        let cmd = ServerCommand {
+            command: Some(Command::Ack(AckCommand {
+                sequence_id: "test-seq-123".to_string(),
+            })),
+        };
+
+        let res = handler.handle(cmd).await;
+        assert!(res.is_ok());
+        let val = res.unwrap();
+        assert_eq!(val["status"], "acked");
     }
 
     #[tokio::test]
-    async fn test_shutdown_signal() {
-        // 3. Shutdown signal stops all tasks
+    async fn test_command_handling_config_update() {
+        let collector = OsqueryCollector::new(osquery_client::OsqueryConfig {
+            socket_path: PathBuf::from("/tmp/osquery-test.em"),
+            db_path: PathBuf::from("/tmp/events-test.db"),
+        })
+        .await
+        .unwrap();
+
+        let handler = CommandHandler {
+            osquery: Arc::new(collector),
+            isolation: isolation::IsolationManager::new(
+                std::net::IpAddr::V4(std::net::Ipv4Addr::new(127, 0, 0, 1)),
+                50051,
+            ),
+        };
+
+        let cmd = ServerCommand {
+            command: Some(Command::ConfigUpdate(ConfigUpdateCommand {
+                config: Some(edr_sdk::proto::fleet::AgentConfig {
+                    osquery_schedule: vec![],
+                    heartbeat_interval_secs: 60,
+                    batch_size: 100,
+                }),
+            })),
+        };
+
+        let res = handler.handle(cmd).await;
+        assert!(res.is_ok());
+        let val = res.unwrap();
+        assert_eq!(val["status"], "config_updated");
     }
 
     #[tokio::test]
-    async fn test_event_buffer_integration() {
-        // 4. Event buffer integration
+    async fn test_shutdown_signal_cancellation() {
+        let token = CancellationToken::new();
+        let token_clone = token.clone();
+
+        let handle = tokio::spawn(async move {
+            tokio::select! {
+                _ = token_clone.cancelled() => {
+                    true
+                }
+                _ = tokio::time::sleep(Duration::from_millis(500)) => {
+                    false
+                }
+            }
+        });
+
+        token.cancel();
+        let result = handle.await.unwrap();
+        assert!(result);
     }
 }

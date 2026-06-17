@@ -9,10 +9,10 @@ use tracing::{error, info, warn};
 use uuid::Uuid;
 
 use agent_core::config::AgentConfig;
-pub use agent_core::orchestrator::get_os_version;
-use edr_sdk::proto::fleet::RegisterRequest;
+pub use agent_core::orchestrator::{get_os_version, read_machine_id};
 use edr_sdk::models::event::EventBatch;
 use edr_sdk::models::heartbeat::HeartbeatRequest;
+use edr_sdk::proto::fleet::RegisterRequest;
 use fleet_client::FleetClient;
 
 use std::fs::File;
@@ -22,7 +22,12 @@ use std::io::{BufRead, BufReader};
 #[command(name = "aigis-zero", version, about = "Aigis-Zero Agent")]
 struct Args {
     /// Config path
-    #[arg(short, long, default_value = "/etc/aigis-zero/config.toml")]
+    #[arg(
+        short,
+        long,
+        env = "EDR_AGENT_CONFIG",
+        default_value = "/etc/aigis-zero/config.toml"
+    )]
     config: PathBuf,
 
     /// Validate config and exit
@@ -80,6 +85,8 @@ fn parse_endpoint(endpoint: &str) -> (std::net::IpAddr, u16) {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    dotenvy::dotenv().ok();
+
     // 1. Parse CLI
     let args = Args::parse();
 
@@ -102,7 +109,17 @@ async fn main() -> anyhow::Result<()> {
 
     if args.check {
         println!("Config syntax is valid.");
-        std::process::exit(0);
+        let report = agent_core::preflight::run_preflight(&config);
+        report.print();
+        if report.is_ok() {
+            println!("Environment checks passed. Ready for deployment.");
+            std::process::exit(0);
+        } else {
+            eprintln!(
+                "Environment checks failed. Please resolve the errors above before deploying."
+            );
+            std::process::exit(1);
+        }
     }
 
     let format = match config.agent.log_format.as_str() {
@@ -148,7 +165,7 @@ async fn main() -> anyhow::Result<()> {
             hostname: hostname::get()?.to_string_lossy().to_string(),
             os_version: get_os_version(),
             agent_version: env!("CARGO_PKG_VERSION").to_string(),
-            machine_id: std::fs::read_to_string("/etc/machine-id").unwrap_or_else(|_| "unknown".to_string()).trim().to_string(),
+            machine_id: read_machine_id(),
         })
         .await?;
 
@@ -205,7 +222,7 @@ async fn main() -> anyhow::Result<()> {
         let mut ticker = interval(Duration::from_secs(hb_interval));
         loop {
             ticker.tick().await;
-            
+
             let count = hb_buffer.len().await.unwrap_or(0) as i64;
             let req = HeartbeatRequest {
                 node_id: hb_node_id.clone(),

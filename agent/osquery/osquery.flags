@@ -9,6 +9,7 @@
 --config_accelerated_refresh=120
 --database_path=/var/osquery/osquery.db
 --pidfile=/var/osquery/osqueryd.pidfile
+--extensions_socket=/var/osquery/osquery.em
 --force=true
 
 # ─── Logging ──────────────────────────────────────────────────────────────────

@@ -28,6 +28,41 @@ impl QueryScheduler {
             [],
         )?;
 
+        let count: i64 = conn.query_row("SELECT COUNT(*) FROM scheduled_queries", [], |row| {
+            row.get(0)
+        })?;
+
+        if count == 0 {
+            let now = chrono::Utc::now().timestamp();
+            let defaults = vec![
+                (
+                    "running_processes",
+                    "SELECT pid, name, path, cmdline, uid FROM processes;",
+                    30,
+                    0,
+                ),
+                (
+                    "listening_ports",
+                    "SELECT pid, port, protocol, address FROM listening_ports;",
+                    30,
+                    0,
+                ),
+                (
+                    "users",
+                    "SELECT username, uid, gid, shell, directory FROM users;",
+                    300,
+                    0,
+                ),
+            ];
+            for (name, query, interval, snapshot) in defaults {
+                conn.execute(
+                    "INSERT INTO scheduled_queries (name, query, interval_secs, snapshot, updated_at) VALUES (?1, ?2, ?3, ?4, ?5)",
+                    rusqlite::params![name, query, interval, snapshot, now],
+                )?;
+            }
+            tracing::info!("Seeded default scheduled queries into empty database");
+        }
+
         Ok(Self { conn })
     }
 
@@ -277,13 +312,13 @@ mod tests {
         scheduler.upsert_queries(std::slice::from_ref(&q1)).unwrap();
 
         let loaded = scheduler.load_queries().unwrap();
-        assert_eq!(loaded.len(), 1);
-        assert_eq!(loaded[0].name, "test_query");
-        assert_eq!(loaded[0].query, "SELECT 1");
-        assert_eq!(loaded[0].interval_secs, 60);
-        assert!(!loaded[0].snapshot);
+        assert_eq!(loaded.len(), 4);
+        let q_loaded = loaded.iter().find(|q| q.name == "test_query").unwrap();
+        assert_eq!(q_loaded.name, "test_query");
+        assert_eq!(q_loaded.query, "SELECT 1");
+        assert_eq!(q_loaded.interval_secs, 60);
+        assert!(!q_loaded.snapshot);
 
-        // Update the query
         let q2 = ScheduledQuery {
             name: "test_query".to_string(),
             query: "SELECT 2".to_string(),
@@ -293,9 +328,10 @@ mod tests {
         scheduler.upsert_queries(&[q2]).unwrap();
 
         let loaded = scheduler.load_queries().unwrap();
-        assert_eq!(loaded.len(), 1);
-        assert_eq!(loaded[0].query, "SELECT 2");
-        assert_eq!(loaded[0].interval_secs, 120);
-        assert!(loaded[0].snapshot);
+        assert_eq!(loaded.len(), 4);
+        let q_loaded2 = loaded.iter().find(|q| q.name == "test_query").unwrap();
+        assert_eq!(q_loaded2.query, "SELECT 2");
+        assert_eq!(q_loaded2.interval_secs, 120);
+        assert!(q_loaded2.snapshot);
     }
 }

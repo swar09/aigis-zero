@@ -1,0 +1,32 @@
+[files]
+extend-exclude = [
+    ".git",
+    "target",
+    "Cargo.lock",
+    ".sqlx",
+    "node_modules"
+]
+
+[default.extend-words]
+aigis = "aigis"
+osquery = "osquery"
+osqueryd = "osqueryd"
+rusqlite = "rusqlite"
+grpc = "grpc"
+nftables = "nftables"
+ebpf = "ebpf"
+sysctl = "sysctl"
+dbus = "dbus"
+dotenv = "dotenv"
+dotenvy = "dotenvy"
+ulimit = "ulimit"
+ulimits = "ulimits"
+uuid = "uuid"
+prost = "prost"
+tonic = "tonic"
+rdkafka = "rdkafka"
+sqlx = "sqlx"
+bpf = "bpf"
+inotify = "inotify"
+cgroup = "cgroup"
+cgroups = "cgroups"

@@ -1,10 +1,10 @@
 use std::path::Path;
-use tokio::net::UnixStream;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::net::UnixStream;
 
 use thrift::protocol::{
-    TBinaryOutputProtocol, TFieldIdentifier, TMessageIdentifier, TMessageType, TType,
-    TInputProtocol, TOutputProtocol,
+    TBinaryOutputProtocol, TFieldIdentifier, TMessageIdentifier, TMessageType,
+    TOutputProtocol, TType,
 };
 use thrift::transport::TBufferChannel;
 
@@ -23,10 +23,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             1,
         ))?;
 
-        out_prot.write_struct_begin(&thrift::protocol::TStructIdentifier::new("registerExtension_args"))?;
+        out_prot.write_struct_begin(&thrift::protocol::TStructIdentifier::new(
+            "registerExtension_args",
+        ))?;
 
         out_prot.write_field_begin(&TFieldIdentifier::new("info", TType::Struct, 1))?;
-        out_prot.write_struct_begin(&thrift::protocol::TStructIdentifier::new("InternalExtensionInfo"))?;
+        out_prot.write_struct_begin(&thrift::protocol::TStructIdentifier::new(
+            "InternalExtensionInfo",
+        ))?;
 
         out_prot.write_field_begin(&TFieldIdentifier::new("name", TType::String, 1))?;
         out_prot.write_string("aigis_zero")?;
@@ -49,7 +53,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         out_prot.write_field_end()?;
 
         out_prot.write_field_begin(&TFieldIdentifier::new("registry", TType::Map, 2))?;
-        out_prot.write_map_begin(&thrift::protocol::TMapIdentifier::new(TType::String, TType::Map, 0))?;
+        out_prot.write_map_begin(&thrift::protocol::TMapIdentifier::new(
+            TType::String,
+            TType::Map,
+            0,
+        ))?;
         out_prot.write_map_end()?;
         out_prot.write_field_end()?;
 
@@ -72,7 +80,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     stream.flush().await?;
 
     let mut len_buf = [0u8; 4];
-    match tokio::time::timeout(std::time::Duration::from_secs(2), stream.read_exact(&mut len_buf)).await {
+    match tokio::time::timeout(
+        std::time::Duration::from_secs(2),
+        stream.read_exact(&mut len_buf),
+    )
+    .await
+    {
         Ok(Ok(_)) => {
             let resp_len = u32::from_be_bytes(len_buf) as usize;
             println!("FRAMED success! Response length: {}", resp_len);
@@ -87,7 +100,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     stream2.flush().await?;
 
     let mut resp_buf = [0u8; 1024];
-    match tokio::time::timeout(std::time::Duration::from_secs(2), stream2.read(&mut resp_buf)).await {
+    match tokio::time::timeout(
+        std::time::Duration::from_secs(2),
+        stream2.read(&mut resp_buf),
+    )
+    .await
+    {
         Ok(Ok(n)) => {
             println!("UNFRAMED success! Read {} bytes", n);
             println!("Response (hex): {:02x?}", &resp_buf[..n]);

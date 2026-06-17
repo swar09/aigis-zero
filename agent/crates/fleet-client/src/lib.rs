@@ -7,19 +7,19 @@ use chrono::Utc;
 use std::time::Duration;
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
-use tonic::transport::Channel;
 use tonic::Request;
 use tonic::metadata::MetadataValue;
+use tonic::transport::Channel;
 use tracing::{debug, error, info, warn};
 use uuid::Uuid;
 
-use edr_sdk::proto::fleet::{
-    fleet_service_client::FleetServiceClient, AgentEvent, HeartbeatRequest as ProtoHeartbeatRequest,
-    RegisterRequest, RegisterResponse, ServerCommand,
-};
 use edr_sdk::models::enrollment::{EnrollmentRequest, EnrollmentResponse};
 use edr_sdk::models::event::{EventAck, EventBatch};
 use edr_sdk::models::heartbeat::{HeartbeatRequest, HeartbeatResponse};
+use edr_sdk::proto::fleet::{
+    AgentEvent, HeartbeatRequest as ProtoHeartbeatRequest, RegisterRequest, RegisterResponse,
+    ServerCommand, fleet_service_client::FleetServiceClient,
+};
 
 pub struct FleetClient {
     endpoint: String,
@@ -61,15 +61,13 @@ impl FleetClient {
         if let Some(t) = token {
             let stream = ReceiverStream::new(outbound_rx);
             let mut req = Request::new(stream);
-            
+
             req.metadata_mut().insert(
                 "authorization",
-                MetadataValue::try_from(format!("Bearer {}", t))?
+                MetadataValue::try_from(format!("Bearer {}", t))?,
             );
 
-            let response = client
-                .event_stream(req)
-                .await?;
+            let response = client.event_stream(req).await?;
 
             let mut inbound_stream = response.into_inner();
 
@@ -116,8 +114,14 @@ impl FleetClient {
         &mut self,
         request: RegisterRequest,
     ) -> Result<RegisterResponse, anyhow::Error> {
-        let client = self.client.as_mut().ok_or_else(|| anyhow::anyhow!("Not connected"))?;
-        let response = client.register_agent(Request::new(request)).await?.into_inner();
+        let client = self
+            .client
+            .as_mut()
+            .ok_or_else(|| anyhow::anyhow!("Not connected"))?;
+        let response = client
+            .register_agent(Request::new(request))
+            .await?
+            .into_inner();
 
         let node_uuid = Uuid::parse_str(&response.node_id).unwrap_or_default();
         self.node_id = Some(node_uuid);
@@ -150,7 +154,7 @@ impl FleetClient {
             let payload = serde_json::to_vec(&val["payload"]).unwrap_or_default();
             let timestamp_ns = val["timestamp_ns"].as_i64().unwrap_or_default();
             let sequence_id = val["sequence_id"].as_str().unwrap_or_default().to_string();
-            
+
             let proto_event = AgentEvent {
                 node_id,
                 event_type,
@@ -158,10 +162,15 @@ impl FleetClient {
                 timestamp_ns,
                 sequence_id,
             };
-            tx.send(proto_event).await.map_err(|_| anyhow::anyhow!("Send channel closed"))?;
+            tx.send(proto_event)
+                .await
+                .map_err(|_| anyhow::anyhow!("Send channel closed"))?;
         }
 
-        Ok(EventAck { success: true, error: None })
+        Ok(EventAck {
+            success: true,
+            error: None,
+        })
     }
 
     pub async fn heartbeat(
@@ -174,21 +183,22 @@ impl FleetClient {
             events_buffered: request.events_buffered,
         };
 
-        let client = self.client.as_mut().ok_or_else(|| anyhow::anyhow!("Not connected"))?;
+        let client = self
+            .client
+            .as_mut()
+            .ok_or_else(|| anyhow::anyhow!("Not connected"))?;
         let mut req_tonic = Request::new(req);
-        
+
         if let Some(t) = &self.token {
             req_tonic.metadata_mut().insert(
                 "authorization",
-                MetadataValue::try_from(format!("Bearer {}", t))?
+                MetadataValue::try_from(format!("Bearer {}", t))?,
             );
         }
 
         let response = client.heartbeat(req_tonic).await?.into_inner();
 
-        Ok(HeartbeatResponse {
-            ok: response.ok,
-        })
+        Ok(HeartbeatResponse { ok: response.ok })
     }
 
     pub fn try_receive(&mut self) -> Result<Option<ServerCommand>, anyhow::Error> {
@@ -200,9 +210,9 @@ impl FleetClient {
         match rx.try_recv() {
             Ok(msg) => Ok(Some(msg)),
             Err(mpsc::error::TryRecvError::Empty) => Ok(None),
-            Err(mpsc::error::TryRecvError::Disconnected) => {
-                Err(anyhow::anyhow!("Inbound channel closed (server disconnected)"))
-            }
+            Err(mpsc::error::TryRecvError::Disconnected) => Err(anyhow::anyhow!(
+                "Inbound channel closed (server disconnected)"
+            )),
         }
     }
 
@@ -226,10 +236,16 @@ impl FleetClient {
 #[cfg(test)]
 mod tests {
     use super::*;
-    #[tokio::test] async fn test_connection_establishment() {}
-    #[tokio::test] async fn test_enrollment_request_response() {}
-    #[tokio::test] async fn test_event_batch_sending() {}
-    #[tokio::test] async fn test_heartbeat_sending() {}
-    #[tokio::test] async fn test_reconnection_after_disconnect() {}
-    #[tokio::test] async fn test_invalid_server_response() {}
+    #[tokio::test]
+    async fn test_connection_establishment() {}
+    #[tokio::test]
+    async fn test_enrollment_request_response() {}
+    #[tokio::test]
+    async fn test_event_batch_sending() {}
+    #[tokio::test]
+    async fn test_heartbeat_sending() {}
+    #[tokio::test]
+    async fn test_reconnection_after_disconnect() {}
+    #[tokio::test]
+    async fn test_invalid_server_response() {}
 }
