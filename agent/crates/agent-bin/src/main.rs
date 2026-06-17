@@ -186,7 +186,7 @@ async fn main() -> anyhow::Result<()> {
     };
 
     tokio::spawn(async move {
-        let _ = agent_core.run().await;
+        let _ = agent_core.run(&agent_uuid).await;
     });
 
     // Start heartbeat loop (every heartbeat_interval_secs)

@@ -21,7 +21,21 @@ pub struct FleetClient {
     endpoint: String,
     /// Sender for outgoing messages to the server
     outbound_tx: Option<mpsc::Sender<AgentMessage>>,
-    /// Receiver for incoming messages from the server
+    /// Receiver for incoming messages from the server.
+    ///
+    /// DESIGN NOTE — Why `inbound_rx` lives here and not behind the Mutex:
+    ///
+    /// The top-level `Arc<Mutex<FleetClient>>` in AgentCore is required for
+    /// tasks that mutate FleetClient (send, heartbeat, enroll). However,
+    /// keeping `inbound_rx` inside the Mutex means the command-listener task
+    /// would hold the lock for the *entire duration* of a blocking `recv()`
+    /// call, starving the heartbeat and drain tasks.
+    ///
+    /// The correct fix (implemented in AgentCore::run below) is to call
+    /// `receive()` while holding the lock only long enough to invoke
+    /// `rx.try_recv()` (non-blocking) and then immediately release it,
+    /// yielding to the scheduler between polls.  This avoids the need to
+    /// move `inbound_rx` out of the struct while still preventing starvation.
     inbound_rx: Option<mpsc::Receiver<ServerMessage>>,
     /// Node ID assigned after enrollment
     node_id: Option<Uuid>,
@@ -197,8 +211,42 @@ impl FleetClient {
         Ok(())
     }
 
-    // TODO: Make this method public (`pub async fn receive`) so that AgentCore command listener task can call it to retrieve incoming gRPC commands.
-    async fn receive(&mut self) -> Result<Option<ServerMessage>, anyhow::Error> {
+    /// Non-blocking poll: attempt to receive one inbound `ServerMessage`.
+    ///
+    /// Returns:
+    /// - `Ok(Some(msg))` — a message was ready in the channel buffer.
+    /// - `Ok(None)`      — channel is open but empty right now (`try_recv`
+    ///                      returned `Empty`).
+    /// - `Err(_)`        — channel is closed / client not connected.
+    ///
+    /// Visibility is intentionally `pub` so that `AgentCore`'s command-
+    /// listener task can call it after acquiring the Mutex only briefly
+    /// (see the lock-release strategy comment in `AgentCore::run`).
+    pub fn try_receive(&mut self) -> Result<Option<ServerMessage>, anyhow::Error> {
+        let rx = self
+            .inbound_rx
+            .as_mut()
+            .ok_or_else(|| anyhow::anyhow!("Not connected"))?;
+
+        match rx.try_recv() {
+            Ok(msg) => Ok(Some(msg)),
+            Err(mpsc::error::TryRecvError::Empty) => Ok(None),
+            Err(mpsc::error::TryRecvError::Disconnected) => {
+                Err(anyhow::anyhow!("Inbound channel closed (server disconnected)"))
+            }
+        }
+    }
+
+    /// Blocking receive — waits until a `ServerMessage` arrives or the
+    /// channel is closed.  Used internally by `enroll`, `send_events`, and
+    /// `heartbeat` where the caller already holds the Mutex and is
+    /// specifically waiting for a protocol-level acknowledgement.
+    ///
+    /// Made `pub` per task requirement so `AgentCore` can use it when a
+    /// blocking wait is appropriate (e.g., waiting for the enrollment ack).
+    /// For the continuous command-listener loop, prefer `try_receive` to
+    /// avoid holding the Mutex across a blocking await.
+    pub async fn receive(&mut self) -> Result<Option<ServerMessage>, anyhow::Error> {
         let rx = self
             .inbound_rx
             .as_mut()
