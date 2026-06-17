@@ -82,12 +82,13 @@ pub fn run_preflight(config: &crate::config::AgentConfig) -> PreflightReport {
 
     let check_dir_writable = |path: &Path| -> Result<(), String> {
         if !path.exists()
-            && let Err(e) = std::fs::create_dir_all(path) {
-                return Err(format!(
-                    "Directory does not exist and failed to create: {}",
-                    e
-                ));
-            }
+            && let Err(e) = std::fs::create_dir_all(path)
+        {
+            return Err(format!(
+                "Directory does not exist and failed to create: {}",
+                e
+            ));
+        }
         let temp_file = path.join(".aigis_zero_preflight_temp");
         if let Err(e) = std::fs::write(&temp_file, b"test") {
             return Err(format!("Not writable: {}", e));

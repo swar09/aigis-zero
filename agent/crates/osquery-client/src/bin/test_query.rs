@@ -3,8 +3,8 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::UnixStream;
 
 use thrift::protocol::{
-    TBinaryOutputProtocol, TFieldIdentifier, TMessageIdentifier, TMessageType,
-    TOutputProtocol, TType,
+    TBinaryOutputProtocol, TFieldIdentifier, TMessageIdentifier, TMessageType, TOutputProtocol,
+    TType,
 };
 use thrift::transport::TBufferChannel;
 
