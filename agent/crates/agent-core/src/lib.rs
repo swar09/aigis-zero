@@ -267,6 +267,18 @@ impl AgentCore {
                             "Command listener: transport error; backing off"
                         );
 
+                        // Attempt to reconnect to the fleet server using the stored token
+                        {
+                            let mut client = fleet.lock().await;
+                            let token = client.token().map(|s| s.to_string());
+                            if let Err(reconnect_err) = client.connect(token.as_deref()).await {
+                                warn!(error = %reconnect_err, "Failed to reconnect to fleet server");
+                            } else {
+                                info!("Successfully re-established connection to fleet server");
+                                consecutive_errors = 0;
+                            }
+                        }
+
                         // Respect shutdown even during backoff sleep.
                         tokio::select! {
                             biased;

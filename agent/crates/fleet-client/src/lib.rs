@@ -134,7 +134,19 @@ impl FleetClient {
 
         for val in &batch.events {
             let node_id = val["node_id"].as_str().unwrap_or_default().to_string();
-            let event_type = val["event_type"].as_str().unwrap_or_default().to_string();
+            let event_type = if let Some(s) = val["event_type"].as_str() {
+                s.to_string()
+            } else if let Some(i) = val["event_type"].as_i64() {
+                match i {
+                    0 => "osquery".to_string(),
+                    1 => "process".to_string(),
+                    2 => "file".to_string(),
+                    3 => "network".to_string(),
+                    _ => i.to_string(),
+                }
+            } else {
+                "".to_string()
+            };
             let payload = serde_json::to_vec(&val["payload"]).unwrap_or_default();
             let timestamp_ns = val["timestamp_ns"].as_i64().unwrap_or_default();
             let sequence_id = val["sequence_id"].as_str().unwrap_or_default().to_string();
@@ -204,6 +216,10 @@ impl FleetClient {
 
     pub fn node_id(&self) -> Option<Uuid> {
         self.node_id
+    }
+
+    pub fn token(&self) -> Option<&str> {
+        self.token.as_deref()
     }
 }
 

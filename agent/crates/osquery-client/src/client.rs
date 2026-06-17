@@ -60,6 +60,7 @@ impl OsqueryClient {
         let mut frame = Vec::with_capacity(4 + request_bytes.len());
         frame.extend_from_slice(&len.to_be_bytes());
         frame.extend_from_slice(&request_bytes);
+        println!("Request bytes (hex): {:02x?}", frame);
         stream.write_all(&frame).await?;
         stream.flush().await?;
 

@@ -143,33 +143,39 @@ async fn main() -> anyhow::Result<()> {
         .await?;
 
     // Enrollment
-    let node_id = if let (Some(node_id), false) = (config.agent.node_id, args.enroll) {
-        node_id
-    } else {
-        let enrollment = fleet
-            .enroll(RegisterRequest {
-                hostname: hostname::get()?.to_string_lossy().to_string(),
-                os_version: get_os_version(),
-                agent_version: env!("CARGO_PKG_VERSION").to_string(),
-                machine_id: std::fs::read_to_string("/etc/machine-id").unwrap_or_else(|_| "unknown".to_string()).trim().to_string(),
-            })
-            .await?;
+    let enrollment = fleet
+        .enroll(RegisterRequest {
+            hostname: hostname::get()?.to_string_lossy().to_string(),
+            os_version: get_os_version(),
+            agent_version: env!("CARGO_PKG_VERSION").to_string(),
+            machine_id: std::fs::read_to_string("/etc/machine-id").unwrap_or_else(|_| "unknown".to_string()).trim().to_string(),
+        })
+        .await?;
 
-        let parsed_node_id = Uuid::parse_str(&enrollment.node_id).unwrap_or_default();
-        // Save node_id to config file
-        save_node_id_to_config(&args.config, parsed_node_id)?;
-        config.agent.node_id = Some(parsed_node_id);
+    let node_id = Uuid::parse_str(&enrollment.node_id).unwrap_or_default();
+    let token = enrollment.token;
 
-        parsed_node_id
-    };
+    // Save node_id to config file if it has changed or force enrollment is requested
+    if config.agent.node_id != Some(node_id) || args.enroll {
+        save_node_id_to_config(&args.config, node_id)?;
+        config.agent.node_id = Some(node_id);
+    }
 
     info!(%node_id, "Successfully enrolled/loaded node ID");
+
+    // Establish the authenticated event stream connection with the token
+    fleet
+        .connect_with_retry(
+            config.fleet.max_reconnect_attempts,
+            Duration::from_secs(config.fleet.reconnect_interval_secs),
+            Some(&token),
+        )
+        .await?;
 
     let fleet = Arc::new(Mutex::new(fleet));
 
     // Start AgentCore (osquery loop + command listener)
     let agent_uuid = node_id.to_string();
-    let _results_rx = collector.start(&agent_uuid).await;
     let osquery_collector = Arc::new(collector);
     let (fleet_ip, fleet_port) = parse_endpoint(&config.fleet.endpoint);
 

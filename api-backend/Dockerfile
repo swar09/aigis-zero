@@ -6,13 +6,8 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /build
-COPY Cargo.toml Cargo.lock ./
-RUN mkdir src && echo "fn main(){}" > src/main.rs
-RUN cargo build --release
-RUN rm -f target/release/deps/edr_*
-
-COPY src ./src
-RUN cargo build --release
+COPY . .
+RUN cargo build --release -p edr-api-backend
 
 # Stage 2: Runtime
 FROM debian:bookworm-slim AS runtime
