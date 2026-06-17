@@ -7,51 +7,51 @@ use fleet_manager::{EventIngestPort, IncomingEvent, OutgoingCommand};
 use health_tracker::HealthTracker;
 use node_enrollment::NodeEnroller;
 use postgres_interface::{PgHealthStore, PgNodeStore};
+use kafka_handler::KafkaPublisher;
 
-/// Stub event ingest — holds the place of `kafka-handler` until that crate is
-/// implemented. Acks every event to unblock agent buffer clearing.
-///
-/// WARNING: event payloads are discarded. This is intentional while Kafka is
-/// out of scope. See the implementation plan for the full data flow once
-/// `kafka-handler` is wired.
-// TODO: Replace StubEventIngest with a real Kafka-integrated EventIngestPort.
-// 1. The implementation should load `kafka_brokers` and `kafka_topic_agents_events` from Settings.
-// 2. Instantiate a FutureProducer from rdkafka via the `kafka-handler` crate.
-// 3. Publish the serialized incoming event payload to Kafka on the specified topic, using the node_id or sequence_id as key.
-// 4. Return OutgoingCommand::Ack only after the event has been successfully written to Kafka.
-pub struct StubEventIngest;
+pub struct KafkaEventIngest {
+    publisher: Arc<KafkaPublisher>,
+    topic: String,
+}
 
 #[async_trait]
-impl EventIngestPort for StubEventIngest {
+impl EventIngestPort for KafkaEventIngest {
     async fn ingest_event(&self, event: IncomingEvent) -> Result<Option<OutgoingCommand>, Status> {
-        tracing::debug!(
-            node_id     = %event.node_id,
-            event_type  = %event.event_type,
-            sequence_id = %event.sequence_id,
-            payload_len = event.payload.len(),
-            "stub: event received (kafka-handler not yet implemented — payload discarded)"
-        );
-        // Ack so the agent can advance its sequence and clear its local buffer.
-        Ok(Some(OutgoingCommand::Ack {
-            sequence_id: event.sequence_id,
-        }))
+        let payload = if event.payload.is_empty() {
+            b"{}"
+        } else {
+            event.payload.as_slice()
+        };
+
+        match self.publisher.publish(&self.topic, &event.node_id, payload).await {
+            Ok(_) => Ok(Some(OutgoingCommand::Ack {
+                sequence_id: event.sequence_id,
+            })),
+            Err(e) => {
+                tracing::error!(error = %e, "Failed to publish event to Kafka");
+                Err(Status::internal("Failed to publish event to message broker"))
+            }
+        }
     }
 }
 
-/// Builds the real port implementations backed by PostgreSQL.
-///
-/// Call once at startup after the DB pool is ready. The returned `Arc`s are
-/// injected into `FleetServiceImpl`.
 pub fn build_ports(
     pg_pool: sqlx::PgPool,
     jwt_secret: &str,
-) -> (Arc<NodeEnroller>, Arc<HealthTracker>, Arc<StubEventIngest>) {
+    kafka_brokers: &str,
+    kafka_topic: &str,
+) -> (Arc<NodeEnroller>, Arc<HealthTracker>, Arc<KafkaEventIngest>) {
     let node_store = Arc::new(PgNodeStore::new(pg_pool.clone()));
     let health_store = Arc::new(PgHealthStore::new(pg_pool));
 
     let enroller = Arc::new(NodeEnroller::new(node_store, jwt_secret.as_bytes()));
     let tracker = Arc::new(HealthTracker::new(health_store));
-    let event_ingest = Arc::new(StubEventIngest);
+
+    let publisher = KafkaPublisher::new(kafka_brokers).expect("Failed to initialize KafkaPublisher");
+    let event_ingest = Arc::new(KafkaEventIngest {
+        publisher: Arc::new(publisher),
+        topic: kafka_topic.to_string(),
+    });
 
     (enroller, tracker, event_ingest)
 }

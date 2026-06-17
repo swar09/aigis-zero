@@ -89,12 +89,11 @@ pub async fn run() -> Result<()> {
     tracing::info!("Attempting fleet enrollment (non-fatal if server is down)...");
     let mut fleet_client = fleet_client::FleetClient::new(config.fleet.endpoint.clone());
 
-    let req = edr_sdk::models::enrollment::EnrollmentRequest {
-        enrollment_secret: config.fleet.enrollment_secret.clone(),
+    let req = edr_sdk::proto::fleet::RegisterRequest {
         hostname: hostname_or_default(),
         os_version: get_os_version(),
         agent_version: env!("CARGO_PKG_VERSION").to_string(),
-        platform: "linux".to_string(),
+        machine_id: read_machine_id(),
     };
 
     match tokio::time::timeout(std::time::Duration::from_secs(5), fleet_client.enroll(req)).await {

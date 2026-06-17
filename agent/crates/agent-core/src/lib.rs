@@ -235,7 +235,7 @@ impl AgentCore {
                     Ok(Some(msg)) => {
                         consecutive_errors = 0;
 
-                        debug!(msg_type = ?msg.message_type, "Received ServerMessage");
+                        debug!(command = ?msg.command, "Received ServerCommand");
 
                         // Dispatch to CommandHandler.  The handler is
                         // Arc-wrapped and does not need the fleet_client

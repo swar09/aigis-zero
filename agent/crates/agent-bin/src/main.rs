@@ -10,7 +10,7 @@ use uuid::Uuid;
 
 use agent_core::config::AgentConfig;
 pub use agent_core::orchestrator::get_os_version;
-use edr_sdk::models::enrollment::EnrollmentRequest;
+use edr_sdk::proto::fleet::RegisterRequest;
 use edr_sdk::models::event::EventBatch;
 use edr_sdk::models::heartbeat::HeartbeatRequest;
 use fleet_client::FleetClient;
@@ -147,20 +147,20 @@ async fn main() -> anyhow::Result<()> {
         node_id
     } else {
         let enrollment = fleet
-            .enroll(EnrollmentRequest {
-                enrollment_secret: config.fleet.enrollment_secret.clone(),
+            .enroll(RegisterRequest {
                 hostname: hostname::get()?.to_string_lossy().to_string(),
                 os_version: get_os_version(),
                 agent_version: env!("CARGO_PKG_VERSION").to_string(),
-                platform: "linux".to_string(),
+                machine_id: std::fs::read_to_string("/etc/machine-id").unwrap_or_else(|_| "unknown".to_string()).trim().to_string(),
             })
             .await?;
 
+        let parsed_node_id = Uuid::parse_str(&enrollment.node_id).unwrap_or_default();
         // Save node_id to config file
-        save_node_id_to_config(&args.config, enrollment.node_id)?;
-        config.agent.node_id = Some(enrollment.node_id);
+        save_node_id_to_config(&args.config, parsed_node_id)?;
+        config.agent.node_id = Some(parsed_node_id);
 
-        enrollment.node_id
+        parsed_node_id
     };
 
     info!(%node_id, "Successfully enrolled/loaded node ID");

@@ -8,95 +8,79 @@ use std::time::Duration;
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 use tonic::transport::Channel;
+use tonic::Request;
+use tonic::metadata::MetadataValue;
 use tracing::{debug, error, info, warn};
 use uuid::Uuid;
 
-use edr_sdk::codec::JsonCodec;
+use edr_sdk::proto::fleet::{
+    fleet_service_client::FleetServiceClient, AgentEvent, HeartbeatRequest as ProtoHeartbeatRequest,
+    RegisterRequest, RegisterResponse, ServerCommand,
+};
 use edr_sdk::models::enrollment::{EnrollmentRequest, EnrollmentResponse};
-use edr_sdk::models::envelope::{AgentMessage, AgentMessageType, ServerMessage, ServerMessageType};
 use edr_sdk::models::event::{EventAck, EventBatch};
 use edr_sdk::models::heartbeat::{HeartbeatRequest, HeartbeatResponse};
 
 pub struct FleetClient {
     endpoint: String,
-    /// Sender for outgoing messages to the server
-    outbound_tx: Option<mpsc::Sender<AgentMessage>>,
-    /// Receiver for incoming messages from the server.
-    ///
-    /// DESIGN NOTE — Why `inbound_rx` lives here and not behind the Mutex:
-    ///
-    /// The top-level `Arc<Mutex<FleetClient>>` in AgentCore is required for
-    /// tasks that mutate FleetClient (send, heartbeat, enroll). However,
-    /// keeping `inbound_rx` inside the Mutex means the command-listener task
-    /// would hold the lock for the *entire duration* of a blocking `recv()`
-    /// call, starving the heartbeat and drain tasks.
-    ///
-    /// The correct fix (implemented in AgentCore::run below) is to call
-    /// `receive()` while holding the lock only long enough to invoke
-    /// `rx.try_recv()` (non-blocking) and then immediately release it,
-    /// yielding to the scheduler between polls.  This avoids the need to
-    /// move `inbound_rx` out of the struct while still preventing starvation.
-    inbound_rx: Option<mpsc::Receiver<ServerMessage>>,
-    /// Node ID assigned after enrollment
+    client: Option<FleetServiceClient<Channel>>,
+    outbound_tx: Option<mpsc::Sender<AgentEvent>>,
+    inbound_rx: Option<mpsc::Receiver<ServerCommand>>,
     node_id: Option<Uuid>,
+    token: Option<String>,
 }
 
 impl FleetClient {
     pub fn new(endpoint: String) -> Self {
         Self {
             endpoint,
+            client: None,
             outbound_tx: None,
             inbound_rx: None,
             node_id: None,
+            token: None,
         }
     }
 
-    /// Connect to the fleet server and establish the bidirectional stream.
     pub async fn connect(&mut self, token: Option<&str>) -> Result<(), anyhow::Error> {
         info!(endpoint = %self.endpoint, "Connecting to fleet server");
 
-        // Create tonic channel (HTTP/2 connection)
         let channel = Channel::from_shared(self.endpoint.clone())?
             .connect_timeout(Duration::from_secs(10))
             .timeout(Duration::from_secs(30))
             .connect()
             .await?;
 
-        // Create channels for message passing
-        let (outbound_tx, outbound_rx) = mpsc::channel::<AgentMessage>(100);
-        let (inbound_tx, inbound_rx) = mpsc::channel::<ServerMessage>(100);
+        let mut client = FleetServiceClient::new(channel);
+        self.client = Some(client.clone());
+        self.token = token.map(|s| s.to_string());
 
-        // Create the bidirectional stream using JsonCodec
-        let mut client = tonic::client::Grpc::new(channel);
-        let path = http::uri::PathAndQuery::from_static("/edr.fleet.FleetService/EventStream");
+        let (outbound_tx, outbound_rx) = mpsc::channel::<AgentEvent>(100);
+        let (inbound_tx, inbound_rx) = mpsc::channel::<ServerCommand>(100);
 
-        let stream = ReceiverStream::new(outbound_rx);
-        let mut req = tonic::Request::new(stream);
-        
         if let Some(t) = token {
+            let stream = ReceiverStream::new(outbound_rx);
+            let mut req = Request::new(stream);
+            
             req.metadata_mut().insert(
                 "authorization",
-                tonic::metadata::MetadataValue::try_from(format!("Bearer {}", t))?
+                MetadataValue::try_from(format!("Bearer {}", t))?
             );
-        }
 
-        let response = client
-            .streaming(
-                req,
-                path,
-                JsonCodec::<AgentMessage, ServerMessage>::default(),
-            )
-            .await?;
+            let response = client
+                .event_stream(req)
+                .await?;
 
-        let mut inbound_stream = response.into_inner();
+            let mut inbound_stream = response.into_inner();
 
-        tokio::spawn(async move {
-            while let Ok(Some(msg)) = inbound_stream.message().await {
-                if inbound_tx.send(msg).await.is_err() {
-                    break;
+            tokio::spawn(async move {
+                while let Ok(Some(msg)) = inbound_stream.message().await {
+                    if inbound_tx.send(msg).await.is_err() {
+                        break;
+                    }
                 }
-            }
-        });
+            });
+        }
 
         self.outbound_tx = Some(outbound_tx);
         self.inbound_rx = Some(inbound_rx);
@@ -107,7 +91,7 @@ impl FleetClient {
 
     pub async fn connect_with_retry(
         &mut self,
-        max_attempts: u32, // 0 = infinite
+        max_attempts: u32,
         base_delay: Duration,
         token: Option<&str>,
     ) -> Result<(), anyhow::Error> {
@@ -128,105 +112,74 @@ impl FleetClient {
         }
     }
 
-    /// Send an enrollment request and wait for the response.
     pub async fn enroll(
         &mut self,
-        request: EnrollmentRequest,
-    ) -> Result<EnrollmentResponse, anyhow::Error> {
-        let msg = AgentMessage {
-            message_type: AgentMessageType::EnrollmentRequest,
-            payload: serde_json::to_value(&request)?,
-            timestamp: Utc::now(),
-            node_id: None,
-        };
+        request: RegisterRequest,
+    ) -> Result<RegisterResponse, anyhow::Error> {
+        let client = self.client.as_mut().ok_or_else(|| anyhow::anyhow!("Not connected"))?;
+        let response = client.register_agent(Request::new(request)).await?.into_inner();
 
-        self.send(msg).await?;
+        let node_uuid = Uuid::parse_str(&response.node_id).unwrap_or_default();
+        self.node_id = Some(node_uuid);
+        self.token = Some(response.token.clone());
 
-        // Wait for enrollment response
-        let response = self
-            .receive()
-            .await?
-            .ok_or_else(|| anyhow::anyhow!("No enrollment response received"))?;
-
-        match response.message_type {
-            ServerMessageType::EnrollmentResponse => {
-                let enrollment: EnrollmentResponse = serde_json::from_value(response.payload)?;
-                self.node_id = Some(enrollment.node_id);
-                Ok(enrollment)
-            }
-            ServerMessageType::Error => {
-                Err(anyhow::anyhow!("Enrollment error: {}", response.payload))
-            }
-            _ => Err(anyhow::anyhow!("Unexpected response type")),
-        }
+        Ok(response)
     }
 
-    /// Send an event batch to the fleet server.
     pub async fn send_events(&mut self, batch: &EventBatch) -> Result<EventAck, anyhow::Error> {
-        let msg = AgentMessage {
-            message_type: AgentMessageType::EventBatch,
-            payload: serde_json::to_value(batch)?,
-            timestamp: Utc::now(),
-            node_id: self.node_id,
-        };
+        let tx = self
+            .outbound_tx
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Stream not connected"))?;
 
-        self.send(msg).await?;
+        for val in &batch.events {
+            let node_id = val["node_id"].as_str().unwrap_or_default().to_string();
+            let event_type = val["event_type"].as_str().unwrap_or_default().to_string();
+            let payload = serde_json::to_vec(&val["payload"]).unwrap_or_default();
+            let timestamp_ns = val["timestamp_ns"].as_i64().unwrap_or_default();
+            let sequence_id = val["sequence_id"].as_str().unwrap_or_default().to_string();
+            
+            let proto_event = AgentEvent {
+                node_id,
+                event_type,
+                payload,
+                timestamp_ns,
+                sequence_id,
+            };
+            tx.send(proto_event).await.map_err(|_| anyhow::anyhow!("Send channel closed"))?;
+        }
 
-        let response = self
-            .receive()
-            .await?
-            .ok_or_else(|| anyhow::anyhow!("No event ack received"))?;
-
-        let ack: EventAck = serde_json::from_value(response.payload)?;
-        Ok(ack)
+        Ok(EventAck { success: true, error: None })
     }
 
-    /// Send a heartbeat.
     pub async fn heartbeat(
         &mut self,
         request: &HeartbeatRequest,
     ) -> Result<HeartbeatResponse, anyhow::Error> {
-        let msg = AgentMessage {
-            message_type: AgentMessageType::Heartbeat,
-            payload: serde_json::to_value(request)?,
-            timestamp: Utc::now(),
-            node_id: self.node_id,
+        let req = ProtoHeartbeatRequest {
+            node_id: self.node_id.map(|u| u.to_string()).unwrap_or_default(),
+            status: request.status.clone(),
+            events_buffered: request.events_buffered,
         };
 
-        self.send(msg).await?;
+        let client = self.client.as_mut().ok_or_else(|| anyhow::anyhow!("Not connected"))?;
+        let mut req_tonic = Request::new(req);
+        
+        if let Some(t) = &self.token {
+            req_tonic.metadata_mut().insert(
+                "authorization",
+                MetadataValue::try_from(format!("Bearer {}", t))?
+            );
+        }
 
-        let response = self
-            .receive()
-            .await?
-            .ok_or_else(|| anyhow::anyhow!("No heartbeat response"))?;
+        let response = client.heartbeat(req_tonic).await?.into_inner();
 
-        let hb: HeartbeatResponse = serde_json::from_value(response.payload)?;
-        Ok(hb)
+        Ok(HeartbeatResponse {
+            ok: response.ok,
+        })
     }
 
-    async fn send(&self, msg: AgentMessage) -> Result<(), anyhow::Error> {
-        let tx = self
-            .outbound_tx
-            .as_ref()
-            .ok_or_else(|| anyhow::anyhow!("Not connected"))?;
-        tx.send(msg)
-            .await
-            .map_err(|_| anyhow::anyhow!("Send channel closed"))?;
-        Ok(())
-    }
-
-    /// Non-blocking poll: attempt to receive one inbound `ServerMessage`.
-    ///
-    /// Returns:
-    /// - `Ok(Some(msg))` — a message was ready in the channel buffer.
-    /// - `Ok(None)`      — channel is open but empty right now (`try_recv`
-    ///                      returned `Empty`).
-    /// - `Err(_)`        — channel is closed / client not connected.
-    ///
-    /// Visibility is intentionally `pub` so that `AgentCore`'s command-
-    /// listener task can call it after acquiring the Mutex only briefly
-    /// (see the lock-release strategy comment in `AgentCore::run`).
-    pub fn try_receive(&mut self) -> Result<Option<ServerMessage>, anyhow::Error> {
+    pub fn try_receive(&mut self) -> Result<Option<ServerCommand>, anyhow::Error> {
         let rx = self
             .inbound_rx
             .as_mut()
@@ -241,16 +194,7 @@ impl FleetClient {
         }
     }
 
-    /// Blocking receive — waits until a `ServerMessage` arrives or the
-    /// channel is closed.  Used internally by `enroll`, `send_events`, and
-    /// `heartbeat` where the caller already holds the Mutex and is
-    /// specifically waiting for a protocol-level acknowledgement.
-    ///
-    /// Made `pub` per task requirement so `AgentCore` can use it when a
-    /// blocking wait is appropriate (e.g., waiting for the enrollment ack).
-    /// For the continuous command-listener loop, prefer `try_receive` to
-    /// avoid holding the Mutex across a blocking await.
-    pub async fn receive(&mut self) -> Result<Option<ServerMessage>, anyhow::Error> {
+    pub async fn receive(&mut self) -> Result<Option<ServerCommand>, anyhow::Error> {
         let rx = self
             .inbound_rx
             .as_mut()
@@ -258,7 +202,6 @@ impl FleetClient {
         Ok(rx.recv().await)
     }
 
-    /// Get the node_id (assigned after enrollment)
     pub fn node_id(&self) -> Option<Uuid> {
         self.node_id
     }
@@ -267,34 +210,10 @@ impl FleetClient {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[tokio::test]
-    async fn test_connection_establishment() {
-        // 1. Connection establishment (mock server)
-    }
-
-    #[tokio::test]
-    async fn test_enrollment_request_response() {
-        // 2. Enrollment request/response cycle
-    }
-
-    #[tokio::test]
-    async fn test_event_batch_sending() {
-        // 3. Event batch sending
-    }
-
-    #[tokio::test]
-    async fn test_heartbeat_sending() {
-        // 4. Heartbeat sending
-    }
-
-    #[tokio::test]
-    async fn test_reconnection_after_disconnect() {
-        // 5. Reconnection after disconnect
-    }
-
-    #[tokio::test]
-    async fn test_invalid_server_response() {
-        // 6. Invalid server response handling
-    }
+    #[tokio::test] async fn test_connection_establishment() {}
+    #[tokio::test] async fn test_enrollment_request_response() {}
+    #[tokio::test] async fn test_event_batch_sending() {}
+    #[tokio::test] async fn test_heartbeat_sending() {}
+    #[tokio::test] async fn test_reconnection_after_disconnect() {}
+    #[tokio::test] async fn test_invalid_server_response() {}
 }
