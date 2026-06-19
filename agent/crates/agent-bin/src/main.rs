@@ -39,6 +39,16 @@ struct Args {
     enroll: bool,
 }
 
+/// Updates or inserts the `node_id` field in the `[agent]` section of the TOML configuration file.
+///
+/// # Examples
+///
+/// ```
+/// use std::path::Path;
+/// use uuid::Uuid;
+/// let node_id = Uuid::new_v4();
+/// // save_node_id_to_config(Path::new("config.toml"), node_id).unwrap();
+/// ```
 fn save_node_id_to_config(path: &Path, node_id: Uuid) -> anyhow::Result<()> {
     let content = std::fs::read_to_string(path)?;
     let mut lines: Vec<String> = content.lines().map(String::from).collect();
@@ -68,6 +78,16 @@ fn save_node_id_to_config(path: &Path, node_id: Uuid) -> anyhow::Result<()> {
     Ok(())
 }
 
+/// Extracts IP address and port from an endpoint string.
+///
+/// Invalid IP addresses default to 127.0.0.1, and missing or invalid ports default to 50051.
+///
+/// # Examples
+///
+/// ```
+/// let (ip, port) = parse_endpoint("http://192.168.1.1:8080");
+/// assert_eq!(port, 8080);
+/// ```
 fn parse_endpoint(endpoint: &str) -> (std::net::IpAddr, u16) {
     let clean = endpoint
         .trim_start_matches("http://")
@@ -83,6 +103,18 @@ fn parse_endpoint(endpoint: &str) -> (std::net::IpAddr, u16) {
     (ip, port)
 }
 
+/// Initializes and runs the Aigis-Zero agent until interrupted.
+///
+/// Loads configuration, validates the environment, enrolls with the fleet server,
+/// and establishes background tasks for event collection, heartbeats, and command handling.
+/// The agent blocks until Ctrl-C is received.
+///
+/// If `--check` is set, validates the configuration and environment, then exits.
+///
+/// # Errors
+///
+/// Returns an error if configuration is invalid, the agent cannot connect to the fleet,
+/// or enrollment fails.
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     dotenvy::dotenv().ok();

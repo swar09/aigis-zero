@@ -4,7 +4,7 @@ set -euo pipefail
 BOOTSTRAP="localhost:29092"
 KAFKA_BIN="/opt/kafka/bin"
 
-# Function to create topic
+# create_topic creates a Kafka topic with the specified partitions, retention time, and replication factor in the aigis-kafka-dev container.
 create_topic() {
     local topic=$1
     local partitions=$2

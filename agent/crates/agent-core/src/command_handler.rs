@@ -12,6 +12,27 @@ pub struct CommandHandler {
 }
 
 impl CommandHandler {
+    /// Processes a server command and returns a JSON status response.
+    ///
+    /// Handles different command types with specific actions:
+    /// - `Isolate`: Isolates or de-isolates the process based on the flag.
+    /// - `ConfigUpdate`: Acknowledges the configuration update.
+    /// - `Ack`: Acknowledges the message.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the command is missing from the message or if an isolation operation fails.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # async fn example() {
+    /// let handler = CommandHandler { /* ... */ };
+    /// let cmd = ServerCommand { command: Some(Command::Ack(())) };
+    /// let result = handler.handle(cmd).await;
+    /// assert!(result.is_ok());
+    /// # }
+    /// ```
     pub async fn handle(&self, msg: ServerCommand) -> Result<Value, String> {
         let command = msg.command.ok_or("missing command")?;
 

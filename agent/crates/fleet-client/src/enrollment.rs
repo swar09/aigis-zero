@@ -6,6 +6,20 @@ use edr_sdk::codec::JsonCodec;
 pub struct AgentEnrollment;
 
 impl AgentEnrollment {
+    /// Enrolls an agent with a remote service.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the enrollment request fails.
+    ///
+    /// # Examples
+    ///
+    /// ```ignore
+    /// let channel = Channel::from_static("http://localhost:50051").connect().await?;
+    /// let request = RegisterRequest { hostname: "my-host".into(), ..Default::default() };
+    /// let result = AgentEnrollment::enroll(channel, request).await?;
+    /// println!("Node ID: {}", result.node_id);
+    /// ```
     pub async fn enroll(channel: Channel, request: RegisterRequest) -> Result<EnrollmentResult> {
         tracing::info!("Enrolling agent: {:?}", request.hostname);
 

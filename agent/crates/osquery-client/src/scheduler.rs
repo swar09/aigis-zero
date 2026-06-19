@@ -14,6 +14,18 @@ pub struct QueryScheduler {
 }
 
 impl QueryScheduler {
+    /// Initializes a QueryScheduler with a SQLite database.
+    ///
+    /// If the `scheduled_queries` table is empty, three default queries are seeded:
+    /// `running_processes`, `listening_ports`, and `users`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::path::Path;
+    /// let scheduler = QueryScheduler::new(Path::new("/tmp/test.db"))?;
+    /// # Ok::<(), anyhow::Error>(())
+    /// ```
     pub fn new(db_path: &Path) -> Result<Self> {
         let conn = Connection::open(db_path)?;
 

@@ -16,6 +16,20 @@ pub struct KafkaEventIngest {
 
 #[async_trait]
 impl EventIngestPort for KafkaEventIngest {
+    /// Publishes an incoming event to Kafka and returns an acknowledgment.
+    ///
+    /// On successful publication, an acknowledgment command with the event's sequence ID is returned.
+    /// If publication fails, an internal gRPC error is returned.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// match ingest.ingest_event(event).await {
+    ///     Ok(Some(OutgoingCommand::Ack { sequence_id })) => println!("Acked: {}", sequence_id),
+    ///     Err(status) => eprintln!("Failed: {}", status),
+    ///     _ => {}
+    /// }
+    /// ```
     async fn ingest_event(&self, event: IncomingEvent) -> Result<Option<OutgoingCommand>, Status> {
         let payload = if event.payload.is_empty() {
             b"{}"
@@ -41,6 +55,21 @@ impl EventIngestPort for KafkaEventIngest {
     }
 }
 
+/// Constructs the port implementations for the application.
+///
+/// # Returns
+///
+/// A tuple of (node enroller, health tracker, event ingest port).
+///
+/// # Panics
+///
+/// Panics if Kafka publisher initialization fails.
+///
+/// # Examples
+///
+/// ```
+/// let (enroller, tracker, ingest) = build_ports(pool, "secret", "localhost:9092", "events");
+/// ```
 pub fn build_ports(
     pg_pool: sqlx::PgPool,
     jwt_secret: &str,

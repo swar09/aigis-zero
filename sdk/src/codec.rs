@@ -8,6 +8,13 @@ use tonic::codec::{Codec, DecodeBuf, Decoder, EncodeBuf, Encoder};
 pub struct JsonCodec<T, U>(PhantomData<(T, U)>);
 
 impl<T, U> Default for JsonCodec<T, U> {
+    /// Creates a default JSON codec.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let codec: JsonCodec<String, String> = Default::default();
+    /// ```
     fn default() -> Self {
         Self(PhantomData)
     }
@@ -26,10 +33,26 @@ where
     type Encoder = JsonEncoder<T>;
     type Decoder = JsonDecoder<U>;
 
+    /// Creates a JSON encoder for this codec.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let mut codec = JsonCodec::default();
+    /// let _encoder = codec.encoder();
+    /// ```
     fn encoder(&mut self) -> Self::Encoder {
         JsonEncoder(PhantomData)
     }
 
+    /// Creates a new JSON decoder for this codec.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let mut codec = JsonCodec::default();
+    /// let decoder = codec.decoder();
+    /// ```
     fn decoder(&mut self) -> Self::Decoder {
         JsonDecoder(PhantomData)
     }
@@ -42,6 +65,11 @@ where
     type Item = T;
     type Error = Status;
 
+    /// Encodes an item to JSON and appends it to the destination buffer.
+    ///
+    /// # Errors
+    ///
+    /// Returns an internal `Status` error if the item cannot be serialized to JSON.
     fn encode(&mut self, item: Self::Item, dst: &mut EncodeBuf<'_>) -> Result<(), Self::Error> {
         let bytes = serde_json::to_vec(&item).map_err(|e| Status::internal(e.to_string()))?;
         dst.put_slice(&bytes);
@@ -56,6 +84,22 @@ where
     type Item = U;
     type Error = Status;
 
+    /// Decodes a JSON-encoded message from the buffer.
+    ///
+    /// Returns `None` if the buffer is empty. Otherwise, deserializes all remaining
+    /// bytes as a JSON message of type `U`.
+    ///
+    /// # Errors
+    ///
+    /// Returns a `Status::internal` error if JSON deserialization fails.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let mut decoder = JsonDecoder::<i32>(PhantomData);
+    /// let mut empty_buffer = DecodeBuf::new(&[]);
+    /// assert_eq!(decoder.decode(&mut empty_buffer), Ok(None));
+    /// ```
     fn decode(&mut self, src: &mut DecodeBuf<'_>) -> Result<Option<Self::Item>, Self::Error> {
         if !src.has_remaining() {
             return Ok(None);

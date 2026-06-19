@@ -41,12 +41,17 @@ pub struct AgentCore {
 }
 
 impl AgentCore {
-    /// Start all background tasks and block until the shutdown token fires.
+    /// Executes the agent's background tasks until shutdown is triggered.
     ///
-    /// # Parameters
-    /// - `agent_uuid`: The node UUID assigned during enrollment.  Passed into
-    ///   `OsqueryCollector::start` so that every `OsqueryResult` carries the
-    ///   correct identity before it is serialised into an `AgentEvent`.
+    /// Spawns an OSQuery polling task and a command listener task. Both tasks
+    /// are given up to 5 seconds to gracefully exit after shutdown is signaled.
+    ///
+    /// # Examples
+    ///
+    /// ```ignore
+    /// let core = AgentCore { /* ... */ };
+    /// core.run("my-agent-uuid").await?;
+    /// ```
     pub async fn run(&self, agent_uuid: &str) -> Result<()> {
         let shutdown = self.shutdown.clone();
 

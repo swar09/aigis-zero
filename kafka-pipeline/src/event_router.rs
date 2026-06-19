@@ -13,10 +13,30 @@ pub struct EventRouterProcessor {
 }
 
 impl EventRouterProcessor {
+    /// Constructs a new EventRouterProcessor with the provided Kafka producer.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let producer = FutureProducer::new(...);
+    /// let router = EventRouterProcessor::new(producer);
+    /// ```
     pub fn new(producer: FutureProducer) -> Self {
         Self { producer }
     }
 
+    /// Maps an event type to its target Kafka topic.
+    ///
+    /// # Examples
+    ///
+    /// ```ignore
+    /// let topic = processor.route_topic("process_start");
+    /// assert_eq!(topic, "aigis.events.process");
+    /// let topic = processor.route_topic("file_create");
+    /// assert_eq!(topic, "aigis.events.file");
+    /// let topic = processor.route_topic("unknown_event");
+    /// assert_eq!(topic, "aigis.events.raw");
+    /// ```
     fn route_topic(&self, event_type: &str) -> &str {
         match event_type {
             "process_start" | "process_end" => "aigis.events.process",
@@ -31,6 +51,24 @@ impl EventRouterProcessor {
 
 #[async_trait::async_trait]
 impl MessageProcessor for EventRouterProcessor {
+    /// Routes events to typed Kafka topics based on their event type.
+    ///
+    /// Extracts the `event_type` field from the JSON payload, maps it to a target topic
+    /// using `route_topic`, and forwards the original payload bytes to Kafka. If the
+    /// `event_type` field is missing or not a string, defaults to `"unknown"`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error message if the payload is not valid JSON or the Kafka send operation fails.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # async fn example(processor: &EventRouterProcessor) {
+    /// let payload = br#"{"event_type": "process_start", "pid": 1234}"#;
+    /// assert!(processor.process(None, payload, "input", 0, 0).await.is_ok());
+    /// # }
+    /// ```
     async fn process(
         &self,
         key: Option<&[u8]>,
