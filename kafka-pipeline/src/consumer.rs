@@ -43,7 +43,7 @@ impl ConsumerWorker {
             .set("enable.auto.commit", "true")
             .set("auto.commit.interval.ms", "1000")
             .set("fetch.min.bytes", "1")
-            .set("fetch.max.wait.ms", "100")
+            .set("fetch.wait.max.ms", "100")
             .set("max.poll.interval.ms", "300000")
             .set("session.timeout.ms", "45000")
             .create()
