@@ -5,13 +5,13 @@ use std::collections::HashMap;
 // Scheduled Query Definition (stored in local SQLite)
 // ─────────────────────────────────────────────────────────
 
-/// A single scheduled query. Pushed by fleet server, persisted in SQLite.
-/// Fields are all primitive types for zero-cost SQLite row mapping.
+/// A single scheduled query. Pushed by fleet server, persisted in `SQLite`.
+/// Fields are all primitive types for zero-cost `SQLite` row mapping.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ScheduledQuery {
-    /// Unique name for this query (e.g., "running_processes")
+    /// Unique name for this query (e.g., "`running_processes`")
     pub name: String,
-    /// SQL string to execute against OSQuery
+    /// SQL string to execute against `OSQuery`
     pub query: String,
     /// Execution interval in seconds
     pub interval_secs: u64,
@@ -24,14 +24,14 @@ pub struct ScheduledQuery {
 // OSQuery Thrift Response Types
 // ─────────────────────────────────────────────────────────
 
-/// Raw response from an OSQuery Thrift query() call
+/// Raw response from an `OSQuery` Thrift `query()` call
 #[derive(Debug, Clone)]
 pub struct QueryResponse {
     pub status: QueryStatus,
     pub rows: Vec<OsqueryRow>,
 }
 
-/// Status returned by the OSQuery ExtensionManager
+/// Status returned by the `OSQuery` `ExtensionManager`
 #[derive(Debug, Clone)]
 pub struct QueryStatus {
     /// 0 = success, non-zero = error
@@ -40,7 +40,7 @@ pub struct QueryStatus {
     pub message: String,
 }
 
-/// A single row from an OSQuery query result.
+/// A single row from an `OSQuery` query result.
 /// Keys are column names, values are string representations.
 pub type OsqueryRow = HashMap<String, String>;
 
@@ -61,14 +61,14 @@ pub struct OsqueryResult {
     /// Unix timestamp in nanoseconds
     pub timestamp_ns: i64,
 
-    /// The result rows, each encoded as an OsqueryResultRow
+    /// The result rows, each encoded as an `OsqueryResultRow`
     pub rows: Vec<OsqueryResultRow>,
 
     /// Whether this is a snapshot, added diff, or removed diff
     pub action: ResultAction,
 }
 
-/// A single row in an OsqueryResult, represented as key-value pairs.
+/// A single row in an `OsqueryResult`, represented as key-value pairs.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct OsqueryResultRow {
     pub columns: Vec<ColumnEntry>,
@@ -94,11 +94,12 @@ pub enum ResultAction {
 }
 
 impl ResultAction {
-    pub fn as_str(&self) -> &'static str {
+    #[must_use]
+    pub const fn as_str(&self) -> &'static str {
         match self {
-            ResultAction::Snapshot => "SNAPSHOT",
-            ResultAction::Added => "ADDED",
-            ResultAction::Removed => "REMOVED",
+            Self::Snapshot => "SNAPSHOT",
+            Self::Added => "ADDED",
+            Self::Removed => "REMOVED",
         }
     }
 }

@@ -3,7 +3,7 @@ use rusqlite::Connection;
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 
-/// Local SQLite-backed buffer for JSON-encoded AgentEvent objects.
+/// Local SQLite-backed buffer for JSON-encoded `AgentEvent` objects.
 /// Used when the fleet server is unreachable.
 #[derive(Clone)]
 pub struct EventBuffer {
@@ -12,8 +12,8 @@ pub struct EventBuffer {
 }
 
 impl EventBuffer {
-    /// Open or create the SQLite database at the given path.
-    /// Creates the event_buffer table if it doesn't exist.
+    /// Open or create the `SQLite` database at the given path.
+    /// Creates the `event_buffer` table if it doesn't exist.
     pub fn new(db_path: &Path, max_events: u64) -> Result<Self> {
         let conn = Connection::open(db_path)?;
 
@@ -36,8 +36,8 @@ impl EventBuffer {
         })
     }
 
-    /// Store a JSON-encoded AgentEvent.
-    /// The string comes from serde_json::to_string().
+    /// Store a JSON-encoded `AgentEvent`.
+    /// The string comes from `serde_json::to_string()`.
     pub async fn push(&self, event_json: String) -> Result<()> {
         let conn = self.conn.clone();
         let max_events = self.max_events;
@@ -95,11 +95,11 @@ impl EventBuffer {
             if !ids.is_empty() {
                 let id_list = ids
                     .iter()
-                    .map(|id| id.to_string())
+                    .map(std::string::ToString::to_string)
                     .collect::<Vec<String>>()
                     .join(",");
                 tx.execute(
-                    &format!("DELETE FROM event_buffer WHERE id IN ({})", id_list),
+                    &format!("DELETE FROM event_buffer WHERE id IN ({id_list})"),
                     [],
                 )?;
             }

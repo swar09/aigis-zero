@@ -67,7 +67,7 @@ impl QueryScheduler {
                     query.name,
                     query.query,
                     query.interval_secs,
-                    if query.snapshot { 1 } else { 0 },
+                    i32::from(query.snapshot),
                     now,
                 ],
             )?;
@@ -78,10 +78,10 @@ impl QueryScheduler {
     }
 
     /// Run the scheduler. Each scheduled query gets its own task with a persistent
-    /// OsqueryClient connection that reconnects on error.
+    /// `OsqueryClient` connection that reconnects on error.
     ///
     /// Queries are loaded *before* entering the async context so that the
-    /// rusqlite::Connection is never held across an await point.
+    /// `rusqlite::Connection` is never held across an await point.
     pub async fn run(
         self,
         tx: mpsc::Sender<OsqueryResult>,

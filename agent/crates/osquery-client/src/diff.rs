@@ -2,7 +2,7 @@ use crate::types::OsqueryRow;
 use std::collections::HashSet;
 use std::hash::{Hash, Hasher};
 
-/// A wrapper around OsqueryRow to allow hashing and equality comparisons.
+/// A wrapper around `OsqueryRow` to allow hashing and equality comparisons.
 /// We sort the keys to ensure consistent hashing.
 #[derive(Debug, Clone)]
 struct HashableRow(OsqueryRow);
@@ -29,7 +29,8 @@ impl Hash for HashableRow {
 }
 
 /// Computes the differential between two sets of rows.
-/// Returns (added_rows, removed_rows).
+/// Returns (`added_rows`, `removed_rows`).
+#[must_use]
 pub fn compute_diff(
     previous_rows: &[OsqueryRow],
     current_rows: &[OsqueryRow],
