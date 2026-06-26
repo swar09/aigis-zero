@@ -1,3 +1,4 @@
+name: aigis-kafka-cluster
 version: '3.8'
 services:
   kafka-1:
