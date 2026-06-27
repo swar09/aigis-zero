@@ -19,8 +19,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install protoc 
-        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
+      - name: Install protoc and dependencies
+        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler libcurl4-openssl-dev pkg-config
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
@@ -41,8 +41,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install protoc 
-        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
+      - name: Install protoc and dependencies
+        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler libcurl4-openssl-dev pkg-config
 
       - name: Install Rust stable + clippy
         uses: dtolnay/rust-toolchain@stable
@@ -79,8 +79,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install protoc 
-        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
+      - name: Install protoc and dependencies
+        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler libcurl4-openssl-dev pkg-config
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable

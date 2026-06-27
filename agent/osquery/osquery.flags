@@ -9,6 +9,7 @@
 --config_accelerated_refresh=120
 --database_path=/var/osquery/osquery.db
 --pidfile=/var/osquery/osqueryd.pidfile
+--extensions_socket=/var/osquery/osquery.em
 --force=true
 
 # ─── Logging ──────────────────────────────────────────────────────────────────
@@ -29,7 +30,9 @@
 
 # Audit subsystem: disabled — we use eBPF only
 # PRE-CONDITION: auditd must be stopped/masked before starting osqueryd
---disable_audit=true
+--disable_audit=false
+--enable_syslog=true
+--audit_allow_sockets=true
 
 # eBPF events (kernel >= 4.18 required)
 # Provides: bpf_process_events, bpf_socket_events
@@ -60,4 +63,5 @@
 
 # ─── Misc ─────────────────────────────────────────────────────────────────────
 --utc=true
---verbose=false
+--verbose=true
+--enable_selinux_events=false

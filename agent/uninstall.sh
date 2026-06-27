@@ -173,12 +173,14 @@ if [ "$REMOVE_OSQUERY" -eq 1 ]; then
         apt-get remove -y -qq osquery 2>/dev/null || true
         rm -f /etc/apt/sources.list.d/osquery.list
         rm -f /usr/share/keyrings/osquery.gpg
+        rm -f /etc/default/osqueryd
         apt-get update -qq 2>/dev/null || true
     elif is_rpm_family; then
         if command -v dnf &>/dev/null; then PKG_MGR=dnf; else PKG_MGR=yum; fi
         $PKG_MGR remove -y -q osquery 2>/dev/null || true
         rm -f /etc/yum.repos.d/osquery.repo
         rm -f /etc/pki/rpm-gpg/RPM-GPG-KEY-osquery
+        rm -f /etc/sysconfig/osqueryd
     else
         echo ""
         printf "         Warning: unrecognized distro. Remove osquery manually.\n"

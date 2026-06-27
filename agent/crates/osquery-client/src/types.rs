@@ -25,14 +25,14 @@ pub struct ScheduledQuery {
 // ─────────────────────────────────────────────────────────
 
 /// Raw response from an OSQuery Thrift query() call
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct QueryResponse {
     pub status: QueryStatus,
     pub rows: Vec<OsqueryRow>,
 }
 
 /// Status returned by the OSQuery ExtensionManager
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct QueryStatus {
     /// 0 = success, non-zero = error
     pub code: i32,

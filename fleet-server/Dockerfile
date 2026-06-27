@@ -7,13 +7,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     pkg-config \
     libssl-dev \
     protobuf-compiler \
+    cmake \
+    g++ \
+    make \
+    libcurl4-openssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /build
 
-COPY Cargo.toml Cargo.lock ./
-COPY fleet-server/crates ./fleet-server/crates
-COPY sdk ./sdk
+COPY . .
 
 # For CI: set SQLX_OFFLINE=true and commit .sqlx/ directory.
 # For local dev with live DB: set SQLX_OFFLINE=false.

@@ -358,7 +358,7 @@ for osquery daemon initialization.
 --events_expiry=3600
 # Maximum events buffered in RocksDB per subscriber before oldest are dropped
 --events_max=50000
-# Optimization: subsequent SELECTs on event tables only return NEW events
+# Optimization: subsequent SELECT queries on event tables only return NEW events
 # (saves bandwidth; safe for EDR because we always consume immediately)
 --events_optimize=true
 # Don't denylist event-table queries (watchdog should not suppress EDR queries)

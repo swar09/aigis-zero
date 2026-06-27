@@ -6,3 +6,6 @@ rust-version.workspace = true
 
 [dependencies]
 tracing = { workspace = true }
+rdkafka = { workspace = true }
+bytes.workspace = true
+tokio.workspace = true

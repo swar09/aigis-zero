@@ -1,3 +1,4 @@
+#![allow(unused_imports, unused_variables, dead_code, unused_mut)]
 use crate::config::AgentConfig;
 use anyhow::Result;
 use event_buffer::EventBuffer;
@@ -86,14 +87,11 @@ pub async fn run() -> Result<()> {
 
     // Fleet enrollment (non-fatal, fleet server not ready yet)
     tracing::info!("Attempting fleet enrollment (non-fatal if server is down)...");
-    let mut fleet_client = fleet_client::FleetClient::new(fleet_client::FleetConfig {
-        endpoint: config.fleet.endpoint.clone(),
-    })
-    .await?;
+    let mut fleet_client = fleet_client::FleetClient::new(config.fleet.endpoint.clone());
 
-    let req = fleet_client::types::RegisterRequest {
+    let req = edr_sdk::proto::fleet::RegisterRequest {
         hostname: hostname_or_default(),
-        os_version: "linux".to_string(),
+        os_version: get_os_version(),
         agent_version: env!("CARGO_PKG_VERSION").to_string(),
         machine_id: read_machine_id(),
     };
@@ -166,11 +164,72 @@ fn hostname_or_default() -> String {
         .unwrap_or_else(|| "unknown-host".to_string())
 }
 
-fn read_machine_id() -> String {
-    std::fs::read_to_string("/etc/machine-id")
-        .unwrap_or_default()
-        .trim()
-        .to_string()
+pub fn read_machine_id() -> String {
+    if let Ok(id) = std::fs::read_to_string("/etc/machine-id") {
+        let trimmed = id.trim();
+        if !trimmed.is_empty() {
+            return trimmed.to_string();
+        }
+    }
+    if let Ok(id) = std::fs::read_to_string("/var/lib/dbus/machine-id") {
+        let trimmed = id.trim();
+        if !trimmed.is_empty() {
+            return trimmed.to_string();
+        }
+    }
+    "unknown-machine-id".to_string()
+}
+
+pub fn get_os_version() -> String {
+    use std::fs::File;
+    use std::io::{BufRead, BufReader};
+    use std::path::Path;
+
+    let path = Path::new("/etc/os-release");
+    if !path.exists() {
+        return "Unknown Linux (os-release not found)".to_string();
+    }
+    let file = match File::open(path) {
+        Ok(f) => f,
+        Err(_) => {
+            return "Unknown Linux (unable to open os-release)".to_string();
+        }
+    };
+
+    let reader = BufReader::new(file);
+    let mut name = None;
+    let mut version = None;
+    let mut pretty_name = None;
+
+    for line_content in reader.lines().map_while(Result::ok) {
+        let trimmed = line_content.trim();
+        if trimmed.starts_with('#') || trimmed.is_empty() {
+            continue;
+        }
+
+        if let Some(pos) = trimmed.find('=') {
+            let key = trimmed[..pos].trim();
+            let val = trimmed[pos + 1..].trim().trim_matches('"').to_string();
+
+            match key {
+                "PRETTY_NAME" => pretty_name = Some(val),
+                "NAME" => name = Some(val),
+                "VERSION" => version = Some(val),
+                _ => {}
+            }
+        }
+    }
+
+    if let Some(pretty) = pretty_name {
+        pretty
+    } else {
+        let os_name = name.unwrap_or_else(|| "Linux".to_string());
+        if let Some(ver) = version {
+            format!("{} {}", os_name, ver)
+        } else {
+            os_name
+        }
+    }
 }
 
 #[cfg(test)]

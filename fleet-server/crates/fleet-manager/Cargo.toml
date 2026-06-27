@@ -6,7 +6,8 @@ rust-version.workspace = true
 
 [dependencies]
 async-trait.workspace = true
-prost.workspace = true
+serde.workspace       = true
+chrono.workspace      = true
 thiserror.workspace = true
 tonic.workspace = true
 tracing = { workspace = true }

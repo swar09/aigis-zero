@@ -45,7 +45,16 @@ async fn main() -> Result<()> {
             "failed to connect to postgres — check DATABASE_URL and ensure the DB is running",
         )?;
 
-    let (enrollment, heartbeat, event_ingest) = ports::build_ports(pg_pool, &settings.jwt_secret);
+    let brokers = settings
+        .kafka_brokers
+        .as_deref()
+        .unwrap_or("localhost:9092");
+    let topic = settings
+        .kafka_topic_agents_events
+        .as_deref()
+        .unwrap_or("agents_events");
+    let (enrollment, heartbeat, event_ingest) =
+        ports::build_ports(pg_pool, &settings.jwt_secret, brokers, topic);
 
     let service = FleetServiceImpl::new(
         Arc::clone(&enrollment) as Arc<dyn fleet_manager::EnrollmentPort>,

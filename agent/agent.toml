@@ -2,7 +2,7 @@
 # node_id is filled in after enrollment by fleet server
 # node_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 name = ""                           # auto-set from hostname on first run
-log_level = "info"                  # trace | debug | info | warn | error
+log_level = "debug"                  # trace | debug | info | warn | error
 log_format = "json"                 # json | human
 log_dir = "/var/log/aigis-zero"
 data_dir = "/var/lib/aigis-zero"
@@ -11,20 +11,21 @@ event_buffer_max = 500000           # max events in SQLite before oldest are dro
 event_drain_batch = 100             # rows per flush cycle
 event_drain_interval_secs = 5      # how often to attempt shipping buffered events
 
+node_id = "e38eb47e-6dd5-4ae0-b576-17b65dbf0eed"
 [osquery]
 socket_path = "/var/osquery/osquery.em"
 conf_path = "/etc/osquery/osquery.conf"
 flags_path = "/etc/osquery/osquery.flags"
-pid_file = "/run/osquery/osqueryd.pid"
+pid_file = "/var/osquery/osqueryd.pidfile"
 log_path = "/var/log/osquery"
 connect_timeout_secs = 30
 query_timeout_secs = 60
 
 [fleet]
 # Fleet server connection
-host = "fleet.example.com"          # fleet server hostname or IP
-port = 8443                         # fleet server gRPC port
-endpoint = "https://fleet.example.com:8443"   # derived, kept for convenience
+host = "127.0.0.1"          # fleet server hostname or IP
+port = 50051                         # fleet server gRPC port
+endpoint = "http://127.0.0.1:50051"   # derived, kept for convenience
 enrollment_secret = ""              # pre-shared secret (scaffold, implemented later)
 
 # TLS (scaffold only — cert paths populated after enrollment)

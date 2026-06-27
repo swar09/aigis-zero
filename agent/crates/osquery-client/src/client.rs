@@ -55,24 +55,38 @@ impl OsqueryClient {
         // 2. Connect to socket and write/read asynchronously
         let mut stream = UnixStream::connect(&self.socket_path).await?;
 
-        // Write FRAMED header (4 bytes, big endian length)
-        let len = request_bytes.len() as u32;
-        let mut frame = Vec::with_capacity(4 + request_bytes.len());
-        frame.extend_from_slice(&len.to_be_bytes());
-        frame.extend_from_slice(&request_bytes);
-        stream.write_all(&frame).await?;
+        stream.write_all(&request_bytes).await?;
         stream.flush().await?;
 
-        // Read FRAMED header (4 bytes)
-        let mut len_buf = [0u8; 4];
-        stream.read_exact(&mut len_buf).await?;
-        let len = u32::from_be_bytes(len_buf) as usize;
+        let mut buf = Vec::with_capacity(4096);
+        let mut temp = [0u8; 4096];
+        loop {
+            let n = stream.read(&mut temp).await?;
+            if n == 0 {
+                return Err(anyhow::anyhow!(
+                    "Connection closed by remote before complete response received"
+                ));
+            }
+            buf.extend_from_slice(&temp[..n]);
 
-        // Read exactly the payload length
-        let mut buf = vec![0u8; len];
-        stream.read_exact(&mut buf).await?;
+            // Try parsing
+            match Self::parse_query_response(&buf) {
+                Ok(resp) => return Ok(resp),
+                Err(e) => {
+                    let err_str = e.to_string();
+                    let is_eof = err_str.contains("UnexpectedEof")
+                        || err_str.contains("end of file")
+                        || err_str.contains("EOF")
+                        || err_str.contains("unexpected end of file");
 
-        Self::parse_query_response(&buf)
+                    if is_eof {
+                        continue;
+                    } else {
+                        return Err(e);
+                    }
+                }
+            }
+        }
     }
 
     fn parse_query_response(buf: &[u8]) -> Result<QueryResponse> {

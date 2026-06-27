@@ -6,6 +6,7 @@ rust-version.workspace = true
 
 [dependencies]
 tokio = { workspace = true }
+tokio-util = { workspace = true }
 anyhow = { workspace = true }
 tracing = { workspace = true }
 serde = { workspace = true }
@@ -20,4 +21,6 @@ osquery-client = { workspace = true }
 event-buffer = { workspace = true }
 hostname = "0.4"
 notify = { version = "6", features = ["macos_fsevent"] }
-
+edr-sdk = { workspace = true }
+isolation = { workspace = true }
+libc = "0.2"

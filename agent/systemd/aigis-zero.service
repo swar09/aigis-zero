@@ -32,7 +32,7 @@ SyslogIdentifier=aigis-zero
 # Security hardening
 NoNewPrivileges=yes
 ProtectSystem=strict
-ReadWritePaths=/var/lib/aigis-zero /var/log/aigis-zero /var/osquery /run/osquery
+ReadWritePaths=/var/lib/aigis-zero /var/log/aigis-zero /var/osquery /run/osquery /etc/aigis-zero
 ProtectHome=yes
 PrivateTmp=yes
 CapabilityBoundingSet=CAP_NET_ADMIN CAP_SYS_PTRACE CAP_DAC_READ_SEARCH CAP_KILL
