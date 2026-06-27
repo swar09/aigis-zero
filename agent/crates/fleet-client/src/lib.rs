@@ -256,7 +256,6 @@ impl FleetClient {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     #[tokio::test]
     async fn test_connection_establishment() {}
     #[tokio::test]
