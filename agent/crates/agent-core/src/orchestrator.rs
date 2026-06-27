@@ -1,4 +1,3 @@
-#![allow(unused_imports, unused_variables, dead_code, unused_mut)]
 use crate::config::AgentConfig;
 use anyhow::Result;
 use event_buffer::EventBuffer;

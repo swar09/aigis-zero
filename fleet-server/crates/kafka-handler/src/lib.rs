@@ -21,7 +21,7 @@ impl KafkaPublisher {
         let record = FutureRecord::to(topic).key(key).payload(payload);
 
         self.producer
-            .send(record, Timeout::Never)
+            .send(record, Timeout::After(std::time::Duration::from_secs(30)))
             .await
             .map_err(|(e, _)| e.to_string())?;
 

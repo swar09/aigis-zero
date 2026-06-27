@@ -1,11 +1,10 @@
-#![allow(unused_imports, unused_variables, dead_code, unused_mut)]
 use clap::Parser;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::Mutex;
 use tokio::time::interval;
-use tracing::{error, info, warn};
+use tracing::{info, warn};
 use uuid::Uuid;
 
 use agent_core::config::AgentConfig;
@@ -14,9 +13,6 @@ use edr_sdk::models::event::EventBatch;
 use edr_sdk::models::heartbeat::HeartbeatRequest;
 use edr_sdk::proto::fleet::RegisterRequest;
 use fleet_client::FleetClient;
-
-use std::fs::File;
-use std::io::{BufRead, BufReader};
 
 #[derive(Parser, Debug)]
 #[command(name = "aigis-zero", version, about = "Aigis-Zero Agent")]
@@ -169,7 +165,8 @@ async fn main() -> anyhow::Result<()> {
         })
         .await?;
 
-    let node_id = Uuid::parse_str(&enrollment.node_id).unwrap_or_default();
+    let node_id = Uuid::parse_str(&enrollment.node_id)
+        .expect("Fleet server returned a malformed node_id UUID — enrollment aborted");
     let token = enrollment.token;
 
     // Save node_id to config file if it has changed or force enrollment is requested

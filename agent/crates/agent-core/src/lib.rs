@@ -1,4 +1,3 @@
-#![allow(unused_imports, unused_variables, dead_code, unused_mut)]
 pub mod command_handler;
 pub mod config;
 pub mod orchestrator;

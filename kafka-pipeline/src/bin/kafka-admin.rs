@@ -1,8 +1,6 @@
 /// CLI tool for Kafka topic administration
 /// Usage:
 ///   kafka-admin create-topics --brokers localhost:29092
-///   kafka-admin verify-topics --brokers localhost:29092
-///   kafka-admin describe-topic --brokers localhost:29092 --topic aigis.events.raw
 use rdkafka::admin::{AdminClient, AdminOptions, NewTopic, TopicReplication};
 use rdkafka::client::DefaultClientContext;
 use rdkafka::config::ClientConfig;
@@ -66,7 +64,34 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     let command = &args[1];
-    let brokers = &args[3]; // assuming --brokers is args[2]
+
+    // Parse flags in any order
+    let mut brokers_opt: Option<&str> = None;
+    let mut i = 2;
+    while i < args.len() {
+        match args[i].as_str() {
+            "--brokers" => {
+                if i + 1 < args.len() {
+                    brokers_opt = Some(&args[i + 1]);
+                    i += 2;
+                } else {
+                    eprintln!("Error: --brokers requires a value");
+                    return Ok(());
+                }
+            }
+            _ => {
+                i += 1;
+            }
+        }
+    }
+
+    let brokers = match brokers_opt {
+        Some(b) => b,
+        None => {
+            eprintln!("Error: --brokers flag is required");
+            return Ok(());
+        }
+    };
 
     let mut config = ClientConfig::new();
     config.set("bootstrap.servers", brokers);

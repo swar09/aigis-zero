@@ -69,7 +69,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let reg_bytes = t_reg.write_bytes();
 
-    println!("--- Testing FAMED registerExtension ---");
+    println!("--- Testing FRAMED registerExtension ---");
     let mut stream = UnixStream::connect(socket).await?;
     let len = reg_bytes.len() as u32;
     let mut frame = Vec::with_capacity(4 + reg_bytes.len());

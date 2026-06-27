@@ -14,7 +14,7 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - run: sudo apt-get update && sudo apt-get install -y protobuf-compiler libcurl4-openssl-dev pkg-config
       - uses: dtolnay/rust-toolchain@stable
       - run: cargo check --manifest-path kafka-pipeline/Cargo.toml
@@ -37,7 +37,7 @@ jobs:
         ports:
           - 9092:9092
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - run: sudo apt-get update && sudo apt-get install -y protobuf-compiler libcurl4-openssl-dev pkg-config
       - uses: dtolnay/rust-toolchain@stable
       - run: cargo test --manifest-path kafka-pipeline/Cargo.toml
@@ -45,7 +45,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - run: sudo apt-get update && sudo apt-get install -y protobuf-compiler libcurl4-openssl-dev pkg-config
       - uses: dtolnay/rust-toolchain@stable
       - run: cargo build --release --manifest-path kafka-pipeline/Cargo.toml
@@ -53,5 +53,5 @@ jobs:
   docker:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - run: docker build -t aigis-kafka-pipeline -f kafka-pipeline/Dockerfile .

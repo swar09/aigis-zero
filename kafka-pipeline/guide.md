@@ -74,7 +74,7 @@ The `EventRouterProcessor` in `src/event_router.rs` maps incoming JSON events to
 To add support for a new topic:
 1. Ensure the new topic is added to `infra/scripts/create-topics.sh`.
 2. Open `src/event_router.rs`.
-3. Locate the `determine_topic` function.
+3. Locate the `route_topic` function.
 4. Add a new `match` arm for your new `event_type` string that returns the new target topic name.
 
 ### Creating a New Pipeline Component

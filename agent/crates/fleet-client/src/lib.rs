@@ -1,19 +1,15 @@
-#![allow(unused_imports, unused_variables, dead_code, unused_mut)]
-
 pub mod codec;
 pub mod types;
 
-use chrono::Utc;
 use std::time::Duration;
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 use tonic::Request;
 use tonic::metadata::MetadataValue;
 use tonic::transport::Channel;
-use tracing::{debug, error, info, warn};
+use tracing::{error, info, warn};
 use uuid::Uuid;
 
-use edr_sdk::models::enrollment::{EnrollmentRequest, EnrollmentResponse};
 use edr_sdk::models::event::{EventAck, EventBatch};
 use edr_sdk::models::heartbeat::{HeartbeatRequest, HeartbeatResponse};
 use edr_sdk::proto::fleet::{
@@ -72,9 +68,22 @@ impl FleetClient {
             let mut inbound_stream = response.into_inner();
 
             tokio::spawn(async move {
-                while let Ok(Some(msg)) = inbound_stream.message().await {
-                    if inbound_tx.send(msg).await.is_err() {
-                        break;
+                loop {
+                    match inbound_stream.message().await {
+                        Ok(Some(msg)) => {
+                            if inbound_tx.send(msg).await.is_err() {
+                                break;
+                            }
+                        }
+                        Ok(None) => {
+                            // Graceful server-side close
+                            info!("Fleet server closed the inbound command stream");
+                            break;
+                        }
+                        Err(e) => {
+                            error!(error = %e, "Error reading from fleet inbound stream");
+                            break;
+                        }
                     }
                 }
             });
@@ -123,7 +132,13 @@ impl FleetClient {
             .await?
             .into_inner();
 
-        let node_uuid = Uuid::parse_str(&response.node_id).unwrap_or_default();
+        let node_uuid = Uuid::parse_str(&response.node_id).map_err(|e| {
+            anyhow::anyhow!(
+                "Fleet server returned malformed node_id '{}': {}",
+                response.node_id,
+                e
+            )
+        })?;
         self.node_id = Some(node_uuid);
         self.token = Some(response.token.clone());
 
@@ -151,7 +166,13 @@ impl FleetClient {
             } else {
                 "".to_string()
             };
-            let payload = serde_json::to_vec(&val["payload"]).unwrap_or_default();
+            let payload = match serde_json::to_vec(&val["payload"]) {
+                Ok(p) => p,
+                Err(e) => {
+                    error!(error = %e, "Failed to serialize event payload; skipping event");
+                    continue;
+                }
+            };
             let timestamp_ns = val["timestamp_ns"].as_i64().unwrap_or_default();
             let sequence_id = val["sequence_id"].as_str().unwrap_or_default().to_string();
 

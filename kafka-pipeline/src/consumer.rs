@@ -1,11 +1,10 @@
-#![allow(unused_imports, unused_variables, dead_code, unused_mut)]
 use async_trait::async_trait;
 
 use rdkafka::config::ClientConfig;
 use rdkafka::consumer::{Consumer, StreamConsumer};
 use rdkafka::message::Message;
 use tokio_util::sync::CancellationToken;
-use tracing::{debug, error, info, warn};
+use tracing::{error, info};
 
 /// Trait for implementing Kafka message processors
 #[async_trait]
@@ -40,7 +39,7 @@ impl ConsumerWorker {
             .set("bootstrap.servers", brokers)
             .set("group.id", group_id)
             .set("auto.offset.reset", "earliest")
-            .set("enable.auto.commit", "true")
+            .set("enable.auto.commit", "false")
             .set("auto.commit.interval.ms", "1000")
             .set("fetch.min.bytes", "1")
             .set("fetch.max.wait.ms", "100")

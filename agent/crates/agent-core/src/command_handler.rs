@@ -1,10 +1,8 @@
-#![allow(unused_imports, unused_variables, dead_code, unused_mut)]
 use edr_sdk::proto::fleet::{ServerCommand, server_command::Command};
 use isolation::IsolationManager;
 use osquery_client::OsqueryCollector;
 use serde_json::Value;
 use std::sync::Arc;
-use tracing::{info, warn};
 
 pub struct CommandHandler {
     pub osquery: Arc<OsqueryCollector>,

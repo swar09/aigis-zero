@@ -1,9 +1,8 @@
-#![allow(unused_imports, unused_variables, dead_code, unused_mut)]
 use rdkafka::producer::{FutureProducer, FutureRecord};
 use rdkafka::util::Timeout;
 use serde_json::Value;
 use std::time::Duration;
-use tracing::{debug, warn};
+use tracing::debug;
 
 use crate::consumer::MessageProcessor;
 
