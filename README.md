@@ -224,14 +224,14 @@ docker compose ps
 | Topic | Partitions | Purpose |
 |---|---|---|
 | `aigis.events.raw` | 12 | Raw agent telemetry |
-| `aigis.events.norm` | 12 | Normalised events |
+| `aigis.events.norm` | 12 | Normalized events |
 | `aigis.alerts` | 4 | Detection alerts |
 | `aigis.health` | 4 | Node health |
 
 | Database | Host Port | Purpose |
 |---|---|---|
 | `edr_nodes` | 5433 | Node registry, enrollment, health |
-| `edr_logs` | 5432 | Normalised event log |
+| `edr_logs` | 5432 | Normalized event log |
 | `edr_alerts` | 5434 | Detection alerts |
 
 For lightweight local development (KRaft Kafka, no Zookeeper):
@@ -580,53 +580,11 @@ npm run build     # production build to frontend/dist/
 
 This project is licensed under the [MIT License](LICENSE).
 
-```
-MIT License
-
-Copyright (c) 2025 Swar (@swar09)
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-```
-
 ---
 
 ## Contributing
 
-Contributions are welcome. The bar is: zero clippy warnings, code formatted with `rustfmt`, and all tests passing.
-
-Before opening a pull request:
-
-```bash
-cargo fmt --all
-cargo clippy --workspace --all-targets -- -D warnings
-cargo test --workspace
-```
-
-For non-trivial changes, open an issue first to align on the approach. Changes to the agent, fleet-server auth paths, or the isolation module warrant design discussion before implementation — these components touch the security-critical surface area of the system.
-
-Branch naming:
-- `feat/<short-description>` for new features
-- `fix/<short-description>` for bug fixes
-- `chore/<short-description>` for dependency updates, tooling, CI
-- `agent/<short-description>` for agent-specific work
-
-The `main` branch is the stable reference. Active development happens on feature branches and is merged via pull request.
+Contributions are welcome! Please refer to the [CONTRIBUTING.md](CONTRIBUTING.md) guide for details on our code quality standards, branching conventions, and development workflow.
 
 ---
 
