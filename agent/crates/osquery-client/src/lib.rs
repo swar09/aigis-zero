@@ -1,10 +1,8 @@
 pub mod client;
 pub mod diff;
-pub mod scheduler;
 pub mod types;
 
 pub use crate::client::OsqueryClient;
-use crate::scheduler::QueryScheduler;
 use crate::types::{OsqueryResult, QueryResponse, ScheduledQuery};
 use anyhow::Result;
 use std::path::PathBuf;
@@ -24,24 +22,9 @@ impl OsqueryCollector {
         Ok(Self { config })
     }
 
-    pub async fn start(&self, agent_uuid: &str) -> mpsc::Receiver<OsqueryResult> {
-        let (tx, rx) = mpsc::channel(100);
-
-        let scheduler_db_path = self.config.db_path.clone();
-        let socket_path = self.config.socket_path.clone();
-        let agent_uuid = agent_uuid.to_string();
-
-        tokio::spawn(async move {
-            match QueryScheduler::new(&scheduler_db_path) {
-                Ok(scheduler) => scheduler.run(tx, socket_path, agent_uuid).await,
-                Err(e) => tracing::error!(
-                    "Failed to open scheduler SQLite DB at {:?}: {}",
-                    scheduler_db_path,
-                    e
-                ),
-            }
-        });
-
+    pub async fn start(&self, _agent_uuid: &str) -> mpsc::Receiver<OsqueryResult> {
+        let (_tx, rx) = mpsc::channel(100);
+        // Custom scheduler logic removed; agent will rely on osquery.conf directly.
         rx
     }
 
@@ -50,9 +33,8 @@ impl OsqueryCollector {
         client.live_query(sql).await
     }
 
-    pub async fn update_schedule(&self, queries: Vec<ScheduledQuery>) -> Result<()> {
-        let mut scheduler = QueryScheduler::new(&self.config.db_path)?;
-        scheduler.upsert_queries(&queries)?;
+    pub async fn update_schedule(&self, _queries: Vec<ScheduledQuery>) -> Result<()> {
+        // Custom scheduler logic removed
         Ok(())
     }
 }
