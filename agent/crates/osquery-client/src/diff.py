@@ -1,7 +1,5 @@
 from __future__ import annotations
-
 from typing import Dict, List, Tuple, FrozenSet
-
 from types import OsqueryRow
 
 
