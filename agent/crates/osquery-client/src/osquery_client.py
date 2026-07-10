@@ -7,6 +7,7 @@ from pathlib import Path
 from thrift.protocol.TBinaryProtocol import TBinaryProtocolAccelerated
 
 from thrift.transport.TTransport import TMemoryBuffer
+from thrift.Thrift import TMessageType, TType
 
 from types import QueryResponse, QueryStatus
 
@@ -73,13 +74,14 @@ class OsqueryClient:
 
         protocol = TBinaryProtocolAccelerated(transport)
 
-        # Same write_message_begin(),
-        # write_struct_begin(),
-        # write_field_begin()...
-        # goes here.
-        #
-        # This mirrors the Rust implementation.
-        #
+        protocol.writeMessageBegin("query",TMessageType.CALL,1)
+        protocol.writeStructBegin("query_args")
+        protocol.writeFieldBegin("sql",TType.STRING,1)
+        protocol.writeString(sql)
+        protocol.writeFieldEnd()
+        protocol.writeFieldStop()
+        protocol.writeStructEnd()
+        protocol.writeMessageEnd()
 
         return transport.getvalue()
 
