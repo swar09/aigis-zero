@@ -11,8 +11,6 @@ from types import (
     ScheduledQuery,
     OsqueryRow,
     OsqueryResult,
-    OsqueryResultRow,
-    ColumnEntry,
     ResultAction,
 )
 
@@ -134,7 +132,7 @@ async def run(
 
             asyncio.create_task(
 
-                self.run_query(
+                self.query_worker(
                     query,
                     result_queue,
                     socket_path,
@@ -165,18 +163,64 @@ async def run_query(
         socket_path
     )
 
-    while True:
-
         try:
 
             response = await client.query(
                 scheduled_query.query
             )
 
-            # Process response
-            # Compute diff
-            # Build result
-            # Put into queue
+            if response.status.code != 0:
+  
+                logger.error(
+                    "Query %s failed: %s",
+                    scheduled_query.name,
+                    response.status.message,
+                )
+                return
+          
+            current_rows = response.rows
+          
+            previous_rows = self.previous_results.get(
+                scheduled_query.name,
+                [],
+            )
+          
+          #snapshot or differential
+            if scheduled_query.snapshot:
+                result = OsqueryResult(
+                  name=scheduled_query.name,
+                  action=ResultAction.SNAPSHOT,
+                  rows=current_rows,
+                )
+          
+                await result_queue.put(result)
+          
+            else:
+          
+                added, removed = compute_diff(
+                    previous_rows,
+                    current_rows,
+                )  
+                if added:
+                    result = OsqueryResult(
+                      name=scheduled_query.name,
+                      action=ResultAction.ADDED,
+                      rows=added,
+                    )
+                    await result_queue.put(result)
+              
+                if removed:
+                  result = OsqueryResult(
+                      name=scheduled_query.name,
+                      action=ResultAction.REMOVED,
+                      rows=removed,
+                  )    
+                  await result_queue.put(result)
+                  
+          
+          #save current rows
+          self.previous_results[scheduled_query.name] = current_rows
+
 
         except Exception:
 
@@ -184,57 +228,21 @@ async def run_query(
                 "Query %s failed",
                 scheduled_query.name,
             )
-
-        await asyncio.sleep(
-            scheduled_query.interval_secs
-        )
-
-  response = await client.query(
-      scheduled_query.query
-  )
-  
-  # Process response
-  # Compute diff
-  # Build result
-  # Put into queue
-  @dataclass
-  class QueryResponse:
-      status: QueryStatus
-      rows: List[OsqueryRow]
     
-  if response.status.code != 0:
-  
-      logger.error(
-          "Query %s failed: %s",
-          scheduled_query.name,
-          response.status.message,
-      )
-  
-  current_rows = response.rows
-  
-  previous_rows = self.previous_results.get(
-      scheduled_query.name,
-      [],
-  )
-  
-  #snapshot or differential
-  if scheduled_query.snapshot:
-  
-      action = ResultAction.SNAPSHOT
-  
-      rows_to_send = current_rows
-  
-  else:
-  
-      added, removed = compute_diff(
-          previous_rows,
-          current_rows,
-      )
-      continue
-  
-  
-  #save current rows
-  self.previous_results[
-      scheduled_query.name
-  ] = current_rows
-  
+    
+
+async def query_worker(self,
+                       scheduled_query: ScheduledQuery,
+                       result_queue: asyncio.Queue,
+                       socket_path: str,
+                       agent_uuid: str,
+                      ):
+    
+    while True:
+        await self.run_query(
+            scheduled_query,
+            result_queue,
+            socket_path,
+            agent_uuid,
+        )
+        await asyncio.sleep(scheduled_query.interval)
