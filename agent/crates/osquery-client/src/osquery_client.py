@@ -73,7 +73,6 @@ class OsqueryClient:
 
         protocol = TBinaryProtocolAccelerated(transport)
 
-        #not complete!!!
         # Same write_message_begin(),
         # write_struct_begin(),
         # write_field_begin()...
@@ -93,7 +92,6 @@ class OsqueryClient:
 
         protocol = TBinaryProtocolAccelerated(transport)
 
-        #not complete!!
         # Same logic as Rust:
         #
         # read_message_begin()
