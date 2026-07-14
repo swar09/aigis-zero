@@ -56,9 +56,10 @@ pub fn validate_token(
     clippy::cast_possible_wrap
 )]
 mod tests {
-    use super::*;
     use jsonwebtoken::{EncodingKey, Header, encode};
     use tonic::metadata::MetadataValue;
+
+    use super::*;
 
     fn make_token(node_id: &str, secret: &str, exp_offset_secs: i64) -> String {
         use std::time::{SystemTime, UNIX_EPOCH};

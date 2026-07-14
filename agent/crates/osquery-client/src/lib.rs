@@ -3,12 +3,16 @@ pub mod diff;
 pub mod scheduler;
 pub mod types;
 
-pub use crate::client::OsqueryClient;
-use crate::scheduler::QueryScheduler;
-use crate::types::{OsqueryResult, QueryResponse, ScheduledQuery};
-use anyhow::Result;
 use std::path::PathBuf;
+
+use anyhow::Result;
 use tokio::sync::mpsc;
+
+pub use crate::client::OsqueryClient;
+use crate::{
+    scheduler::QueryScheduler,
+    types::{OsqueryResult, QueryResponse, ScheduledQuery},
+};
 
 pub struct OsqueryConfig {
     pub socket_path: PathBuf,

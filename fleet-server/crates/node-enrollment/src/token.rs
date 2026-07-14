@@ -1,6 +1,7 @@
+use std::time::{SystemTime, UNIX_EPOCH};
+
 use jsonwebtoken::{EncodingKey, Header, encode};
 use serde::{Deserialize, Serialize};
-use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::error::NodeEnrollmentError;
 
@@ -52,8 +53,9 @@ pub fn sign_token(node_id: &str, secret: &[u8]) -> Result<String, NodeEnrollment
     clippy::cast_possible_truncation
 )]
 mod tests {
-    use super::*;
     use jsonwebtoken::{DecodingKey, Validation, decode};
+
+    use super::*;
 
     const SECRET: &[u8] = b"test-secret-long-enough-for-hs256-validation";
     const NODE_ID: &str = "a1b2c3d4-0001-0000-0000-000000000001";

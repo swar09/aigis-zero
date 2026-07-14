@@ -1,5 +1,6 @@
-use anyhow::{Context, Result};
 use std::net::IpAddr;
+
+use anyhow::{Context, Result};
 use tokio::process::Command;
 
 /// Manages network isolation using nftables.
@@ -114,8 +115,9 @@ impl IsolationManager {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use std::str::FromStr;
+
+    use super::*;
 
     #[test]
     fn test_ruleset_generation_ipv4() {

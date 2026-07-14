@@ -1,13 +1,12 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use tonic::Status;
-
 use fleet_manager::{EventIngestPort, IncomingEvent, OutgoingCommand};
 use health_tracker::HealthTracker;
 use kafka_handler::KafkaPublisher;
 use node_enrollment::NodeEnroller;
 use postgres_interface::{PgHealthStore, PgNodeStore};
+use tonic::Status;
 
 pub struct KafkaEventIngest {
     publisher: Arc<KafkaPublisher>,

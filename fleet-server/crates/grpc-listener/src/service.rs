@@ -1,23 +1,20 @@
-use std::pin::Pin;
-use std::sync::Arc;
+use std::{pin::Pin, sync::Arc};
 
 use async_trait::async_trait;
-use jsonwebtoken::DecodingKey;
-use tokio_stream::{Stream, StreamExt, wrappers::ReceiverStream};
-use tonic::{Request, Response, Status, Streaming};
-
-use fleet_manager::{
-    AgentHeartbeat, AgentRegistration, EnrollmentPort, EventIngestPort, HeartbeatPort,
-    IncomingEvent, OutgoingCommand,
-};
-
-use crate::auth::validate_token;
-
 pub use edr_sdk::proto::fleet::fleet_service_server::FleetServiceServer;
 use edr_sdk::proto::fleet::{
     AckCommand, AgentEvent, HeartbeatRequest, HeartbeatResponse, RegisterRequest, RegisterResponse,
     ServerCommand, fleet_service_server::FleetService, server_command::Command,
 };
+use fleet_manager::{
+    AgentHeartbeat, AgentRegistration, EnrollmentPort, EventIngestPort, HeartbeatPort,
+    IncomingEvent, OutgoingCommand,
+};
+use jsonwebtoken::DecodingKey;
+use tokio_stream::{Stream, StreamExt, wrappers::ReceiverStream};
+use tonic::{Request, Response, Status, Streaming};
+
+use crate::auth::validate_token;
 
 type EventStream = Pin<Box<dyn Stream<Item = Result<ServerCommand, Status>> + Send + 'static>>;
 

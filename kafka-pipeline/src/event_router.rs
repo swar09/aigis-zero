@@ -1,7 +1,10 @@
-use rdkafka::producer::{FutureProducer, FutureRecord};
-use rdkafka::util::Timeout;
-use serde_json::Value;
 use std::time::Duration;
+
+use rdkafka::{
+    producer::{FutureProducer, FutureRecord},
+    util::Timeout,
+};
+use serde_json::Value;
 use tracing::debug;
 
 use crate::consumer::MessageProcessor;

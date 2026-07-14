@@ -2,20 +2,22 @@ pub mod codec;
 pub mod types;
 
 use std::time::Duration;
+
+use edr_sdk::{
+    models::{
+        event::{EventAck, EventBatch},
+        heartbeat::{HeartbeatRequest, HeartbeatResponse},
+    },
+    proto::fleet::{
+        AgentEvent, HeartbeatRequest as ProtoHeartbeatRequest, RegisterRequest, RegisterResponse,
+        ServerCommand, fleet_service_client::FleetServiceClient,
+    },
+};
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
-use tonic::Request;
-use tonic::metadata::MetadataValue;
-use tonic::transport::Channel;
+use tonic::{Request, metadata::MetadataValue, transport::Channel};
 use tracing::{error, info, warn};
 use uuid::Uuid;
-
-use edr_sdk::models::event::{EventAck, EventBatch};
-use edr_sdk::models::heartbeat::{HeartbeatRequest, HeartbeatResponse};
-use edr_sdk::proto::fleet::{
-    AgentEvent, HeartbeatRequest as ProtoHeartbeatRequest, RegisterRequest, RegisterResponse,
-    ServerCommand, fleet_service_client::FleetServiceClient,
-};
 
 pub struct FleetClient {
     endpoint: String,

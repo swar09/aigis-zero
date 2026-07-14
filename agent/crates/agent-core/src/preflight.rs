@@ -1,5 +1,4 @@
-use std::path::Path;
-use std::process::Command;
+use std::{path::Path, process::Command};
 
 pub struct PreflightReport {
     pub config_dir_writable: Result<(), String>,

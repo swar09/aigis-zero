@@ -1,13 +1,17 @@
-use crate::client::OsqueryClient;
-use crate::diff;
-use crate::types::{
-    ColumnEntry, OsqueryResult, OsqueryResultRow, OsqueryRow, ResultAction, ScheduledQuery,
-};
+use std::path::{Path, PathBuf};
+
 use anyhow::Result;
 use chrono::Utc;
 use rusqlite::Connection;
-use std::path::{Path, PathBuf};
 use tokio::sync::mpsc;
+
+use crate::{
+    client::OsqueryClient,
+    diff,
+    types::{
+        ColumnEntry, OsqueryResult, OsqueryResultRow, OsqueryRow, ResultAction, ScheduledQuery,
+    },
+};
 
 pub struct QueryScheduler {
     conn: Connection,
@@ -98,13 +102,7 @@ impl QueryScheduler {
                  VALUES (?1, ?2, ?3, ?4, ?5)
                  ON CONFLICT(name) DO UPDATE SET 
                  query=excluded.query, interval_secs=excluded.interval_secs, snapshot=excluded.snapshot, updated_at=excluded.updated_at",
-                rusqlite::params![
-                    query.name,
-                    query.query,
-                    query.interval_secs,
-                    if query.snapshot { 1 } else { 0 },
-                    now,
-                ],
+                rusqlite::params![query.name, query.query, query.interval_secs, if query.snapshot { 1 } else { 0 }, now,],
             )?;
         }
 

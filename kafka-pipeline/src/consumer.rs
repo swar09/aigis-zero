@@ -1,8 +1,9 @@
 use async_trait::async_trait;
-
-use rdkafka::config::ClientConfig;
-use rdkafka::consumer::{Consumer, StreamConsumer};
-use rdkafka::message::Message;
+use rdkafka::{
+    config::ClientConfig,
+    consumer::{Consumer, StreamConsumer},
+    message::Message,
+};
 use tokio_util::sync::CancellationToken;
 use tracing::{error, info};
 

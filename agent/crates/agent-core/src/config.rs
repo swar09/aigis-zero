@@ -1,5 +1,6 @@
-use serde::Deserialize;
 use std::path::PathBuf;
+
+use serde::Deserialize;
 use uuid::Uuid;
 
 /// Root agent configuration. Read from /etc/aigis-zero/config.toml

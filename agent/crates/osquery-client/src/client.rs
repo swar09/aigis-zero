@@ -1,15 +1,22 @@
-use crate::types::{QueryResponse, QueryStatus};
-use anyhow::{Result, anyhow};
-use std::collections::HashMap;
-use std::path::{Path, PathBuf};
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::net::UnixStream;
-
-use thrift::protocol::{
-    TBinaryInputProtocol, TBinaryOutputProtocol, TFieldIdentifier, TInputProtocol,
-    TMessageIdentifier, TMessageType, TOutputProtocol, TType,
+use std::{
+    collections::HashMap,
+    path::{Path, PathBuf},
 };
-use thrift::transport::TBufferChannel;
+
+use anyhow::{Result, anyhow};
+use thrift::{
+    protocol::{
+        TBinaryInputProtocol, TBinaryOutputProtocol, TFieldIdentifier, TInputProtocol,
+        TMessageIdentifier, TMessageType, TOutputProtocol, TType,
+    },
+    transport::TBufferChannel,
+};
+use tokio::{
+    io::{AsyncReadExt, AsyncWriteExt},
+    net::UnixStream,
+};
+
+use crate::types::{QueryResponse, QueryStatus};
 
 pub struct OsqueryClient {
     socket_path: PathBuf,

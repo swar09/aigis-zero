@@ -1,9 +1,8 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use tonic::Status;
-
 use fleet_manager::{AgentRegistration, EnrollmentPort, RegistrationResult};
+use tonic::Status;
 
 use crate::{
     store::{NodeRecord, NodeStore},

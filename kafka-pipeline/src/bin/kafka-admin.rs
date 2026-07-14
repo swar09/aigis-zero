@@ -1,10 +1,10 @@
+use std::env;
+
 /// CLI tool for Kafka topic administration
 /// Usage:
 ///   kafka-admin create-topics --brokers localhost:29092
 use rdkafka::admin::{AdminClient, AdminOptions, NewTopic, TopicReplication};
-use rdkafka::client::DefaultClientContext;
-use rdkafka::config::ClientConfig;
-use std::env;
+use rdkafka::{client::DefaultClientContext, config::ClientConfig};
 
 struct TopicSpec {
     name: &'static str,

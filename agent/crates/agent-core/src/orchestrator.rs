@@ -1,8 +1,9 @@
-use crate::config::AgentConfig;
 use anyhow::Result;
 use event_buffer::EventBuffer;
 use osquery_client::types::OsqueryResult;
 use tokio::sync::mpsc;
+
+use crate::config::AgentConfig;
 
 pub async fn run() -> Result<()> {
     let config_path =
@@ -180,9 +181,11 @@ pub fn read_machine_id() -> String {
 }
 
 pub fn get_os_version() -> String {
-    use std::fs::File;
-    use std::io::{BufRead, BufReader};
-    use std::path::Path;
+    use std::{
+        fs::File,
+        io::{BufRead, BufReader},
+        path::Path,
+    };
 
     let path = Path::new("/etc/os-release");
     if !path.exists() {
@@ -233,9 +236,10 @@ pub fn get_os_version() -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use osquery_client::types::{ColumnEntry, OsqueryResultRow, ResultAction};
     use serde_json::Value;
+
+    use super::*;
 
     #[test]
     fn test_encode_result() {

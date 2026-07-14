@@ -1,0 +1,13 @@
+# Rustfmt Configuration for Aigis-Zero EDR
+# Requires Nightly Rust for unstable import grouping features
+
+edition = "2024"
+max_width = 100
+tab_spaces = 4
+newline_style = "Unix"
+use_field_init_shorthand = true
+use_try_shorthand = true
+reorder_imports = true
+group_imports = "StdExternalCrate"
+imports_granularity = "Crate"
+unstable_features = true

@@ -1,6 +1,9 @@
+use std::{
+    collections::HashSet,
+    hash::{Hash, Hasher},
+};
+
 use crate::types::OsqueryRow;
-use std::collections::HashSet;
-use std::hash::{Hash, Hasher};
 
 /// A wrapper around OsqueryRow to allow hashing and equality comparisons.
 /// We sort the keys to ensure consistent hashing.

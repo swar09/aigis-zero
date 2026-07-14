@@ -1,8 +1,11 @@
+use std::marker::PhantomData;
+
 use bytes::{Buf, BufMut};
 use serde::{Deserialize, Serialize};
-use std::marker::PhantomData;
-use tonic::Status;
-use tonic::codec::{Codec, DecodeBuf, Decoder, EncodeBuf, Encoder};
+use tonic::{
+    Status,
+    codec::{Codec, DecodeBuf, Decoder, EncodeBuf, Encoder},
+};
 
 #[derive(Debug, Clone)]
 pub struct JsonCodec<T, U>(PhantomData<(T, U)>);

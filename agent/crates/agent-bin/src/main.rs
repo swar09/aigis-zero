@@ -1,18 +1,20 @@
-use clap::Parser;
-use std::path::{Path, PathBuf};
-use std::sync::Arc;
-use std::time::Duration;
-use tokio::sync::Mutex;
-use tokio::time::interval;
-use tracing::{info, warn};
-use uuid::Uuid;
+use std::{
+    path::{Path, PathBuf},
+    sync::Arc,
+    time::Duration,
+};
 
 use agent_core::config::AgentConfig;
 pub use agent_core::orchestrator::{get_os_version, read_machine_id};
-use edr_sdk::models::event::EventBatch;
-use edr_sdk::models::heartbeat::HeartbeatRequest;
-use edr_sdk::proto::fleet::RegisterRequest;
+use clap::Parser;
+use edr_sdk::{
+    models::{event::EventBatch, heartbeat::HeartbeatRequest},
+    proto::fleet::RegisterRequest,
+};
 use fleet_client::FleetClient;
+use tokio::{sync::Mutex, time::interval};
+use tracing::{info, warn};
+use uuid::Uuid;
 
 #[derive(Parser, Debug)]
 #[command(name = "aigis-zero", version, about = "Aigis-Zero Agent")]

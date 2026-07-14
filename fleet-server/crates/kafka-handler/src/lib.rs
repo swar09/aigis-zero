@@ -1,6 +1,8 @@
-use rdkafka::config::ClientConfig;
-use rdkafka::producer::{FutureProducer, FutureRecord};
-use rdkafka::util::Timeout;
+use rdkafka::{
+    config::ClientConfig,
+    producer::{FutureProducer, FutureRecord},
+    util::Timeout,
+};
 
 pub struct KafkaPublisher {
     producer: FutureProducer,

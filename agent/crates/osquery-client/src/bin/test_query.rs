@@ -1,12 +1,16 @@
 use std::path::Path;
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::net::UnixStream;
 
-use thrift::protocol::{
-    TBinaryOutputProtocol, TFieldIdentifier, TMessageIdentifier, TMessageType, TOutputProtocol,
-    TType,
+use thrift::{
+    protocol::{
+        TBinaryOutputProtocol, TFieldIdentifier, TMessageIdentifier, TMessageType, TOutputProtocol,
+        TType,
+    },
+    transport::TBufferChannel,
 };
-use thrift::transport::TBufferChannel;
+use tokio::{
+    io::{AsyncReadExt, AsyncWriteExt},
+    net::UnixStream,
+};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

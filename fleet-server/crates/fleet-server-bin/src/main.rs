@@ -4,10 +4,9 @@ mod settings;
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
-use tokio_util::sync::CancellationToken;
-
 use fleet_tracing::{LogFormat, TracingConfig};
 use grpc_listener::{FleetServiceImpl, GrpcListenerConfig, GrpcServer, shutdown_signal};
+use tokio_util::sync::CancellationToken;
 
 #[tokio::main]
 async fn main() -> Result<()> {

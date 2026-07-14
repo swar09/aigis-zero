@@ -1,11 +1,10 @@
 use async_trait::async_trait;
-use sqlx::PgPool;
-use uuid::Uuid;
-
 use health_tracker::{
     error::HealthTrackerError,
     store::{HealthStore, HeartbeatRecord},
 };
+use sqlx::PgPool;
+use uuid::Uuid;
 
 /// PostgreSQL-backed implementation of `HealthStore`.
 ///

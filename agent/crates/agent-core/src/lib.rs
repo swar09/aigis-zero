@@ -3,18 +3,19 @@ pub mod config;
 pub mod orchestrator;
 pub mod preflight;
 
+use std::{sync::Arc, time::Duration};
+
 use anyhow::Result;
-use std::sync::Arc;
-use std::time::Duration;
+use command_handler::CommandHandler;
+use event_buffer::EventBuffer;
+use fleet_client::{
+    FleetClient,
+    types::{AgentEvent, EventType},
+};
+use osquery_client::OsqueryCollector;
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, error, info, warn};
 use uuid::Uuid;
-
-use command_handler::CommandHandler;
-use event_buffer::EventBuffer;
-use fleet_client::FleetClient;
-use fleet_client::types::{AgentEvent, EventType};
-use osquery_client::OsqueryCollector;
 
 /// Maximum number of consecutive `receive()` errors before the command
 /// listener backs off to the maximum delay ceiling.
@@ -363,12 +364,14 @@ fn encode_osquery_result(result: &osquery_client::types::OsqueryResult) -> Optio
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use std::path::PathBuf;
+
     use edr_sdk::proto::fleet::{
         AckCommand, ConfigUpdateCommand, ServerCommand, server_command::Command,
     };
     use osquery_client::types::{ColumnEntry, OsqueryResult, OsqueryResultRow, ResultAction};
-    use std::path::PathBuf;
+
+    use super::*;
 
     #[test]
     fn test_osquery_result_encoding_happy_path() {

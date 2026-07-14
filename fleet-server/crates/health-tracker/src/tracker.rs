@@ -2,9 +2,8 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use chrono::Utc;
-use tonic::Status;
-
 use fleet_manager::{AgentHeartbeat, HeartbeatPort};
+use tonic::Status;
 
 use crate::store::{HealthStore, HeartbeatRecord};
 
@@ -74,9 +73,10 @@ impl HeartbeatPort for HealthTracker {
 #[cfg(test)]
 #[allow(clippy::expect_used, clippy::unwrap_used)]
 mod tests {
+    use std::sync::Mutex;
+
     use super::*;
     use crate::{error::HealthTrackerError, store::HeartbeatRecord};
-    use std::sync::Mutex;
 
     struct MockHealthStore {
         calls: Mutex<Vec<HeartbeatRecord>>,
