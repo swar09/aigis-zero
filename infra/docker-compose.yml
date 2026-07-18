@@ -2,6 +2,53 @@ version: "3.9"
 
 services:
 
+  api-backend:
+    build:
+      context: ..
+      dockerfile: api-backend/Dockerfile
+    container_name: edr-api-backend
+    restart: unless-stopped
+    ports:
+      - "${PORT:-8080}:8080"
+    env_file:
+      - ../.env
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8080
+      - DATABASE_URL_NODES=postgres://edr:${POSTGRES_PASSWORD:-edrpassword}@postgres-nodes:5432/edr_nodes
+      - DATABASE_URL_ALERTS=postgres://edr:${POSTGRES_PASSWORD:-edrpassword}@postgres-alerts:5432/edr_alerts
+      - DATABASE_URL_LOGS=postgres://edr:${POSTGRES_PASSWORD:-edrpassword}@postgres-logs:5432/edr_logs
+      - KAFKA_BROKERS=kafka:29092
+      - FLEET_GRPC_URL=http://fleet-server:50051
+    depends_on:
+      postgres-nodes:
+        condition: service_healthy
+      postgres-alerts:
+        condition: service_healthy
+      postgres-logs:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+
+  fleet-server:
+    build:
+      context: ..
+      dockerfile: fleet-server/Dockerfile
+    container_name: edr-fleet-server
+    restart: unless-stopped
+    ports:
+      - "50051:50051"
+    env_file:
+      - ../.env
+    environment:
+      - DATABASE_URL=postgres://edr:${POSTGRES_PASSWORD:-edrpassword}@postgres-nodes:5432/edr_nodes
+      - KAFKA_BROKERS=kafka:29092
+    depends_on:
+      postgres-nodes:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+
   zookeeper:
     image: confluentinc/cp-zookeeper:7.6.0
     container_name: edr-zookeeper
@@ -49,10 +96,10 @@ services:
     entrypoint: ["/bin/sh", "-c"]
     command: |
       "
-      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic edr.events.raw --partitions 12 --replication-factor 1
-      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic edr.events.norm --partitions 12 --replication-factor 1
-      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic edr.alerts --partitions 4 --replication-factor 1
-      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic edr.health --partitions 4 --replication-factor 1
+      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic aigis.events.raw --partitions 12 --replication-factor 1
+      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic aigis.events.norm --partitions 12 --replication-factor 1
+      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic aigis.alerts --partitions 4 --replication-factor 1
+      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic aigis.health --partitions 4 --replication-factor 1
       echo 'Topics created.'
       "
     restart: on-failure
@@ -60,10 +107,12 @@ services:
   postgres-logs:
     image: postgres:16-alpine
     container_name: edr-postgres-logs
+    env_file:
+      - ../.env
     environment:
       POSTGRES_DB: edr_logs
-      POSTGRES_USER: edr
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_USER: ${POSTGRES_USER:-edr}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-edrpassword}
     ports:
       - "5432:5432"
     volumes:
@@ -77,10 +126,12 @@ services:
   postgres-nodes:
     image: postgres:16-alpine
     container_name: edr-postgres-nodes
+    env_file:
+      - ../.env
     environment:
       POSTGRES_DB: edr_nodes
-      POSTGRES_USER: edr
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_USER: ${POSTGRES_USER:-edr}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-edrpassword}
     ports:
       - "5433:5432"
     volumes:
@@ -94,10 +145,12 @@ services:
   postgres-alerts:
     image: postgres:16-alpine
     container_name: edr-postgres-alerts
+    env_file:
+      - ../.env
     environment:
       POSTGRES_DB: edr_alerts
-      POSTGRES_USER: edr
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_USER: ${POSTGRES_USER:-edr}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-edrpassword}
     ports:
       - "5434:5432"
     volumes:

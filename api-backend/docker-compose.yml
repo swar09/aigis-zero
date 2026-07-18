@@ -1,0 +1,153 @@
+version: "3.9"
+
+services:
+  api-backend:
+    build:
+      context: ..
+      dockerfile: api-backend/Dockerfile
+    container_name: edr-api-backend
+    restart: unless-stopped
+    ports:
+      - "${PORT:-8080}:8080"
+    env_file:
+      - .env
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8080
+      - DATABASE_URL_NODES=postgres://edr:${POSTGRES_PASSWORD:-edrpassword}@postgres-nodes:5432/edr_nodes
+      - DATABASE_URL_ALERTS=postgres://edr:${POSTGRES_PASSWORD:-edrpassword}@postgres-alerts:5432/edr_alerts
+      - DATABASE_URL_LOGS=postgres://edr:${POSTGRES_PASSWORD:-edrpassword}@postgres-logs:5432/edr_logs
+      - KAFKA_BROKERS=kafka:29092
+      - FLEET_GRPC_URL=http://fleet-server:50051
+    depends_on:
+      postgres-nodes:
+        condition: service_healthy
+      postgres-alerts:
+        condition: service_healthy
+      postgres-logs:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    networks:
+      - edr-net
+
+  # PostgreSQL - Node Registry & Enrollment
+  postgres-nodes:
+    image: postgres:16-alpine
+    container_name: edr-postgres-nodes
+    env_file:
+      - .env
+    environment:
+      POSTGRES_DB: edr_nodes
+      POSTGRES_USER: ${POSTGRES_USER:-edr}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-edrpassword}
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_nodes_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U edr -d edr_nodes"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - edr-net
+
+  # PostgreSQL - Detection Alerts
+  postgres-alerts:
+    image: postgres:16-alpine
+    container_name: edr-postgres-alerts
+    env_file:
+      - .env
+    environment:
+      POSTGRES_DB: edr_alerts
+      POSTGRES_USER: ${POSTGRES_USER:-edr}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-edrpassword}
+    ports:
+      - "5434:5432"
+    volumes:
+      - postgres_alerts_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U edr -d edr_alerts"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - edr-net
+
+  # PostgreSQL - Telemetry Event Logs
+  postgres-logs:
+    image: postgres:16-alpine
+    container_name: edr-postgres-logs
+    env_file:
+      - .env
+    environment:
+      POSTGRES_DB: edr_logs
+      POSTGRES_USER: ${POSTGRES_USER:-edr}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-edrpassword}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_logs_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U edr -d edr_logs"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - edr-net
+
+  # Apache Kafka
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.6.0
+    container_name: edr-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    volumes:
+      - zookeeper_data:/var/lib/zookeeper/data
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "2181"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - edr-net
+
+  kafka:
+    image: confluentinc/cp-kafka:7.6.0
+    container_name: edr-kafka
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_LOG_RETENTION_HOURS: 168
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD", "kafka-topics", "--bootstrap-server", "localhost:29092", "--list"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+    networks:
+      - edr-net
+
+networks:
+  edr-net:
+    driver: bridge
+
+volumes:
+  zookeeper_data:
+  kafka_data:
+  postgres_nodes_data:
+  postgres_alerts_data:
+  postgres_logs_data:
