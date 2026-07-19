@@ -1,18 +1,13 @@
 # Aigis-Zero : Endpoint Detection and Response
 
-Aigis-Zero is a open-source EDR system built entirely from scratch in Rust. It monitors Linux endpoints for suspicious activity in real time, streams telemetry through a central fleet server, normalises and routes events via Apache Kafka, runs detection rules against a YARA engine, MITRE ATT&CK mapping, and ML based detection. It surfaces alerts to SOC team through a live React dashboard.
+Aigis-Zero is an open-source EDR system written in Rust. It monitors Linux endpoints for suspicious activity in real time, streams telemetry through a central fleet server, normalizes and routes events with Apache Kafka, evaluates detection rules against a YARA-X engine with MITRE ATT&CK mapping, and presents alerts on a React dashboard.
 
-
-Most production EDR agents are written in C, C++, or Go. This project makes a deliberate choice of Rust for every backend component and the agent itself.
-
-While C/C++ EDR agents are notoriously prone to memory corruption (a massive liability for a root-level service), and Go-based agents struggle with garbage collection pauses and heavy memory bloat under burst load, Rust gives us the best of both worlds. 
-
-We get the raw, low-overhead performance of C/C++ without the security risks of buffer overflows or use-after-free bugs. At the same time, we get the concurrency of Go but without a heavy runtime or unpredictable GC sweeps that drop event streams. By leveraging Tokio's async engine, the agent handles thousands of concurrent event streams on a razor-thin memory footprint.
-
+The system uses Rust across every backend service and on the endpoint agent. This gives the agent low overhead and predictable memory usage without garbage collection pauses, while avoiding memory corruption vulnerabilities in root-level endpoint services. Tokio powers the async event loop across all services.
 
 ---
 
-## Architecture
+## architecture
+
 ```mermaid
 graph TD
     %% Endpoint Section
@@ -52,7 +47,7 @@ graph TD
 
     %% Kafka Pipeline
     subgraph KP ["Kafka Pipeline"]
-        Router["Event Router & Normaliser"]
+        Router["Event Router & Normalizer"]
     end
 
     %% Rule Engine
@@ -95,78 +90,85 @@ graph TD
     UI -->|"IsolateCommand"| API
     API -->|"Forward Commands"| FS
 ```
----
-
-## Component Breakdown
-
-The codebase is organized as a single Cargo workspace containing 18 crates that separate the core services, the shared SDK, and the React frontend.
-
-*   **sdk** — Shared Protobuf definitions (`agent.proto`, `events.proto`, `fleet.proto`) and common domain models. All other crates import from here. Strictly no business logic allowed.
-*   **agent** — A single compiled binary (`aigis-zero`) composed of 7 sub-crates:
-    *   `agent-bin`: Bootstrap entry point, CLI config loader, and service lifecycle manager.
-    *   `agent-core`: Tokio-backed orchestrator, backpressure-aware event loop, and exponential backoff retry loop (50ms base, ~12.8s max).
-    *   `osquery-client`: Thrift IPC client interfacing with osqueryd via Unix sockets.
-    *   `event-buffer`: SQLite-backed write-ahead log ensuring at-least-once telemetry delivery during network partitions.
-    *   `fleet-client`: gRPC client managing Tonic bidirectional streams and heartbeats.
-    *   `isolation`: Host quarantine control managing nftables drop rules with a fleet IP exemption.
-    *   `agent-tracing`: Structured JSON telemetry logging using the `tracing` ecosystem.
-*   **fleet-server** — Central fleet controller split into 8 crates:
-    *   `fleet-server-bin`: Entry point, env loading (`dotenvy`), DB schema migrations, and Tonic server initialization.
-    *   `grpc-listener`: Implementation of the gRPC `FleetService` interface.
-    *   `node-enrollment`: Enrollment handler verifying nodes, issuing 24h JWTs, and recording registration state.
-    *   `health-tracker`: Records node heartbeat timelines; isolates heartbeat state so agents can't overwrite quarantine flags.
-    *   `fleet-manager`: Pure domain logic governing agent state machines and transitions.
-    *   `kafka-handler`: Stream producer piping raw telemetry from agents directly into Kafka.
-    *   `postgres-interface`: Data-access layer using `sqlx` with compile-time checked SQL and pessimistic locks (`SELECT FOR UPDATE`) for safe upserts.
-    *   `fleet-tracing`: Shared logging initialization for the fleet server.
-*   **kafka-pipeline** — Dedicated pipeline consumer pulling from `aigis.events.raw`, mapping events to typed topics by class, and saving normalized data into `edr_logs` (using LZ4 compression and 5ms batching).
-*   **rule-engine** — Event scanner checking normalized streams against YARA-X rules, indexing detections with MITRE ATT&CK codes, and publishing alerts to `aigis.alerts`. (Currently in active development).
-*   **api-backend** — Axum-based web gateway serving REST endpoints and managing live WebSocket connections for dashboard operators.
-*   **frontend** — React operator console built with TypeScript and Vite. Currently supports authentication, node tracking, and live alert feeds via Mock data.
-*   **infra** — Docker Compose manifests for KRaft/Zookeeper Kafka stacks and Postgres setups, along with Kubernetes deployment specs.
 
 ---
 
-## Feature Overview
+## component breakdown
 
-**Agent**
-- Scheduled osquery polling with query intervals loaded from the fleet server via `ConfigUpdateCommand`
-- SQLite write-ahead event buffer that survives network outages and agent restarts; configurable max-size with oldest-first eviction under pressure
-- Bidirectional gRPC stream to fleet-server with exponential backoff reconnection
-- Heartbeat loop reporting node status and buffered event count
-- Fleet-commanded network isolation via nftables: drop-all policy with a single outbound carve-out for the fleet-server IP
-- Structured JSON logging with per-component log level control
-- Musl static binary for production deployment — zero glibc dependency, runs on any Linux kernel >= 4.18
-- Cross-compiled release artifacts for `x86_64` and `aarch64` via GitHub Actions
+The codebase is organized as a Cargo workspace with 18 crates separating services, the shared SDK, and the React frontend:
 
-**Fleet Server**
+* `sdk`: Shared Protobuf definitions (`agent.proto`, `events.proto`, `fleet.proto`) and common domain models. All crates import from here. No business logic.
+* `agent`: Endpoint binary (`aigis-zero`) composed of 7 sub-crates:
+  * `agent-bin`: Bootstrap entry point, CLI config loader, and service lifecycle manager.
+  * `agent-core`: Tokio orchestrator, backpressure-aware event loop, and exponential backoff retry loop (50ms base, 12.8s max).
+  * `osquery-client`: Thrift IPC client connecting to osqueryd over Unix sockets.
+  * `event-buffer`: SQLite write-ahead log for at-least-once delivery during network partitions.
+  * `fleet-client`: gRPC client managing Tonic bidirectional streams and heartbeats.
+  * `isolation`: Host quarantine control using nftables drop rules with a fleet server IP exemption.
+  * `agent-tracing`: Structured JSON telemetry logging with tracing subscriber.
+* `fleet-server`: Fleet controller split into 8 crates:
+  * `fleet-server-bin`: Entry point, env loading, schema migrations, and Tonic server initialization.
+  * `grpc-listener`: gRPC `FleetService` implementation.
+  * `node-enrollment`: Enrollment handler verifying nodes, issuing 24h JWTs, and tracking registration.
+  * `health-tracker`: Records node heartbeat timelines and protects operator-assigned quarantine status.
+  * `fleet-manager`: Domain logic governing agent state machine transitions.
+  * `kafka-handler`: Stream producer sending telemetry from agents directly into Kafka.
+  * `postgres-interface`: Data-access layer using `sqlx` with compile-time verified SQL and pessimistic row locks (`SELECT FOR UPDATE`).
+  * `fleet-tracing`: Shared logging initialization for the fleet server.
+* `kafka-pipeline`: Pipeline consumer pulling from `aigis.events.raw`, mapping events to typed topics, and saving normalized data into `edr_logs` (LZ4 compression, 5ms batching).
+* `rule-engine`: Event scanner checking normalized streams against YARA-X rules, indexing detections with MITRE ATT&CK codes, and publishing alerts to `aigis.alerts`.
+* `api-backend`: Axum 0.8 web gateway with Diesel-Async connection pooling, REST endpoints, and WebSocket real-time event streaming.
+* `frontend`: React operator console built with TypeScript and Vite for node management, alert triage, and live telemetry feeds.
+* `infra`: Docker Compose manifests for Kafka and PostgreSQL setups, along with Kubernetes deployment specs.
+
+---
+
+## feature overview
+
+### agent
+- Scheduled osquery polling with query intervals loaded from fleet server via `ConfigUpdateCommand`
+- SQLite write-ahead event buffer surviving network outages and restarts, with configurable max size and oldest-first eviction under pressure
+- Bidirectional gRPC stream to fleet server with exponential backoff reconnection
+- Heartbeat loop reporting node health and buffered event count
+- Network isolation via nftables with drop-all policy and outbound exemption for the fleet server IP
+- Structured JSON logging with per-component level control
+- Musl static binary for deployment on Linux kernels 4.18 and newer
+- Cross-compiled release artifacts for `x86_64` and `aarch64`
+
+### fleet server
 - gRPC enrollment with 24-hour JWT token issuance
-- Compile-time SQL verification via `sqlx` — schema mismatches fail at build time, not at runtime
-- Strict `operator_status` / `agent_status` separation: heartbeats cannot overwrite operator-assigned quarantine states
+- Compile-time SQL verification via `sqlx`
+- Strict separation between `operator_status` and `agent_status` so heartbeats cannot overwrite quarantine flags
 - Time-series heartbeat tracking per node
 - Kafka event forwarding with LZ4 compression
 
-**Kafka Pipeline**
+### kafka pipeline
 - Type-aware event routing to dedicated topics per event class (process, file, network, auth)
 - Consumer group management with graceful shutdown via `CancellationToken`
 
-**Rule Engine**
-- YARA-X based scanning — pure Rust, no `libyara` C dependency
+### rule engine
+- YARA-X scanning in pure Rust without `libyara` C dependencies
 - MITRE ATT&CK technique and tactic mapping on alert records
-- Structured `Alert` with threat score, severity, source, and triggering event reference
+- Structured `Alert` model with threat score, severity, source, and triggering event reference
 
-**Infrastructure**
+### api backend
+- REST endpoints for node inventory, network quarantine commands, detection alerts, and telemetry logs
+- Type-safe database queries via `diesel-async` and `deadpool` across three isolated databases
+- Live WebSocket feed (`/api/v1/ws`) multiplexing logs, alerts, and heartbeats with topic and node filters
+- Fail-fast connection pool timeouts preventing request stalls under load
+
+### infrastructure
 - Three isolated PostgreSQL databases for node registry, event logs, and alerts
-- Kafka with 12-partition event topics and 4-partition alert/health topics
+- Kafka with 12-partition event topics and 4-partition alert and health topics
 - Kafka UI on port 8090 for local debugging
-- Dev-mode KRaft Kafka (no Zookeeper) for faster local iteration
-- Kubernetes manifests for fleet-server and supporting services
+- Dev-mode KRaft Kafka configuration without Zookeeper
+- Kubernetes manifests for fleet server and supporting services
 
 ---
 
-## Current State
+## current state
 
-Active development is on the `agent/bug-fixes-01` branch. This is the branch with the most commits and the most complete implementation across all components.
+Active development is on the `agent/bug-fixes-01` branch.
 
 | Component | Status |
 |---|---|
@@ -175,29 +177,29 @@ Active development is on the `agent/bug-fixes-01` branch. This is the branch wit
 | Agent network isolation (nftables) | Complete |
 | Agent enrollment and JWT auth | Complete |
 | Agent heartbeat | Complete |
-| Agent config hot-reload | Scaffold — fleet command delivery works; client-side application in progress |
+| Agent config hot-reload | Scaffold (fleet command delivery works; client application in progress) |
 | Fleet server (enrollment, health tracking, Kafka forwarding) | Complete |
 | Kafka pipeline (event router) | Complete |
-| Kafka pipeline (normalisation and DB persistence) | In progress |
-| Rule engine (YARA-X scanning, alert production) | Stubbed — binary compiles; rule loading and alerting in progress |
-| API backend (REST and WebSocket) | Stubbed — binary compiles; route implementation in progress |
-| Frontend (login, node list, live events tab) | Functional with mock data; WebSocket integration in progress |
-| eBPF collector (aya) | Excluded from default workspace; under development on a separate branch |
-| mTLS (agent to fleet) | Scaffold — cert paths in config; TLS handshake not yet wired |
-| Kubernetes production deployment | Manifests present; not production-validated |
+| Kafka pipeline (normalization and DB persistence) | In progress |
+| Rule engine (YARA-X scanning, alert production) | Scaffold (binary compiles; rule loading and alerting in progress) |
+| API backend (REST, Diesel-Async, WebSockets, Kafka consumer) | Complete |
+| Frontend (login, node list, alert feeds) | Functional with mock data; WebSocket live feed integration in progress |
+| eBPF collector (aya) | Separate branch; excluded from default workspace |
+| mTLS (agent to fleet) | Scaffold (cert paths in config; handshake in progress) |
+| Kubernetes production deployment | Manifests present |
 
-The zero-warning policy is enforced: `cargo clippy --all-targets -- -D warnings` and `cargo fmt --check` must pass before any merge.
+Quality gates are enforced: `cargo clippy --workspace --all-targets --all-features -- -D warnings` and `cargo +nightly fmt --all -- --check` pass on all crates.
 
 ---
 
-## Local Setup and Installation
+## local setup and installation
 
-### Prerequisites
+### prerequisites
 
 | Tool | Minimum Version | Notes |
 |---|---|---|
 | Rust (stable) | 1.91 | Install via `rustup` |
-| Docker and Docker Compose | Any recent | Required for the infra stack |
+| Docker and Docker Compose | Recent version | Required for the infra stack |
 | Node.js | 18 | Required for frontend development |
 | Linux kernel | 4.18 | Agent endpoint only; 5.10+ recommended |
 | Architecture | x86_64 or aarch64 | Agent only |
@@ -205,14 +207,14 @@ The zero-warning policy is enforced: `cargo clippy --all-targets -- -D warnings`
 
 ---
 
-### 1. Infrastructure
+### 1. infrastructure
 
 ```bash
 git clone -b agent/bug-fixes-01 https://github.com/swar09/project-edr.git
 cd project-edr
 
 cp .env.example .env
-# Set POSTGRES_PASSWORD and any other required values in .env
+# Configure POSTGRES_PASSWORD and other settings in .env
 
 cd infra
 docker compose up -d
@@ -234,7 +236,7 @@ docker compose ps
 | `edr_logs` | 5432 | Normalized event log |
 | `edr_alerts` | 5434 | Detection alerts |
 
-For lightweight local development (KRaft Kafka, no Zookeeper):
+For local development with KRaft Kafka (no Zookeeper):
 
 ```bash
 docker compose -f infra/docker-compose.dev.yml up -d
@@ -242,7 +244,7 @@ docker compose -f infra/docker-compose.dev.yml up -d
 
 ---
 
-### 2. Building the Workspace
+### 2. building the workspace
 
 `sqlx` performs compile-time query verification and requires `DATABASE_URL` to point to a live, migrated database.
 
@@ -260,21 +262,19 @@ export SQLX_OFFLINE=true
 cargo build --workspace
 ```
 
-CI checks:
+Run quality checks:
 
 ```bash
-cargo fmt --all -- --check
-cargo clippy --workspace --all-targets -- -D warnings
-cargo test --workspace
+./scripts/check.sh
 ```
 
 ---
 
-### 3. Agent Installation
+### 3. agent installation
 
-The agent runs on Linux endpoints and requires root.
+The agent runs on Linux endpoints and requires root privileges.
 
-#### Method A: Pre-built Musl Binary (Recommended)
+#### method A: pre-built musl binary
 
 ```bash
 VERSION=agent-v0.1.0
@@ -290,14 +290,14 @@ cd aigis-zero-agent
 sudo bash install.sh
 ```
 
-The installer handles osquery installation, directory setup, systemd unit registration, kernel tunables, and ulimits in a single run. See the `agent/INSTALLATION_GUIDE.md` for the full step-by-step breakdown.
+The installer configures osquery, directories, systemd units, kernel parameters, and ulimits. Refer to `agent/INSTALLATION_GUIDE.md` for details.
 
-#### Method B: Build from Source
+#### method B: build from source
 
-Verify kernel prerequisites on the target endpoint:
+Verify kernel prerequisites on the endpoint:
 
 ```bash
-uname -r   # >= 4.18 required, >= 5.10 recommended
+uname -r
 
 grep -E "CONFIG_BPF=y|CONFIG_BPF_SYSCALL=y" /boot/config-$(uname -r) 2>/dev/null || \
   zcat /proc/config.gz 2>/dev/null | grep -E "CONFIG_BPF=y|CONFIG_BPF_SYSCALL=y"
@@ -305,7 +305,7 @@ grep -E "CONFIG_BPF=y|CONFIG_BPF_SYSCALL=y" /boot/config-$(uname -r) 2>/dev/null
 ls /sys/kernel/btf/vmlinux && echo "BTF present"
 ```
 
-Disable auditd (required — auditd and osquery compete for the audit netlink socket, which only allows one consumer):
+Disable auditd (auditd and osquery compete for the audit netlink socket):
 
 ```bash
 sudo systemctl stop auditd 2>/dev/null || true
@@ -316,14 +316,14 @@ sudo systemctl mask --now systemd-journald-audit.socket
 Install build dependencies:
 
 ```bash
-# Debian/Ubuntu
+# Debian / Ubuntu
 sudo apt-get update
 sudo apt-get install -y \
   build-essential pkg-config libssl-dev \
   libsystemd-dev libaudit-dev libcap-dev \
   util-linux musl-tools
 
-# RHEL/Rocky/Fedora
+# RHEL / Rocky / Fedora
 sudo dnf install -y \
   gcc pkg-config openssl-devel \
   audit-libs-devel systemd-devel \
@@ -335,20 +335,20 @@ Install Rust:
 ```bash
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 source "$HOME/.cargo/env"
-rustc --version   # should be stable >= 1.91
+rustc --version
 ```
 
 Build the agent:
 
 ```bash
-# Native build (linked against system glibc)
+# Native build
 cargo build --release --bin edr-agent
 
-# Musl static build (recommended for production)
+# Musl static build
 rustup target add x86_64-unknown-linux-musl
 cargo build --release --target x86_64-unknown-linux-musl --bin edr-agent
 
-# aarch64 musl (requires cross)
+# aarch64 musl
 cargo install cross --git https://github.com/cross-rs/cross
 cross build --release --target aarch64-unknown-linux-musl --bin edr-agent
 ```
@@ -380,7 +380,7 @@ WantedBy=multi-user.target
 EOF
 ```
 
-Install the agent binary, directories, configs, and systemd units:
+Install binary, configuration, and systemd units:
 
 ```bash
 sudo install -o root -g root -m 0755 \
@@ -392,7 +392,6 @@ sudo chmod 700 /etc/aigis-zero /var/lib/aigis-zero
 sudo chmod 755 /var/log/aigis-zero
 
 sudo install -o root -g root -m 640 agent/agent.toml /etc/aigis-zero/config.toml
-# Edit config to set the fleet server host and port
 sudo nano /etc/aigis-zero/config.toml
 
 sudo install -o root -g root -m 644 \
@@ -460,25 +459,24 @@ enabled = false                        # toggled by fleet-server IsolateCommand
 Service management:
 
 ```bash
-# Both services are fully independent — stopping one does not affect the other
 systemctl status osqueryd
 systemctl status aigis-zero
 
 journalctl -u osqueryd -f
 journalctl -u aigis-zero -f
 
-systemctl stop osqueryd     # aigis-zero continues buffering normally
-systemctl stop aigis-zero   # osqueryd continues collecting normally
+systemctl stop osqueryd
+systemctl stop aigis-zero
 ```
 
 Uninstall:
 
 ```bash
-# Method A: using the installer script
+# Script uninstall
 sudo bash uninstall.sh
-sudo bash uninstall.sh --remove-osquery --purge-logs   # full purge
+sudo bash uninstall.sh --remove-osquery --purge-logs
 
-# Method B: manual
+# Manual uninstall
 sudo systemctl stop aigis-zero osqueryd
 sudo systemctl disable aigis-zero osqueryd
 sudo rm -f /usr/sbin/aigis-zero
@@ -496,15 +494,15 @@ Troubleshooting:
 
 | Symptom | Likely cause | Resolution |
 |---|---|---|
-| `osqueryd: perf_event_open failed` | eBPF not enabled or kernel too old | Verify `uname -r` >= 4.18 and `CONFIG_BPF_SYSCALL=y` |
-| `file_events` table returns empty | inotify watch limit too low | `sudo sysctl -w fs.inotify.max_user_watches=524288` |
-| `aigis-zero: connection refused` on osquery socket | osqueryd still starting | Wait for `Extension manager started` in `journalctl -u osqueryd` |
+| `osqueryd: perf_event_open failed` | eBPF disabled or kernel older than 4.18 | Verify `uname -r` >= 4.18 and `CONFIG_BPF_SYSCALL=y` |
+| `file_events` table returns empty | inotify watch limit low | `sudo sysctl -w fs.inotify.max_user_watches=524288` |
+| `aigis-zero: connection refused` on osquery socket | osqueryd still starting | Wait for `Extension manager started` in journal logs |
 | `Permission denied on /var/osquery` | Directory ownership incorrect | `sudo chown -R root:root /etc/osquery /var/osquery && sudo chmod 750 /var/osquery` |
-| `cargo build` fails, `DATABASE_URL not set` | sqlx compile-time check | Export `DATABASE_URL` pointing to the nodes DB or set `SQLX_OFFLINE=true` |
+| `cargo build` fails with `DATABASE_URL not set` | sqlx compile-time query check | Set `DATABASE_URL` pointing to nodes DB or set `SQLX_OFFLINE=true` |
 
 ---
 
-### 4. Running Services
+### 4. running services
 
 ```bash
 # Fleet server
@@ -516,79 +514,70 @@ cargo run -p fleet-server-bin
 export KAFKA_BROKERS=localhost:29092
 cargo run -p kafka-pipeline
 
-# Rule engine (stub)
+# Rule engine
 cargo run -p rule-engine
 
-# API backend (stub)
-cargo run -p api-backend
+# API backend
+cargo run -p edr-api-backend
 ```
 
 ---
 
-### 5. Frontend
+### 5. frontend
 
 ```bash
 cd frontend
 npm install
-npm run dev       # development server at http://localhost:5173
-npm run build     # production build to frontend/dist/
+npm run dev
+npm run build
 ```
 
 ---
 
-## Upcoming Features
+## upcoming features
 
-**mTLS (agent to fleet-server).** The config scaffolding and cert paths exist in `agent.toml` and the fleet-server settings. The next step is wiring the TLS handshake in the Tonic channel builder on the agent side and configuring `tonic` server TLS on the fleet side. The design target is enrollment-issued certificates: each agent gets a short-lived cert signed by the fleet CA during `RegisterAgent`.
-
-**eBPF collector.** The `agent/crates/ebpf-collector` crate is excluded from the default workspace build because it requires a kernel with BTF and the `aya` build toolchain. When this ships, the agent will collect process, network, and filesystem events directly from the kernel via eBPF programs, removing the dependency on osquery's audit-based collection and lifting the single-consumer constraint on the audit netlink socket.
-
-**Rule engine full implementation.** YARA-X rule loading from the filesystem, consumer group wiring, alert production to `aigis.alerts`, and PostgreSQL persistence. The binary compiles; the business logic is the active workstream.
-
-**API backend routes.** Full REST surface: node listing, node detail, alert query with filtering by severity and MITRE technique, and node isolation command forwarding to the fleet-server. WebSocket handler for live event streaming.
-
-**Frontend WebSocket integration.** The dashboard shell is in place. Connecting it to the api-backend WebSocket for live node status and alert feed is the active frontend workstream.
-
-**Kafka normalisation and DB persistence.** The event router is live. The next stage is the normalisation processor: consuming from typed topics, deserialising event payloads, and writing structured rows to `edr_logs`.
-
-**ML-based anomaly detection.** The `Alert` proto already carries a `source` field for `ml_model`. A future workstream will add a statistical baseline model for process execution frequency and network behaviour, producing anomaly alerts alongside YARA rule hits.
-
-**Enrollment secret validation.** The `enrollment_secret` field exists in `agent.toml` and the `RegisterRequest` proto. Fleet-server-side validation is not yet implemented.
-
-**Multi-tenancy.** The current data model is single-tenant. Organisation-scoped node isolation and role-based operator access are planned.
-
-**Windows agent.** The current agent is Linux-only. Windows support via ETW (Event Tracing for Windows) is on the long-term roadmap with no scheduled timeline.
+* **mTLS (agent to fleet server)**: Config scaffolding and certificate paths exist in `agent.toml` and fleet server settings. Next step is wiring TLS handshake in Tonic channel builder and server TLS on fleet server.
+* **eBPF collector**: The `agent/crates/ebpf-collector` crate is under development on a separate branch. It collects process, network, and filesystem events directly via eBPF programs, removing osquery audit dependencies.
+* **Rule engine alert pipeline**: YARA-X rule loading from filesystem, consumer group wiring, and alert persistence to PostgreSQL.
+* **Frontend live streaming**: Connecting React SOC dashboard to the API backend WebSocket for real-time node status and alert feeds.
+* **Kafka normalization pipeline**: Consuming from typed topics, deserializing payloads, and writing structured telemetry rows to `edr_logs`.
+* **ML anomaly detection**: Statistical baseline model for process execution frequency and network behavior, producing anomaly alerts alongside YARA rule hits.
+* **Enrollment secret validation**: Enforcing pre-shared secrets during `RegisterAgent` calls.
+* **Multi-tenancy**: Organization-scoped node isolation and role-based access control.
+* **Windows agent**: Windows endpoint support via Event Tracing for Windows (ETW).
 
 ---
 
-## References
+## references
 
 - [osquery documentation](https://osquery.readthedocs.io/)
-- [aya — eBPF for Rust](https://aya-rs.dev/)
-- [Tonic — gRPC for Rust](https://github.com/hyperium/tonic)
+- [aya (eBPF for Rust)](https://aya-rs.dev/)
+- [Tonic (gRPC for Rust)](https://github.com/hyperium/tonic)
 - [YARA-X](https://github.com/VirusTotal/yara-x)
 - [MITRE ATT&CK Framework](https://attack.mitre.org/)
 - [Apache Kafka documentation](https://kafka.apache.org/documentation/)
-- [sqlx — async Rust SQL](https://github.com/launchbadge/sqlx)
-- [Axum — async web framework](https://github.com/tokio-rs/axum)
-- [rdkafka — Rust Kafka client](https://github.com/fede1024/rust-rdkafka)
+- [sqlx](https://github.com/launchbadge/sqlx)
+- [Diesel-Async](https://github.com/weiznich/diesel_async)
+- [Axum web framework](https://github.com/tokio-rs/axum)
+- [rdkafka](https://github.com/fede1024/rust-rdkafka)
 - [nftables documentation](https://wiki.nftables.org/)
 - [Tokio async runtime](https://tokio.rs/)
 
 ---
 
-## License
+## license
 
 This project is licensed under the [MIT License](LICENSE).
 
 ---
 
-## Contributing
+## contributing
 
-Contributions are welcome! Please refer to the [CONTRIBUTING.md](CONTRIBUTING.md) guide for details on our code quality standards, branching conventions, and development workflow.
+Please refer to the [CONTRIBUTING.md](CONTRIBUTING.md) guide for details on code quality standards, branching conventions, and development workflows.
 
 ---
 
-## Contributors
+## contributors
 
 <table>
   <tr>
@@ -602,7 +591,3 @@ Contributions are welcome! Please refer to the [CONTRIBUTING.md](CONTRIBUTING.md
     </td>
   </tr>
 </table>
-
----
-
-*Crafted in Rust. Full-stack ownership, zero compromise.*
