@@ -1,140 +1,85 @@
-import asyncio
-import logging
-from enum import Enum
-from typing import Optional
-
-from .types import ConnectionState
+from typing import Any, AsyncIterator, Optional
 
 
-logger = logging.getLogger(__name__)
-
-
-class FleetConnection:
+class Connection:
     """
-    Manages the connection to the Fleet server.
-
-    Equivalent to the Rust FleetConnection struct.
+    For communicating with the Fleet server.
+    
     """
 
-    def __init__(
-        self,
-        endpoint: str,
-    ):
+    def __init__(self, endpoint: str):
         self.endpoint = endpoint
+        self.channel: Optional[Any] = None
+        self.client: Optional[Any] = None
+        self.connected = False
 
-        # Rust:
-        #
-        # channel: Option<Channel>
-        #
-        # Python:
-        self.channel: Optional[object] = None
-
-        # Rust watch::Sender<ConnectionState>
-        #
-        # Python equivalent:
-        # Keep the current state and notify registered listeners.
-        self.state = ConnectionState.DISCONNECTED
-
-        self._state_listeners: list[
-            asyncio.Queue[ConnectionState]
-        ] = []
-
-    async def connect(self):
+    async def connect(self) -> None:
         """
-        Connect to the Fleet server.
-
-        Retries forever using exponential backoff.
-
-        Backoff:
-
-            1 second
-            2 seconds
-            4 seconds
-            8 seconds
-            ...
-            maximum 60 seconds
+        Establish a connection to the Fleet server.
         """
+        self.connected = True
 
-        backoff = 1
-        max_backoff = 60
-
-        while True:
-
-            await self._set_state(
-                ConnectionState.RECONNECTING
-            )
-
-            logger.info(
-                "Connecting to fleet server at %s...",
-                self.endpoint,
-            )
-
-            try:
-
-                # The actual network connection will be implemented
-                # according to the transport used by the Fleet client.
-                channel = await self._create_connection()
-
-                logger.info(
-                    "Successfully connected to fleet server."
-                )
-
-                await self._set_state(
-                    ConnectionState.CONNECTED
-                )
-
-                self.channel = channel
-
-                return channel
-
-            except Exception as error:
-
-                logger.warning(
-                    "Failed to connect to fleet server: %s. "
-                    "Retrying in %s seconds",
-                    error,
-                    backoff,
-                )
-
-            await asyncio.sleep(backoff)
-
-            backoff = min(
-                backoff * 2,
-                max_backoff,
-            )
-
-    async def _create_connection(self):
+    async def close(self) -> None:
         """
-        Create the actual connection to the Fleet server.
-
-        This will be implemented once we know which Python
-        networking library the other Fleet client modules use.
+        Close the connection.
         """
+        self.channel = None
+        self.client = None
+        self.connected = False
 
-        raise NotImplementedError
+    async def register_agent(self, request: Any) -> Any:
+        """
+        Send RegisterAgent RPC.
 
-    async def _set_state(
+        Args:
+            request: RegisterRequest
+
+        Returns:
+            RegisterResponse
+        """
+        if not self.connected:
+            raise RuntimeError("Not connected to Fleet server.")
+
+        raise NotImplementedError(
+            "RegisterAgent RPC will be implemented once gRPC stubs are available."
+        )
+
+    async def send_heartbeat(self, request: Any, token: str) -> Any:
+        """
+        Send Heartbeat RPC.
+
+        Args:
+            request: HeartbeatRequest
+            token: Bearer token
+
+        Returns:
+            HeartbeatResponse
+        """
+        if not self.connected:
+            raise RuntimeError("Not connected to Fleet server.")
+
+        raise NotImplementedError(
+            "Heartbeat RPC will be implemented once gRPC stubs are available."
+        )
+
+    async def open_stream(
         self,
-        state: ConnectionState,
-    ) -> None:
-
-        self.state = state
-
-        for listener in self._state_listeners:
-
-            await listener.put(state)
-
-    def subscribe(
-        self,
-    ) -> asyncio.Queue[ConnectionState]:
+        events: AsyncIterator[Any],
+        token: str,
+    ) -> AsyncIterator[Any]:
         """
-        Subscribe to connection state changes.
+        Open bidirectional event stream.
+
+        Args:
+            events: Async iterator of AgentEvent
+            token: Bearer token
+
+        Yields:
+            ServerCommand
         """
+        if not self.connected:
+            raise RuntimeError("Not connected to Fleet server.")
 
-        queue: asyncio.Queue[
-            ConnectionState
-        ] = asyncio.Queue()
-
-        self._state_listeners.append(queue)
-
-        return queue
+        raise NotImplementedError(
+            "EventStream RPC will be implemented once gRPC stubs are available."
+        )
