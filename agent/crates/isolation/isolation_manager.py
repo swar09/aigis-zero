@@ -17,14 +17,11 @@ class IsolationManager:
         self.fleet_ip = ipaddress.ip_address(fleet_ip)
         self.fleet_port = fleet_port
 
-    async def isolate(self) -> None:
-        """
-        Apply the network isolation rules.
-        """
 
+    def _build_ruleset(self):
         ip_family = "ip" if self.fleet_ip.version == 4 else "ip6"
 
-        ruleset = f"""table inet aigis_isolation {{
+        return f"""table inet aigis_isolation {{
     chain input {{
         type filter hook input priority -100; policy drop;
         ct state established,related accept
@@ -41,6 +38,15 @@ class IsolationManager:
         type filter hook forward priority -100; policy drop;
     }}
 }}"""
+
+    async def isolate(self) -> None:
+        """
+        Apply the network isolation rules.
+        """
+
+        ip_family = "ip" if self.fleet_ip.version == 4 else "ip6"
+
+        ruleset = self._build_ruleset()
 
         try:
             process = await asyncio.create_subprocess_exec(
