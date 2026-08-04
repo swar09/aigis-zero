@@ -3,6 +3,7 @@ import json
 import logging
 import os
 import platform
+import signal
 import socket
 import uuid
 from pathlib import Path
@@ -19,6 +20,7 @@ from osquery_client.types import OsqueryResult
 import agent_tracing
 
 logger = logging.getLogger(__name__)
+AGENT_VERSION = "0.1.0"
 
 
 # ------------------------------------------------------------
@@ -119,17 +121,19 @@ async def run():
     request = RegisterRequest(
         hostname=hostname_or_default(),
         os_version=get_os_version(),
-        agent_version=config.agent.version,
+        agent_version=AGENT_VERSION,
         machine_id=read_machine_id(),
     )
 
     try:
-        await asyncio.wait_for(
+        enrollment = await asyncio.wait_for(
             fleet.enroll(request),
             timeout=5,
         )
 
-        logger.info("Fleet enrollment successful")
+        logger.info("Enrolled with Fleet server. node_id=%s",
+                    enrollment.node_id,
+        )
 
     except asyncio.TimeoutError:
         logger.warning(
@@ -150,8 +154,10 @@ async def run():
 
     shutdown = asyncio.Event()
 
-    asyncio.create_task(wait_for_shutdown(shutdown))
-
+    shutdown_task = asyncio.create_task(
+        wait_for_shutdown(shutdown)
+    )
+    
     while not shutdown.is_set():
 
         try:
@@ -171,11 +177,11 @@ async def run():
             await buffer.push(encoded)
 
             logger.debug(
-                "Buffered '%s' (%d rows)",
+                "Buffered '%s' (%d rows, action=%s)",
                 result.query_name,
                 len(result.rows),
+                result.action,
             )
-
         except Exception as e:
 
             logger.exception(
@@ -184,6 +190,7 @@ async def run():
             )
 
     logger.info("Agent shutting down")
+    shutdown_task.cancel()
 
 
 # ------------------------------------------------------------
@@ -228,27 +235,26 @@ async def watch_config(config_path: str):
 
         await asyncio.sleep(2)
 
-
-# ------------------------------------------------------------
+# ----------------------------------------------------------------
 # Shutdown
-# ------------------------------------------------------------
+# ----------------------------------------------------------------
 
 async def wait_for_shutdown(event: asyncio.Event):
+    """
+    Wait for Ctrl+C and signal shutdown.
+    """
 
-    """
-    Wait for Ctrl+C.
-    """
+    loop = asyncio.get_running_loop()
 
     try:
-
-        while True:
-            await asyncio.sleep(3600)
-
-    except asyncio.CancelledError:
+        loop.add_signal_handler(signal.SIGINT, event.set)
+    except NotImplementedError:
+        # Windows fallback
         pass
 
-    finally:
-        event.set()
+    await event.wait()
+
+    logger.info("Ctrl-C received, signalling shutdown.")
 
 
 # ------------------------------------------------------------
