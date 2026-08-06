@@ -2,10 +2,10 @@ from typing import Optional
 import asyncio
 import logging
 
-from fleet_client.connection import Connection
-from fleet_client.enrollment import AgentEnrollment
-from fleet_client.heartbeat import HeartbeatManager
-from fleet_client.stream import EventStreamManager
+from fleet_client.src.connection import Connection
+from fleet_client.src.enrollment import AgentEnrollment
+from fleet_client.src.heartbeat import HeartbeatManager
+from fleet_client.src.stream import EventStreamManager
 
 logger = logging.getLogger(__name__)
 

@@ -85,7 +85,10 @@ class PreflightReport:
                 f"inotify max_user_watches: {self.inotify_error}"
             )
 
-        elif self.inotify_watches >= 524288:
+        elif (
+            self.inotify_watches is not None
+            and self.inotify_watches >= 524288
+        ):
             print(
                 "  [OK]   inotify max_user_watches "
                 f"limit is sufficient ({self.inotify_watches})"

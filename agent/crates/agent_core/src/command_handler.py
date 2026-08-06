@@ -1,8 +1,8 @@
 from typing import Any
 
-from fleet_client.types import ServerCommand
+from fleet_client.src.types import ServerCommand
 from isolation.isolation_manager import IsolationManager
-from osquery_client import OsqueryCollector
+from osquery_client.src import OsqueryCollector
 
 
 class CommandHandler:
