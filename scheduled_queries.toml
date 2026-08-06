@@ -1,0 +1,63 @@
+# scheduled_queries.toml
+# Testing only — seed these queries into the SQLite scheduled_queries table on startup.
+# Listed in .testingignore. Remove scheduled_queries_path from agent.toml when done testing.
+
+[[queries]]
+name        = "running_processes"
+query       = "SELECT pid, name, path, cmdline, uid FROM processes;"
+interval_secs = 30
+snapshot    = false
+
+[[queries]]
+name        = "open_files"
+query       = "SELECT pid, fd, path FROM process_open_files WHERE path NOT LIKE '/dev/%';"
+interval_secs = 60
+snapshot    = false
+
+[[queries]]
+name        = "tmp_file_activity"
+query       = "SELECT path, size, mtime, atime FROM file WHERE directory = '/tmp' AND mtime > (strftime('%s','now') - 3600);"
+interval_secs = 60
+snapshot    = true
+
+[[queries]]
+name        = "listening_ports"
+query       = "SELECT pid, port, protocol, address FROM listening_ports;"
+interval_secs = 30
+snapshot    = false
+
+[[queries]]
+name        = "open_sockets"
+query       = "SELECT pid, local_address, local_port, remote_address, remote_port, state FROM process_open_sockets;"
+interval_secs = 30
+snapshot    = false
+
+[[queries]]
+name        = "process_env_path"
+query       = "SELECT pid, key, value FROM process_envs WHERE key = 'PATH';"
+interval_secs = 120
+snapshot    = false
+
+[[queries]]
+name        = "etc_file_changes"
+query       = "SELECT path, size, mtime FROM file WHERE directory = '/etc' AND mtime > (strftime('%s','now') - 86400);"
+interval_secs = 120
+snapshot    = true
+
+[[queries]]
+name        = "users"
+query       = "SELECT username, uid, gid, shell, directory FROM users;"
+interval_secs = 300
+snapshot    = false
+
+[[queries]]
+name        = "init_children"
+query       = "SELECT pid, name, cmdline, parent FROM processes WHERE parent = 1;"
+interval_secs = 60
+snapshot    = false
+
+[[queries]]
+name        = "crontab"
+query       = "SELECT event, minute, hour, day_of_month, month, day_of_week, command, path FROM crontab;"
+interval_secs = 300
+snapshot    = false

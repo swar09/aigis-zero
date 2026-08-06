@@ -1,0 +1,21 @@
+[package]
+name = "grpc-listener"
+edition.workspace = true
+version.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+tonic          = { workspace = true }
+tokio          = { workspace = true }
+tokio-stream.workspace = true
+tokio-util.workspace = true
+tracing        = { workspace = true }
+thiserror.workspace = true
+jsonwebtoken = { workspace = true, features = ["rust_crypto"] }
+anyhow.workspace = true
+async-trait.workspace = true
+fleet-manager.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+bytes.workspace = true
+edr-sdk.workspace = true

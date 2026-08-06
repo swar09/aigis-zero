@@ -1,0 +1,179 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,600&family=Source+Serif+4:ital,opsz,wght@0,8..60,300;0,8..60,400;0,8..60,500;0,8..60,600;0,8..60,700;1,8..60,400&display=swap');
+
+:root {
+  /* Colors */
+  --bg: #FFFFFF;
+  --fg: #000000;
+  --muted-bg: #F5F5F5;
+  --muted-fg: #525252;
+  --border-light: #E5E5E5;
+  --border-dark: #000000;
+
+  /* Font Stacks */
+  --font-display: "Playfair Display", Georgia, serif;
+  --font-body: "Source Serif 4", Georgia, serif;
+  --font-mono: "JetBrains Mono", monospace;
+
+  /* Grid configuration */
+  --container-max-width: 1152px;
+}
+
+/* Reset and Global elements */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  border-radius: 0px !important; /* Non-negotiable sharp corners */
+}
+
+html, body {
+  background-color: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.625;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+/* Base Headings */
+h1, h2, h3, h4 {
+  font-family: var(--font-display);
+  font-weight: 500;
+  color: var(--fg);
+  line-height: 1.1;
+}
+
+/* Global Textures & Noise overlay */
+.noise-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 9999;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  opacity: 0.02;
+}
+
+.bg-pattern-lines {
+  background-image: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 3px,
+    rgba(0, 0, 0, 0.015) 3px,
+    rgba(0, 0, 0, 0.015) 4px
+  );
+  background-size: 100% 4px;
+}
+
+.bg-pattern-grid {
+  background-image:
+    linear-gradient(rgba(0, 0, 0, 0.012) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.012) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+.bg-pattern-diagonal {
+  background-image: repeating-linear-gradient(
+    45deg,
+    transparent,
+    transparent 38px,
+    rgba(0, 0, 0, 0.01) 38px,
+    rgba(0, 0, 0, 0.01) 40px
+  );
+}
+
+/* Inverted / Dark section vertical line pattern */
+.bg-pattern-stats {
+  background-image: repeating-linear-gradient(
+    90deg,
+    transparent,
+    transparent 7px,
+    rgba(255, 255, 255, 0.02) 7px,
+    rgba(255, 255, 255, 0.02) 8px
+  );
+  background-size: 8px 100%;
+}
+
+.bg-pattern-radial-cta {
+  background-image: radial-gradient(
+    circle at top center,
+    rgba(255, 255, 255, 0.08),
+    transparent 70%
+  );
+}
+
+/* Main Container Layout */
+.app-container {
+  width: 100%;
+  max-width: var(--container-max-width);
+  margin: 0 auto;
+  padding: 0 24px;
+  border-left: 1px solid var(--border-dark);
+  border-right: 1px solid var(--border-dark);
+  position: relative;
+}
+
+@media (max-width: 1024px) {
+  .app-container {
+    border-left: none;
+    border-right: none;
+    padding: 0 16px;
+  }
+}
+
+/* Horizontal Rules */
+.rule-thin {
+  border: none;
+  border-top: 1px solid var(--border-dark);
+  margin: 0;
+}
+
+.rule-thick {
+  border: none;
+  border-top: 4px solid var(--border-dark);
+  margin: 0;
+}
+
+.rule-ultra {
+  border: none;
+  border-top: 8px solid var(--border-dark);
+  margin: 0;
+}
+
+.rule-hairline {
+  border: none;
+  border-top: 1px solid var(--border-light);
+  margin: 0;
+}
+
+/* Skip link */
+.skip-link {
+  position: absolute;
+  top: -100px;
+  left: 0;
+  background: var(--fg);
+  color: var(--bg);
+  padding: 8px 16px;
+  z-index: 10000;
+  text-decoration: none;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  border: 1px solid var(--bg);
+}
+.skip-link:focus {
+  top: 0;
+}
+
+/* Common interactive elements focus styles */
+button:focus-visible, a:focus-visible {
+  outline: 3px solid var(--fg);
+  outline-offset: 3px;
+}
+
+textarea:focus, input:focus {
+  outline: none;
+}

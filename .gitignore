@@ -29,3 +29,30 @@ Thumbs.db
 *.key
 *.crt
 !infra/certs/.gitkeep
+.antigravitycli
+# Mock development tools
+agent/tools/mock-fleet-server/target/
+.gemini/*
+
+# Frontend logs and build outputs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+dist-ssr/
+
+# IDE and Project files
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+*/frontendprompt.md
+.agent/*
+dev-testing-skill.md
+agent-analysis.md
+TEST_GUIDE.md

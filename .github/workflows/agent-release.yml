@@ -1,0 +1,70 @@
+name: Aigis-Zero Agent Release
+
+on:
+  push:
+    tags:
+      - 'agent-v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build and Package Agent (${{ matrix.target }})
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-musl
+            arch: x86_64
+          - target: aarch64-unknown-linux-musl
+            arch: aarch64
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install cross
+        run: cargo install cross --git https://github.com/cross-rs/cross
+
+      - name: Build Agent (${{ matrix.target }})
+        run: |
+          cd agent
+          cross build --bin edr-agent --target ${{ matrix.target }} --release
+
+      - name: Package Release (${{ matrix.arch }})
+        run: |
+          mkdir -p aigis-zero-agent
+          # Copy binary
+          cp target/${{ matrix.target }}/release/edr-agent aigis-zero-agent/aigis-zero
+          # Copy scripts
+          cp agent/install.sh aigis-zero-agent/
+          cp agent/uninstall.sh aigis-zero-agent/
+          # Copy configs
+          cp agent/agent.toml aigis-zero-agent/
+          cp -r agent/osquery aigis-zero-agent/
+          cp -r agent/sysctl aigis-zero-agent/
+          cp -r agent/limits aigis-zero-agent/
+          cp -r agent/systemd aigis-zero-agent/
+
+          # Create tarball
+          tar -czvf aigis-zero-agent-linux-${{ matrix.arch }}.tar.gz aigis-zero-agent/
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: aigis-zero-agent-linux-${{ matrix.arch }}
+          path: aigis-zero-agent-linux-${{ matrix.arch }}.tar.gz
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: aigis-zero-agent-linux-${{ matrix.arch }}.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

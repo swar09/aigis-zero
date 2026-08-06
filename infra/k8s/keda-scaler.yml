@@ -1,0 +1,16 @@
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: aigis-event-router
+spec:
+  scaleTargetRef:
+    name: aigis-event-router
+  minReplicaCount: 2
+  maxReplicaCount: 64
+  triggers:
+    - type: kafka
+      metadata:
+        bootstrapServers: kafka:9092
+        consumerGroup: aigis-event-router
+        topic: aigis.events.raw
+        lagThreshold: '10000'

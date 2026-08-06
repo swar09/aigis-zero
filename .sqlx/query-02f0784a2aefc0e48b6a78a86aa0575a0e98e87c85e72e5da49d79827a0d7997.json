@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            UPDATE nodes\n            SET agent_status = $1\n            WHERE node_id = $2\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "02f0784a2aefc0e48b6a78a86aa0575a0e98e87c85e72e5da49d79827a0d7997"
+}

@@ -1,0 +1,31 @@
+[package]
+name = "fleet-server-bin"
+edition.workspace = true
+version.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "fleet-server-bin"
+path = "src/main.rs"
+
+[dependencies]
+tokio = { workspace = true }
+tracing = { workspace = true }
+grpc-listener = { path = "../grpc-listener" }
+fleet-manager = { path = "../fleet-manager" }
+node-enrollment = { path = "../node-enrollment" }
+health-tracker = { path = "../health-tracker" }
+fleet-tracing = { path = "../fleet-tracing" }
+postgres-interface = { path = "../postgres-interface" }
+kafka-handler = { path = "../kafka-handler" }
+sqlx.workspace = true
+config.workspace = true
+anyhow.workspace = true
+thiserror.workspace = true
+tokio-util.workspace = true
+serde = { workspace = true, features = ["derive"] }
+async-trait.workspace = true
+uuid.workspace = true
+jsonwebtoken.workspace = true
+tonic.workspace = true
+dotenvy = "0.15"

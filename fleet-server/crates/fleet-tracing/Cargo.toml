@@ -1,0 +1,10 @@
+[package]
+name = "fleet-tracing"
+edition.workspace = true
+version.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+thiserror.workspace = true
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true, features = ["env-filter", "fmt", "json", "registry"] }

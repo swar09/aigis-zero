@@ -1,0 +1,16 @@
+[package]
+name = "event-buffer"
+edition.workspace = true
+version.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+rusqlite = { workspace = true }
+tokio = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+chrono = { workspace = true }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+tempfile = "3"

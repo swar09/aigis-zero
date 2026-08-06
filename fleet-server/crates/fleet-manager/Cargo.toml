@@ -1,0 +1,13 @@
+[package]
+name = "fleet-manager"
+edition.workspace = true
+version.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+async-trait.workspace = true
+serde.workspace       = true
+chrono.workspace      = true
+thiserror.workspace = true
+tonic.workspace = true
+tracing = { workspace = true }

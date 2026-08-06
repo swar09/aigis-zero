@@ -2,7 +2,14 @@
 resolver = "2"
 members = [
     "sdk",
-    "fleet-server",
+    "fleet-server/crates/fleet-server-bin",
+    "fleet-server/crates/grpc-listener",
+    "fleet-server/crates/fleet-manager",
+    "fleet-server/crates/node-enrollment",
+    "fleet-server/crates/health-tracker",
+    "fleet-server/crates/fleet-tracing",
+    "fleet-server/crates/postgres-interface",
+    "fleet-server/crates/kafka-handler",
     "api-backend",
     "kafka-pipeline",
     "rule-engine",
@@ -11,6 +18,8 @@ members = [
     "agent/crates/event-buffer",
     "agent/crates/fleet-client",
     "agent/crates/isolation",
+    "agent/crates/agent-bin",
+    "agent/crates/agent-tracing",
 ]
 exclude = [
     "agent/crates/ebpf-collector",
@@ -18,7 +27,7 @@ exclude = [
 
 [workspace.package]
 edition = "2024"
-rust-version = "1.85"
+rust-version = "1.91"
 version = "0.1.0"
 license = "MIT"
 
@@ -28,18 +37,23 @@ tokio-stream = "0.1"
 tokio-util = { version = "0.7", features = ["codec"] }
 tokio-tungstenite = "0.29"
 
-tonic = "0.14"
-tonic-reflection = "0.14"
-tonic-build = "0.14"
-prost = "0.14"
+tonic = { version = "0.14" }
+tonic-prost = { version = "0.14" }
+prost = { version = "0.14" }
+tonic-prost-build = { version = "0.14" }
 
 axum = { version = "0.8", features = ["ws", "macros"] }
 tower = "0.5"
 tower-http = { version = "0.6", features = ["cors", "trace", "compression-gzip"] }
 
-rdkafka = { version = "0.39", features = ["cmake-build"] }
+hyper = { version = "1.0", features = ["full"] }
+http = "1.1"
+http-body = "1.0"
 
-sqlx = { version = "0.8", features = ["postgres", "runtime-tokio-native-tls", "uuid", "chrono", "migrate"] }
+rdkafka = { version = "0.39", features = ["cmake-build"] }
+sqlx = { version = "0.8", default-features = false, features = ["postgres", "runtime-tokio-native-tls", "uuid", "chrono", "migrate", "macros"] }
+
+
 
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
@@ -51,15 +65,14 @@ uuid = { version = "1", features = ["v4", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }
 bytes = "1"
 
-jsonwebtoken = "10"
+jsonwebtoken = { version = "10", features = ["rust_crypto"] }
 argon2 = "0.5"
 
 config = "0.15"
 
 anyhow = "1"
 thiserror = "2"
-
-yara-x = "1"
+async-trait = "0.1"
 
 sled = "0.34"
 
@@ -69,3 +82,17 @@ osquery-client = { path = "agent/crates/osquery-client" }
 event-buffer = { path = "agent/crates/event-buffer" }
 fleet-client = { path = "agent/crates/fleet-client" }
 isolation = { path = "agent/crates/isolation" }
+agent-bin = { path = "agent/crates/agent-bin" }
+agent-tracing = { path = "agent/crates/agent-tracing" }
+rusqlite = { version = "0.32", features = ["bundled"] }
+toml = "0.8"
+thrift = "0.17"
+
+fleet-server-bin = { path = "fleet-server/crates/fleet-server-bin" }
+grpc-listener = { path = "fleet-server/crates/grpc-listener" }
+fleet-manager = { path = "fleet-server/crates/fleet-manager" }
+node-enrollment = { path = "fleet-server/crates/node-enrollment" }
+health-tracker = { path = "fleet-server/crates/health-tracker" }
+fleet-tracing = { path = "fleet-server/crates/fleet-tracing" }
+postgres-interface = { path = "fleet-server/crates/postgres-interface" }
+kafka-handler = { path = "fleet-server/crates/kafka-handler" }

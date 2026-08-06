@@ -1,0 +1,23 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: edr-fleet-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: edr
+      POSTGRES_PASSWORD: edr_dev_secret
+      POSTGRES_DB: edr_fleet
+    ports:
+      - "5433:5432"
+    volumes:
+      - edr_pg_data:/var/lib/postgresql/data
+      - ./migrations/seed.sql:/docker-entrypoint-initdb.d/99_seed.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U edr -d edr_fleet"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+volumes:
+  edr_pg_data:
