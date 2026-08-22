@@ -11,10 +11,11 @@ use tokio_tungstenite::{connect_async, tungstenite::protocol::Message};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let ws_url = "ws://127.0.0.1:8080/api/v1/ws?topics=alerts,logs";
+    let ws_url = std::env::var("WS_URL")
+        .unwrap_or_else(|_| "ws://127.0.0.1:8081/api/v1/ws?topics=alerts,logs".to_string());
     println!("Connecting to Aigis-Zero Live Feed at: {ws_url}");
 
-    let (ws_stream, response) = match connect_async(ws_url).await {
+    let (ws_stream, response) = match connect_async(&ws_url).await {
         Ok(res) => res,
         Err(e) => {
             println!("Failed to connect to API server at {ws_url}: {e}");
@@ -34,23 +35,10 @@ async fn main() -> anyhow::Result<()> {
     write
         .send(Message::Text(ping_msg.to_string().into()))
         .await?;
-    println!("Sent ping frame. Listening for live events (Press Ctrl+C to exit)...");
+    println!("Sent ping frame. Waiting for server response...");
 
-    while let Some(msg) = read.next().await {
-        match msg {
-            Ok(Message::Text(text)) => {
-                println!("[LIVE EVENT RECEIVED]:\n{text}\n");
-            }
-            Ok(Message::Close(_)) => {
-                println!("Server closed WebSocket connection.");
-                break;
-            }
-            Ok(_) => {}
-            Err(e) => {
-                println!("Error reading from WebSocket: {e}");
-                break;
-            }
-        }
+    if let Some(Ok(Message::Text(text))) = read.next().await {
+        println!("[PONG RECEIVED FROM SERVER]:\n{text}\n");
     }
 
     Ok(())

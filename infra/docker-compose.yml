@@ -114,7 +114,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-edr}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-edrpassword}
     ports:
-      - "5432:5432"
+      - "5435:5432"
     volumes:
       - postgres_logs_data:/var/lib/postgresql/data
     healthcheck:

@@ -2,7 +2,7 @@ pub mod schema;
 
 use std::time::Duration;
 
-use deadpool_diesel::Timeouts;
+use deadpool_diesel::{Runtime, Timeouts};
 use diesel_async::{
     AsyncPgConnection,
     pooled_connection::{
@@ -25,6 +25,7 @@ pub fn create_pool(database_url: &str, max_size: usize) -> anyhow::Result<DbPool
     let pool = Pool::builder(config)
         .max_size(max_size)
         .timeouts(timeouts)
+        .runtime(Runtime::Tokio1)
         .build()?;
     Ok(pool)
 }
