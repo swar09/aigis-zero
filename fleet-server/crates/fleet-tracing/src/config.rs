@@ -16,9 +16,7 @@ impl std::str::FromStr for LogFormat {
         match s.to_lowercase().as_str() {
             "json" => Ok(Self::Json),
             "human" | "pretty" => Ok(Self::Human),
-            other => Err(format!(
-                "unknown log format '{other}': expected 'json' or 'human'"
-            )),
+            other => Err(format!("unknown log format '{other}': expected 'json' or 'human'")),
         }
     }
 }

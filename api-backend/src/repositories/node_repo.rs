@@ -11,23 +11,15 @@ use crate::{
     },
     error::AppError,
     models::node::{
-        IsolateNodeResponse, NodeDetailDto, NodeEntity, NodeFilterParams, NodeHealthEntity,
-        NodeSummaryDto,
+        IsolateNodeResponse, NodeDetailDto, NodeEntity, NodeFilterParams, NodeHealthEntity, NodeSummaryDto,
     },
 };
 
 #[async_trait]
 pub trait NodeRepository: Send + Sync {
-    async fn find_all(
-        &self,
-        params: NodeFilterParams,
-    ) -> Result<(Vec<NodeSummaryDto>, i64), AppError>;
+    async fn find_all(&self, params: NodeFilterParams) -> Result<(Vec<NodeSummaryDto>, i64), AppError>;
     async fn find_by_id(&self, target_id: Uuid) -> Result<Option<NodeDetailDto>, AppError>;
-    async fn update_operator_status(
-        &self,
-        target_id: Uuid,
-        new_status: &str,
-    ) -> Result<IsolateNodeResponse, AppError>;
+    async fn update_operator_status(&self, target_id: Uuid, new_status: &str) -> Result<IsolateNodeResponse, AppError>;
 }
 
 #[derive(Clone)]
@@ -43,10 +35,7 @@ impl DieselNodeRepository {
 
 #[async_trait]
 impl NodeRepository for DieselNodeRepository {
-    async fn find_all(
-        &self,
-        params: NodeFilterParams,
-    ) -> Result<(Vec<NodeSummaryDto>, i64), AppError> {
+    async fn find_all(&self, params: NodeFilterParams) -> Result<(Vec<NodeSummaryDto>, i64), AppError> {
         let mut conn = self.pool.get().await?;
 
         let mut query = nodes::table.into_boxed();
@@ -131,11 +120,7 @@ impl NodeRepository for DieselNodeRepository {
         }))
     }
 
-    async fn update_operator_status(
-        &self,
-        target_id: Uuid,
-        new_status: &str,
-    ) -> Result<IsolateNodeResponse, AppError> {
+    async fn update_operator_status(&self, target_id: Uuid, new_status: &str) -> Result<IsolateNodeResponse, AppError> {
         let mut conn = self.pool.get().await?;
 
         let updated_node = diesel::update(nodes::table.filter(nodes::node_id.eq(target_id)))
@@ -143,9 +128,7 @@ impl NodeRepository for DieselNodeRepository {
             .get_result::<NodeEntity>(&mut conn)
             .await
             .map_err(|e| match e {
-                diesel::result::Error::NotFound => {
-                    AppError::NotFound(format!("Node with id '{target_id}' not found"))
-                }
+                diesel::result::Error::NotFound => AppError::NotFound(format!("Node with id '{target_id}' not found")),
                 other => AppError::DatabaseError(other.to_string()),
             })?;
 

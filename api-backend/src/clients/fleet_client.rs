@@ -10,12 +10,7 @@ impl FleetClient {
         Self { target_url }
     }
 
-    pub async fn send_isolate_command(
-        &self,
-        node_id: Uuid,
-        isolate: bool,
-        reason: &str,
-    ) -> anyhow::Result<()> {
+    pub async fn send_isolate_command(&self, node_id: Uuid, isolate: bool, reason: &str) -> anyhow::Result<()> {
         tracing::info!(
             %node_id,
             isolate,

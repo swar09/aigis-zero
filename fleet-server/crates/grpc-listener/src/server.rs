@@ -27,10 +27,7 @@ impl GrpcServer {
     ///
     /// Returns `Error::AddrParse` if `config.bind_addr()` is not a valid socket address.
     /// Returns `Error::Transport` if the tonic server fails to bind or encounters a fatal error.
-    pub async fn serve_until_shutdown(
-        self,
-        shutdown: impl Future<Output = ()>,
-    ) -> Result<(), Error> {
+    pub async fn serve_until_shutdown(self, shutdown: impl Future<Output = ()>) -> Result<(), Error> {
         let addr: std::net::SocketAddr = self.config.bind_addr().parse()?;
 
         tracing::info!(addr = %addr, "gRPC listener starting");

@@ -8,9 +8,7 @@ use tokio::sync::mpsc;
 use crate::{
     client::OsqueryClient,
     diff,
-    types::{
-        ColumnEntry, OsqueryResult, OsqueryResultRow, OsqueryRow, ResultAction, ScheduledQuery,
-    },
+    types::{ColumnEntry, OsqueryResult, OsqueryResultRow, OsqueryRow, ResultAction, ScheduledQuery},
 };
 
 pub struct QueryScheduler {
@@ -32,9 +30,7 @@ impl QueryScheduler {
             [],
         )?;
 
-        let count: i64 = conn.query_row("SELECT COUNT(*) FROM scheduled_queries", [], |row| {
-            row.get(0)
-        })?;
+        let count: i64 = conn.query_row("SELECT COUNT(*) FROM scheduled_queries", [], |row| row.get(0))?;
 
         if count == 0 {
             let now = chrono::Utc::now().timestamp();
@@ -115,12 +111,7 @@ impl QueryScheduler {
     ///
     /// Queries are loaded *before* entering the async context so that the
     /// rusqlite::Connection is never held across an await point.
-    pub async fn run(
-        self,
-        tx: mpsc::Sender<OsqueryResult>,
-        socket_path: PathBuf,
-        agent_uuid: String,
-    ) {
+    pub async fn run(self, tx: mpsc::Sender<OsqueryResult>, socket_path: PathBuf, agent_uuid: String) {
         // Load queries synchronously before dropping self (and its Connection).
         let queries = match self.load_queries() {
             Ok(q) => q,
@@ -162,8 +153,7 @@ impl QueryScheduler {
 
                 let mut previous_rows: Vec<OsqueryRow> = Vec::new();
                 let mut first_run = true;
-                let mut interval =
-                    tokio::time::interval(std::time::Duration::from_secs(query.interval_secs));
+                let mut interval = tokio::time::interval(std::time::Duration::from_secs(query.interval_secs));
 
                 loop {
                     interval.tick().await;
@@ -192,17 +182,9 @@ impl QueryScheduler {
 
                     if query.snapshot {
                         // Snapshot mode: emit all rows every tick.
-                        let result = Self::build_result(
-                            &query.name,
-                            &agent_uuid,
-                            current_rows,
-                            ResultAction::Snapshot,
-                        );
+                        let result = Self::build_result(&query.name, &agent_uuid, current_rows, ResultAction::Snapshot);
                         if tx.send(result).await.is_err() {
-                            tracing::info!(
-                                "[{}] Result channel closed, stopping task.",
-                                query.name
-                            );
+                            tracing::info!("[{}] Result channel closed, stopping task.", query.name);
                             break;
                         }
                     } else {
@@ -216,44 +198,24 @@ impl QueryScheduler {
                                 ResultAction::Snapshot,
                             );
                             if tx.send(result).await.is_err() {
-                                tracing::info!(
-                                    "[{}] Result channel closed, stopping task.",
-                                    query.name
-                                );
+                                tracing::info!("[{}] Result channel closed, stopping task.", query.name);
                                 break;
                             }
                             first_run = false;
                         } else {
-                            let (added, removed) =
-                                diff::compute_diff(&previous_rows, &current_rows);
+                            let (added, removed) = diff::compute_diff(&previous_rows, &current_rows);
 
                             if !added.is_empty() {
-                                let res = Self::build_result(
-                                    &query.name,
-                                    &agent_uuid,
-                                    added,
-                                    ResultAction::Added,
-                                );
+                                let res = Self::build_result(&query.name, &agent_uuid, added, ResultAction::Added);
                                 if tx.send(res).await.is_err() {
-                                    tracing::info!(
-                                        "[{}] Result channel closed, stopping task.",
-                                        query.name
-                                    );
+                                    tracing::info!("[{}] Result channel closed, stopping task.", query.name);
                                     break;
                                 }
                             }
                             if !removed.is_empty() {
-                                let res = Self::build_result(
-                                    &query.name,
-                                    &agent_uuid,
-                                    removed,
-                                    ResultAction::Removed,
-                                );
+                                let res = Self::build_result(&query.name, &agent_uuid, removed, ResultAction::Removed);
                                 if tx.send(res).await.is_err() {
-                                    tracing::info!(
-                                        "[{}] Result channel closed, stopping task.",
-                                        query.name
-                                    );
+                                    tracing::info!("[{}] Result channel closed, stopping task.", query.name);
                                     break;
                                 }
                             }
@@ -265,12 +227,7 @@ impl QueryScheduler {
         }
     }
 
-    fn build_result(
-        query_name: &str,
-        agent_uuid: &str,
-        rows: Vec<OsqueryRow>,
-        action: ResultAction,
-    ) -> OsqueryResult {
+    fn build_result(query_name: &str, agent_uuid: &str, rows: Vec<OsqueryRow>, action: ResultAction) -> OsqueryResult {
         let mut result_rows = Vec::with_capacity(rows.len());
         for row in rows {
             let mut columns = Vec::with_capacity(row.len());

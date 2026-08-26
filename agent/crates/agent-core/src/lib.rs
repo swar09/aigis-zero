@@ -366,9 +366,7 @@ fn encode_osquery_result(result: &osquery_client::types::OsqueryResult) -> Optio
 mod tests {
     use std::path::PathBuf;
 
-    use edr_sdk::proto::fleet::{
-        AckCommand, ConfigUpdateCommand, ServerCommand, server_command::Command,
-    };
+    use edr_sdk::proto::fleet::{AckCommand, ConfigUpdateCommand, ServerCommand, server_command::Command};
     use osquery_client::types::{ColumnEntry, OsqueryResult, OsqueryResultRow, ResultAction};
 
     use super::*;

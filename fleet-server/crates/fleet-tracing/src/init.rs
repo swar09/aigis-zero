@@ -28,9 +28,8 @@ pub enum InitError {
 /// Returns `InitError::InvalidDirective` if `config.log_level` is not a valid
 /// `tracing_subscriber` filter directive.
 pub fn init(config: &TracingConfig) -> Result<(), InitError> {
-    let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| {
-        EnvFilter::try_new(&config.log_level).unwrap_or_else(|_| EnvFilter::new("info"))
-    });
+    let filter = EnvFilter::try_from_default_env()
+        .unwrap_or_else(|_| EnvFilter::try_new(&config.log_level).unwrap_or_else(|_| EnvFilter::new("info")));
 
     let service_name = config.service_name.clone();
 

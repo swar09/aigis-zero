@@ -100,14 +100,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     match command.as_str() {
         "create-topics" => {
-            let retention_strings: Vec<String> =
-                TOPICS.iter().map(|t| t.retention_ms.to_string()).collect();
+            let retention_strings: Vec<String> = TOPICS.iter().map(|t| t.retention_ms.to_string()).collect();
             let mut new_topics = Vec::new();
             for (i, topic) in TOPICS.iter().enumerate() {
-                let new_topic =
-                    NewTopic::new(topic.name, topic.partitions, TopicReplication::Fixed(1))
-                        .set("retention.ms", &retention_strings[i])
-                        .set("cleanup.policy", "delete");
+                let new_topic = NewTopic::new(topic.name, topic.partitions, TopicReplication::Fixed(1))
+                    .set("retention.ms", &retention_strings[i])
+                    .set("cleanup.policy", "delete");
                 new_topics.push(new_topic);
             }
 

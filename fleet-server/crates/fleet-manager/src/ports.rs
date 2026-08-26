@@ -48,10 +48,7 @@ pub enum OutgoingCommand {
 /// Drives agent enrollment. Implemented by `node-enrollment`.
 #[async_trait]
 pub trait EnrollmentPort: Send + Sync + 'static {
-    async fn register_agent(
-        &self,
-        registration: AgentRegistration,
-    ) -> Result<RegistrationResult, Status>;
+    async fn register_agent(&self, registration: AgentRegistration) -> Result<RegistrationResult, Status>;
 }
 
 /// Records agent heartbeats. Implemented by `health-tracker`.

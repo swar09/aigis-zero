@@ -47,13 +47,19 @@ impl EventBuffer {
         tokio::task::spawn_blocking(move || {
             let conn = conn.lock().unwrap();
             let now = chrono::Utc::now().timestamp();
-            conn.execute("INSERT INTO event_buffer (payload, created_at) VALUES (?1, ?2)", rusqlite::params![event_json, now])?;
+            conn.execute(
+                "INSERT INTO event_buffer (payload, created_at) VALUES (?1, ?2)",
+                rusqlite::params![event_json, now],
+            )?;
 
             // Bounded cap eviction: if over max_events, delete the oldest
             let count: i64 = conn.query_row("SELECT COUNT(*) FROM event_buffer", [], |row| row.get(0))?;
             if count > max_events as i64 {
                 let to_delete = count - max_events as i64;
-                conn.execute("DELETE FROM event_buffer WHERE id IN (SELECT id FROM event_buffer ORDER BY id ASC LIMIT ?1)", [to_delete])?;
+                conn.execute(
+                    "DELETE FROM event_buffer WHERE id IN (SELECT id FROM event_buffer ORDER BY id ASC LIMIT ?1)",
+                    [to_delete],
+                )?;
             }
 
             Ok::<(), anyhow::Error>(())
@@ -70,8 +76,7 @@ impl EventBuffer {
             let mut conn = conn.lock().unwrap();
             let tx = conn.transaction()?;
 
-            let mut stmt =
-                tx.prepare("SELECT id, payload FROM event_buffer ORDER BY id ASC LIMIT ?1")?;
+            let mut stmt = tx.prepare("SELECT id, payload FROM event_buffer ORDER BY id ASC LIMIT ?1")?;
 
             let mut events = Vec::new();
             let mut ids = Vec::new();
@@ -90,15 +95,8 @@ impl EventBuffer {
             drop(stmt);
 
             if !ids.is_empty() {
-                let id_list = ids
-                    .iter()
-                    .map(|id| id.to_string())
-                    .collect::<Vec<String>>()
-                    .join(",");
-                tx.execute(
-                    &format!("DELETE FROM event_buffer WHERE id IN ({})", id_list),
-                    [],
-                )?;
+                let id_list = ids.iter().map(|id| id.to_string()).collect::<Vec<String>>().join(",");
+                tx.execute(&format!("DELETE FROM event_buffer WHERE id IN ({})", id_list), [])?;
             }
             tx.commit()?;
 
@@ -112,8 +110,7 @@ impl EventBuffer {
         let conn = self.conn.clone();
         tokio::task::spawn_blocking(move || {
             let conn = conn.lock().unwrap();
-            let count: i64 =
-                conn.query_row("SELECT COUNT(*) FROM event_buffer", [], |row| row.get(0))?;
+            let count: i64 = conn.query_row("SELECT COUNT(*) FROM event_buffer", [], |row| row.get(0))?;
             Ok::<usize, anyhow::Error>(count as usize)
         })
         .await?

@@ -109,10 +109,7 @@ mod tests {
 
     #[async_trait]
     impl HealthStore for MockHealthStore {
-        async fn record_heartbeat(
-            &self,
-            record: HeartbeatRecord,
-        ) -> Result<(), HealthTrackerError> {
+        async fn record_heartbeat(&self, record: HeartbeatRecord) -> Result<(), HealthTrackerError> {
             self.calls
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner)
@@ -143,10 +140,7 @@ mod tests {
         let store = Arc::new(MockHealthStore::new());
         let tracker = HealthTracker::new(Arc::clone(&store) as Arc<dyn HealthStore>);
 
-        tracker
-            .record_heartbeat(hb("healthy"))
-            .await
-            .expect("should succeed");
+        tracker.record_heartbeat(hb("healthy")).await.expect("should succeed");
 
         assert_eq!(store.call_count(), 1);
     }
@@ -156,10 +150,7 @@ mod tests {
         let store = Arc::new(MockHealthStore::new());
         let tracker = HealthTracker::new(Arc::clone(&store) as Arc<dyn HealthStore>);
 
-        tracker
-            .record_heartbeat(hb("healthy"))
-            .await
-            .expect("should succeed");
+        tracker.record_heartbeat(hb("healthy")).await.expect("should succeed");
 
         let call = store.last_call().expect("should have one call");
         assert_eq!(call.agent_status, "healthy");
@@ -171,10 +162,7 @@ mod tests {
         let store = Arc::new(MockHealthStore::new());
         let tracker = HealthTracker::new(Arc::clone(&store) as Arc<dyn HealthStore>);
 
-        tracker
-            .record_heartbeat(hb("isolated"))
-            .await
-            .expect("should succeed");
+        tracker.record_heartbeat(hb("isolated")).await.expect("should succeed");
 
         let call = store.last_call().expect("should have one call");
         assert_eq!(
@@ -189,10 +177,7 @@ mod tests {
         let store = Arc::new(MockHealthStore::new());
         let tracker = HealthTracker::new(Arc::clone(&store) as Arc<dyn HealthStore>);
 
-        tracker
-            .record_heartbeat(hb("healthy"))
-            .await
-            .expect("should succeed");
+        tracker.record_heartbeat(hb("healthy")).await.expect("should succeed");
 
         let after = Utc::now();
         let call = store.last_call().expect("should have one call");

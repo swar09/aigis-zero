@@ -20,10 +20,7 @@ impl CommandHandler {
                     self.isolation.isolate().await.map_err(|e| e.to_string())?;
                     Ok(serde_json::json!({"status": "isolated"}))
                 } else {
-                    self.isolation
-                        .de_isolate()
-                        .await
-                        .map_err(|e| e.to_string())?;
+                    self.isolation.de_isolate().await.map_err(|e| e.to_string())?;
                     Ok(serde_json::json!({"status": "unisolated"}))
                 }
             }

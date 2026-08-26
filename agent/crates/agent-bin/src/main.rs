@@ -20,12 +20,7 @@ use uuid::Uuid;
 #[command(name = "aigis-zero", version, about = "Aigis-Zero Agent")]
 struct Args {
     /// Config path
-    #[arg(
-        short,
-        long,
-        env = "EDR_AGENT_CONFIG",
-        default_value = "/etc/aigis-zero/config.toml"
-    )]
+    #[arg(short, long, env = "EDR_AGENT_CONFIG", default_value = "/etc/aigis-zero/config.toml")]
     config: PathBuf,
 
     /// Validate config and exit
@@ -67,9 +62,7 @@ fn save_node_id_to_config(path: &Path, node_id: Uuid) -> anyhow::Result<()> {
 }
 
 fn parse_endpoint(endpoint: &str) -> (std::net::IpAddr, u16) {
-    let clean = endpoint
-        .trim_start_matches("http://")
-        .trim_start_matches("https://");
+    let clean = endpoint.trim_start_matches("http://").trim_start_matches("https://");
     let host_port = clean.split('/').next().unwrap_or(clean);
     let parts: Vec<&str> = host_port.split(':').collect();
     let ip_str = parts.first().copied().unwrap_or("127.0.0.1");
@@ -95,15 +88,10 @@ async fn main() -> anyhow::Result<()> {
     }
 
     // Parse config
-    let config_str = std::fs::read_to_string(&args.config).map_err(|e| {
-        anyhow::anyhow!(
-            "Failed to read config file at {}: {}",
-            args.config.display(),
-            e
-        )
-    })?;
-    let mut config: AgentConfig = toml::from_str(&config_str)
-        .map_err(|e| anyhow::anyhow!("Failed to parse TOML config: {}", e))?;
+    let config_str = std::fs::read_to_string(&args.config)
+        .map_err(|e| anyhow::anyhow!("Failed to read config file at {}: {}", args.config.display(), e))?;
+    let mut config: AgentConfig =
+        toml::from_str(&config_str).map_err(|e| anyhow::anyhow!("Failed to parse TOML config: {}", e))?;
 
     if args.check {
         println!("Config syntax is valid.");
@@ -113,9 +101,7 @@ async fn main() -> anyhow::Result<()> {
             println!("Environment checks passed. Ready for deployment.");
             std::process::exit(0);
         } else {
-            eprintln!(
-                "Environment checks failed. Please resolve the errors above before deploying."
-            );
+            eprintln!("Environment checks failed. Please resolve the errors above before deploying.");
             std::process::exit(1);
         }
     }
@@ -141,10 +127,7 @@ async fn main() -> anyhow::Result<()> {
     .await?;
 
     // Create EventBuffer
-    let buffer = event_buffer::EventBuffer::new(
-        &config.agent.event_buffer_db,
-        config.agent.event_buffer_max,
-    )?;
+    let buffer = event_buffer::EventBuffer::new(&config.agent.event_buffer_db, config.agent.event_buffer_max)?;
     let buffer = Arc::new(buffer);
 
     // Connect to fleet server

@@ -144,10 +144,7 @@ fn matches_filter(event: &LiveEvent, target_node: &Option<String>, topics: &[Str
         return false;
     }
 
-    if target_node
-        .as_deref()
-        .is_some_and(|target| target != event_node)
-    {
+    if target_node.as_deref().is_some_and(|target| target != event_node) {
         return false;
     }
 

@@ -15,10 +15,7 @@ pub struct IsolationManager {
 
 impl IsolationManager {
     pub fn new(fleet_ip: IpAddr, fleet_port: u16) -> Self {
-        Self {
-            fleet_ip,
-            fleet_port,
-        }
+        Self { fleet_ip, fleet_port }
     }
 
     /// Apply the network isolation rules.
@@ -145,12 +142,7 @@ mod tests {
         type filter hook forward priority -100; policy drop;
     }}
 }}",
-            ip_family,
-            manager.fleet_ip,
-            manager.fleet_port,
-            ip_family,
-            manager.fleet_ip,
-            manager.fleet_port
+            ip_family, manager.fleet_ip, manager.fleet_port, ip_family, manager.fleet_ip, manager.fleet_port
         );
 
         assert!(ruleset.contains("ip saddr 1.2.3.4 tcp sport 8443 accept"));

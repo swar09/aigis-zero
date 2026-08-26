@@ -3,12 +3,11 @@ use std::{pin::Pin, sync::Arc};
 use async_trait::async_trait;
 pub use edr_sdk::proto::fleet::fleet_service_server::FleetServiceServer;
 use edr_sdk::proto::fleet::{
-    AckCommand, AgentEvent, HeartbeatRequest, HeartbeatResponse, RegisterRequest, RegisterResponse,
-    ServerCommand, fleet_service_server::FleetService, server_command::Command,
+    AckCommand, AgentEvent, HeartbeatRequest, HeartbeatResponse, RegisterRequest, RegisterResponse, ServerCommand,
+    fleet_service_server::FleetService, server_command::Command,
 };
 use fleet_manager::{
-    AgentHeartbeat, AgentRegistration, EnrollmentPort, EventIngestPort, HeartbeatPort,
-    IncomingEvent, OutgoingCommand,
+    AgentHeartbeat, AgentRegistration, EnrollmentPort, EventIngestPort, HeartbeatPort, IncomingEvent, OutgoingCommand,
 };
 use jsonwebtoken::DecodingKey;
 use tokio_stream::{Stream, StreamExt, wrappers::ReceiverStream};
@@ -47,10 +46,7 @@ impl FleetServiceImpl {
 impl FleetService for FleetServiceImpl {
     // RegisterAgent is intentionally unauthenticated — the agent calls this
     // once to get its node_id and JWT token.
-    async fn register_agent(
-        &self,
-        request: Request<RegisterRequest>,
-    ) -> Result<Response<RegisterResponse>, Status> {
+    async fn register_agent(&self, request: Request<RegisterRequest>) -> Result<Response<RegisterResponse>, Status> {
         let req = request.into_inner();
         tracing::info!(
             hostname = %req.hostname,
@@ -130,15 +126,10 @@ impl FleetService for FleetServiceImpl {
             tracing::debug!(node_id = %node_id, "event stream closed");
         });
 
-        Ok(Response::new(
-            Box::pin(ReceiverStream::new(cmd_rx)) as EventStream
-        ))
+        Ok(Response::new(Box::pin(ReceiverStream::new(cmd_rx)) as EventStream))
     }
 
-    async fn heartbeat(
-        &self,
-        request: Request<HeartbeatRequest>,
-    ) -> Result<Response<HeartbeatResponse>, Status> {
+    async fn heartbeat(&self, request: Request<HeartbeatRequest>) -> Result<Response<HeartbeatResponse>, Status> {
         validate_token(request.metadata(), &self.decoding_key)?;
 
         let req = request.into_inner();

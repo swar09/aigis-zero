@@ -33,10 +33,7 @@ impl Hash for HashableRow {
 
 /// Computes the differential between two sets of rows.
 /// Returns (added_rows, removed_rows).
-pub fn compute_diff(
-    previous_rows: &[OsqueryRow],
-    current_rows: &[OsqueryRow],
-) -> (Vec<OsqueryRow>, Vec<OsqueryRow>) {
+pub fn compute_diff(previous_rows: &[OsqueryRow], current_rows: &[OsqueryRow]) -> (Vec<OsqueryRow>, Vec<OsqueryRow>) {
     let mut prev_set: HashSet<HashableRow> = HashSet::new();
     for row in previous_rows {
         prev_set.insert(HashableRow(row.clone()));
@@ -47,15 +44,9 @@ pub fn compute_diff(
         curr_set.insert(HashableRow(row.clone()));
     }
 
-    let added: Vec<OsqueryRow> = curr_set
-        .difference(&prev_set)
-        .map(|h_row| h_row.0.clone())
-        .collect();
+    let added: Vec<OsqueryRow> = curr_set.difference(&prev_set).map(|h_row| h_row.0.clone()).collect();
 
-    let removed: Vec<OsqueryRow> = prev_set
-        .difference(&curr_set)
-        .map(|h_row| h_row.0.clone())
-        .collect();
+    let removed: Vec<OsqueryRow> = prev_set.difference(&curr_set).map(|h_row| h_row.0.clone()).collect();
 
     (added, removed)
 }

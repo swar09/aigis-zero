@@ -6,10 +6,7 @@ pub mod event_router;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    tracing_subscriber::fmt()
-        .with_env_filter("info")
-        .json()
-        .init();
+    tracing_subscriber::fmt().with_env_filter("info").json().init();
 
     let brokers = std::env::var("KAFKA_BROKERS").unwrap_or_else(|_| "localhost:29092".into());
     let shutdown = CancellationToken::new();

@@ -7,17 +7,12 @@ use uuid::Uuid;
 use crate::{
     db::{DbPool, schema::alerts},
     error::AppError,
-    models::alert::{
-        AlertEntity, AlertFilterParams, UpdateAlertStatusRequest, UpdateAlertStatusResponse,
-    },
+    models::alert::{AlertEntity, AlertFilterParams, UpdateAlertStatusRequest, UpdateAlertStatusResponse},
 };
 
 #[async_trait]
 pub trait AlertRepository: Send + Sync {
-    async fn find_all(
-        &self,
-        params: AlertFilterParams,
-    ) -> Result<(Vec<AlertEntity>, i64), AppError>;
+    async fn find_all(&self, params: AlertFilterParams) -> Result<(Vec<AlertEntity>, i64), AppError>;
     async fn find_by_id(&self, target_id: Uuid) -> Result<Option<AlertEntity>, AppError>;
     async fn update_status(
         &self,
@@ -39,10 +34,7 @@ impl DieselAlertRepository {
 
 #[async_trait]
 impl AlertRepository for DieselAlertRepository {
-    async fn find_all(
-        &self,
-        params: AlertFilterParams,
-    ) -> Result<(Vec<AlertEntity>, i64), AppError> {
+    async fn find_all(&self, params: AlertFilterParams) -> Result<(Vec<AlertEntity>, i64), AppError> {
         let mut conn = self.pool.get().await?;
 
         let mut query = alerts::table.into_boxed();
@@ -104,9 +96,7 @@ impl AlertRepository for DieselAlertRepository {
             .get_result::<AlertEntity>(&mut conn)
             .await
             .map_err(|e| match e {
-                diesel::result::Error::NotFound => {
-                    AppError::NotFound(format!("Alert with id '{target_id}' not found"))
-                }
+                diesel::result::Error::NotFound => AppError::NotFound(format!("Alert with id '{target_id}' not found")),
                 other => AppError::DatabaseError(other.to_string()),
             })?;
 

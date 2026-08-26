@@ -55,10 +55,7 @@ async fn main() -> anyhow::Result<()> {
     });
 
     // Build Axum Router with standard middleware
-    let cors = CorsLayer::new()
-        .allow_origin(Any)
-        .allow_methods(Any)
-        .allow_headers(Any);
+    let cors = CorsLayer::new().allow_origin(Any).allow_methods(Any).allow_headers(Any);
 
     let app = routes::create_router(state)
         .layer(TraceLayer::new_for_http())

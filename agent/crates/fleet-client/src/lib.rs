@@ -9,8 +9,8 @@ use edr_sdk::{
         heartbeat::{HeartbeatRequest, HeartbeatResponse},
     },
     proto::fleet::{
-        AgentEvent, HeartbeatRequest as ProtoHeartbeatRequest, RegisterRequest, RegisterResponse,
-        ServerCommand, fleet_service_client::FleetServiceClient,
+        AgentEvent, HeartbeatRequest as ProtoHeartbeatRequest, RegisterRequest, RegisterResponse, ServerCommand,
+        fleet_service_client::FleetServiceClient,
     },
 };
 use tokio::sync::mpsc;
@@ -60,10 +60,8 @@ impl FleetClient {
             let stream = ReceiverStream::new(outbound_rx);
             let mut req = Request::new(stream);
 
-            req.metadata_mut().insert(
-                "authorization",
-                MetadataValue::try_from(format!("Bearer {}", t))?,
-            );
+            req.metadata_mut()
+                .insert("authorization", MetadataValue::try_from(format!("Bearer {}", t))?);
 
             let response = client.event_stream(req).await?;
 
@@ -121,26 +119,12 @@ impl FleetClient {
         }
     }
 
-    pub async fn enroll(
-        &mut self,
-        request: RegisterRequest,
-    ) -> Result<RegisterResponse, anyhow::Error> {
-        let client = self
-            .client
-            .as_mut()
-            .ok_or_else(|| anyhow::anyhow!("Not connected"))?;
-        let response = client
-            .register_agent(Request::new(request))
-            .await?
-            .into_inner();
+    pub async fn enroll(&mut self, request: RegisterRequest) -> Result<RegisterResponse, anyhow::Error> {
+        let client = self.client.as_mut().ok_or_else(|| anyhow::anyhow!("Not connected"))?;
+        let response = client.register_agent(Request::new(request)).await?.into_inner();
 
-        let node_uuid = Uuid::parse_str(&response.node_id).map_err(|e| {
-            anyhow::anyhow!(
-                "Fleet server returned malformed node_id '{}': {}",
-                response.node_id,
-                e
-            )
-        })?;
+        let node_uuid = Uuid::parse_str(&response.node_id)
+            .map_err(|e| anyhow::anyhow!("Fleet server returned malformed node_id '{}': {}", response.node_id, e))?;
         self.node_id = Some(node_uuid);
         self.token = Some(response.token.clone());
 
@@ -196,27 +180,20 @@ impl FleetClient {
         })
     }
 
-    pub async fn heartbeat(
-        &mut self,
-        request: &HeartbeatRequest,
-    ) -> Result<HeartbeatResponse, anyhow::Error> {
+    pub async fn heartbeat(&mut self, request: &HeartbeatRequest) -> Result<HeartbeatResponse, anyhow::Error> {
         let req = ProtoHeartbeatRequest {
             node_id: self.node_id.map(|u| u.to_string()).unwrap_or_default(),
             status: request.status.clone(),
             events_buffered: request.events_buffered,
         };
 
-        let client = self
-            .client
-            .as_mut()
-            .ok_or_else(|| anyhow::anyhow!("Not connected"))?;
+        let client = self.client.as_mut().ok_or_else(|| anyhow::anyhow!("Not connected"))?;
         let mut req_tonic = Request::new(req);
 
         if let Some(t) = &self.token {
-            req_tonic.metadata_mut().insert(
-                "authorization",
-                MetadataValue::try_from(format!("Bearer {}", t))?,
-            );
+            req_tonic
+                .metadata_mut()
+                .insert("authorization", MetadataValue::try_from(format!("Bearer {}", t))?);
         }
 
         let response = client.heartbeat(req_tonic).await?.into_inner();
@@ -233,9 +210,9 @@ impl FleetClient {
         match rx.try_recv() {
             Ok(msg) => Ok(Some(msg)),
             Err(mpsc::error::TryRecvError::Empty) => Ok(None),
-            Err(mpsc::error::TryRecvError::Disconnected) => Err(anyhow::anyhow!(
-                "Inbound channel closed (server disconnected)"
-            )),
+            Err(mpsc::error::TryRecvError::Disconnected) => {
+                Err(anyhow::anyhow!("Inbound channel closed (server disconnected)"))
+            }
         }
     }
 

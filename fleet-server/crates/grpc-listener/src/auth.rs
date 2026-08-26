@@ -22,10 +22,7 @@ pub struct NodeClaims {
 ///
 /// Returns `Status::unauthenticated` if the header is missing, malformed,
 /// uses a non-Bearer scheme, or contains an invalid/expired JWT.
-pub fn validate_token(
-    metadata: &MetadataMap,
-    decoding_key: &DecodingKey,
-) -> Result<NodeClaims, Status> {
+pub fn validate_token(metadata: &MetadataMap, decoding_key: &DecodingKey) -> Result<NodeClaims, Status> {
     let header = metadata
         .get("authorization")
         .ok_or(Error::MissingAuthHeader)
@@ -39,11 +36,10 @@ pub fn validate_token(
         .strip_prefix("Bearer ")
         .ok_or_else(|| Status::unauthenticated("authorization header must use Bearer scheme"))?;
 
-    let token_data =
-        decode::<NodeClaims>(token, decoding_key, &Validation::default()).map_err(|e| {
-            tracing::debug!(err = %e, "jwt validation failed");
-            Status::unauthenticated("invalid or expired token")
-        })?;
+    let token_data = decode::<NodeClaims>(token, decoding_key, &Validation::default()).map_err(|e| {
+        tracing::debug!(err = %e, "jwt validation failed");
+        Status::unauthenticated("invalid or expired token")
+    })?;
 
     Ok(token_data.claims)
 }
@@ -63,11 +59,7 @@ mod tests {
 
     fn make_token(node_id: &str, secret: &str, exp_offset_secs: i64) -> String {
         use std::time::{SystemTime, UNIX_EPOCH};
-        let exp = (SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_secs() as i64
-            + exp_offset_secs) as usize;
+        let exp = (SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() as i64 + exp_offset_secs) as usize;
         let claims = NodeClaims {
             node_id: node_id.to_string(),
             exp,

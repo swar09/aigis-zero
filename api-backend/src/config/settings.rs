@@ -22,9 +22,7 @@ impl Settings {
         let _ = dotenvy::dotenv();
 
         let host = env::var("HOST").unwrap_or_else(|_| "0.0.0.0".to_string());
-        let port = env::var("PORT")
-            .unwrap_or_else(|_| "8080".to_string())
-            .parse::<u16>()?;
+        let port = env::var("PORT").unwrap_or_else(|_| "8080".to_string()).parse::<u16>()?;
 
         let database_url_nodes = env::var("DATABASE_URL_NODES")
             .unwrap_or_else(|_| "postgres://edr:edrpassword@localhost:5433/edr_nodes".to_string());
@@ -38,26 +36,21 @@ impl Settings {
             .parse::<usize>()
             .unwrap_or(16);
 
-        let kafka_brokers =
-            env::var("KAFKA_BROKERS").unwrap_or_else(|_| "localhost:9092".to_string());
+        let kafka_brokers = env::var("KAFKA_BROKERS").unwrap_or_else(|_| "localhost:9092".to_string());
         let kafka_consumer_group =
             env::var("KAFKA_CONSUMER_GROUP").unwrap_or_else(|_| "edr-api-backend-live".to_string());
 
-        let fleet_grpc_url =
-            env::var("FLEET_GRPC_URL").unwrap_or_else(|_| "http://localhost:50051".to_string());
+        let fleet_grpc_url = env::var("FLEET_GRPC_URL").unwrap_or_else(|_| "http://localhost:50051".to_string());
 
-        let jwt_secret = env::var("JWT_SECRET").unwrap_or_else(|_| {
-            "super_secret_jwt_key_replace_in_production_32_bytes_min".to_string()
-        });
+        let jwt_secret = env::var("JWT_SECRET")
+            .unwrap_or_else(|_| "super_secret_jwt_key_replace_in_production_32_bytes_min".to_string());
         let jwt_expiration_secs = env::var("JWT_EXPIRATION_SECS")
             .unwrap_or_else(|_| "86400".to_string())
             .parse::<i64>()
             .unwrap_or(86400);
 
-        let admin_default_user =
-            env::var("ADMIN_DEFAULT_USER").unwrap_or_else(|_| "admin".to_string());
-        let admin_default_password =
-            env::var("ADMIN_DEFAULT_PASSWORD").unwrap_or_else(|_| "admin".to_string());
+        let admin_default_user = env::var("ADMIN_DEFAULT_USER").unwrap_or_else(|_| "admin".to_string());
+        let admin_default_password = env::var("ADMIN_DEFAULT_PASSWORD").unwrap_or_else(|_| "admin".to_string());
 
         Ok(Self {
             host,

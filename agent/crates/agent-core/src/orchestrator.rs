@@ -6,14 +6,13 @@ use tokio::sync::mpsc;
 use crate::config::AgentConfig;
 
 pub async fn run() -> Result<()> {
-    let config_path =
-        std::env::var("EDR_AGENT_CONFIG").unwrap_or_else(|_| "agent.toml".to_string());
+    let config_path = std::env::var("EDR_AGENT_CONFIG").unwrap_or_else(|_| "agent.toml".to_string());
 
     let config_str = std::fs::read_to_string(&config_path)
         .map_err(|e| anyhow::anyhow!("Failed to read config file at {}: {}", config_path, e))?;
 
-    let config: AgentConfig = toml::from_str(&config_str)
-        .map_err(|e| anyhow::anyhow!("Failed to parse TOML config: {}", e))?;
+    let config: AgentConfig =
+        toml::from_str(&config_str).map_err(|e| anyhow::anyhow!("Failed to parse TOML config: {}", e))?;
 
     let format = match config.agent.log_format.as_str() {
         "json" => agent_tracing::LogFormat::Json,
@@ -35,10 +34,7 @@ pub async fn run() -> Result<()> {
             }
         };
 
-        if let Err(e) = watcher.watch(
-            std::path::Path::new(&config_path_clone),
-            RecursiveMode::NonRecursive,
-        ) {
+        if let Err(e) = watcher.watch(std::path::Path::new(&config_path_clone), RecursiveMode::NonRecursive) {
             tracing::warn!("Could not watch config file {}: {}", config_path_clone, e);
         } else {
             tracing::info!("Watching {} for changes", config_path_clone);
@@ -63,10 +59,7 @@ pub async fn run() -> Result<()> {
     // on this task and never move it into tokio::spawn.
     let buffer = EventBuffer::new(&config.agent.event_buffer_db, config.agent.event_buffer_max)
         .map_err(|e| anyhow::anyhow!("Failed to open event buffer: {}", e))?;
-    tracing::info!(
-        "Initialized event buffer at {:?}",
-        config.agent.event_buffer_db
-    );
+    tracing::info!("Initialized event buffer at {:?}", config.agent.event_buffer_db);
 
     // Start OsqueryCollector
     let collector = osquery_client::OsqueryCollector::new(osquery_client::OsqueryConfig {
@@ -260,10 +253,7 @@ mod tests {
 
         let parsed: fleet_client::types::AgentEvent = serde_json::from_str(&encoded).unwrap();
         assert_eq!(parsed.node_id, "uuid-123");
-        assert_eq!(
-            parsed.event_type,
-            fleet_client::types::EventType::Osquery as i32
-        );
+        assert_eq!(parsed.event_type, fleet_client::types::EventType::Osquery as i32);
         assert_eq!(parsed.timestamp_ns, 123456789);
 
         let payload: Value = parsed.payload;

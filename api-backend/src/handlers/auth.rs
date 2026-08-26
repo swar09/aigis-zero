@@ -8,10 +8,7 @@ use crate::{
     state::AppState,
 };
 
-pub async fn login(
-    State(state): State<AppState>,
-    Json(payload): Json<LoginRequest>,
-) -> Result<Json<Value>, AppError> {
+pub async fn login(State(state): State<AppState>, Json(payload): Json<LoginRequest>) -> Result<Json<Value>, AppError> {
     let res: LoginResponse = state.auth_service.login(payload).await?;
     Ok(Json(json!({
         "success": true,

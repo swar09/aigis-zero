@@ -18,10 +18,7 @@ impl LogService {
         Self { log_repo }
     }
 
-    pub async fn search_logs(
-        &self,
-        params: LogFilterParams,
-    ) -> Result<Vec<EventLogEntity>, AppError> {
+    pub async fn search_logs(&self, params: LogFilterParams) -> Result<Vec<EventLogEntity>, AppError> {
         self.log_repo.search_logs(params).await
     }
 

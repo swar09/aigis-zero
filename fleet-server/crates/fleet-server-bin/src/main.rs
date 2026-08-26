@@ -17,10 +17,7 @@ async fn main() -> Result<()> {
     let settings = settings::Settings::load().context("failed to load settings")?;
 
     // Tracing must be initialised before anything else emits spans.
-    let log_format = settings
-        .log_format
-        .parse::<LogFormat>()
-        .unwrap_or(LogFormat::Human);
+    let log_format = settings.log_format.parse::<LogFormat>().unwrap_or(LogFormat::Human);
 
     fleet_tracing::init(&TracingConfig {
         log_level: settings.rust_log.clone(),
@@ -40,20 +37,11 @@ async fn main() -> Result<()> {
     // rather than silently dropping every enrollment that comes in.
     let pg_pool = postgres_interface::connect(&settings.database_url)
         .await
-        .context(
-            "failed to connect to postgres — check DATABASE_URL and ensure the DB is running",
-        )?;
+        .context("failed to connect to postgres — check DATABASE_URL and ensure the DB is running")?;
 
-    let brokers = settings
-        .kafka_brokers
-        .as_deref()
-        .unwrap_or("localhost:9092");
-    let topic = settings
-        .kafka_topic_agents_events
-        .as_deref()
-        .unwrap_or("agents_events");
-    let (enrollment, heartbeat, event_ingest) =
-        ports::build_ports(pg_pool, &settings.jwt_secret, brokers, topic);
+    let brokers = settings.kafka_brokers.as_deref().unwrap_or("localhost:9092");
+    let topic = settings.kafka_topic_agents_events.as_deref().unwrap_or("agents_events");
+    let (enrollment, heartbeat, event_ingest) = ports::build_ports(pg_pool, &settings.jwt_secret, brokers, topic);
 
     let service = FleetServiceImpl::new(
         Arc::clone(&enrollment) as Arc<dyn fleet_manager::EnrollmentPort>,
@@ -98,8 +86,7 @@ async fn wait_for_signal() {
     #[cfg(unix)]
     {
         use signal::unix::{SignalKind, signal};
-        let mut sigterm =
-            signal(SignalKind::terminate()).expect("failed to register SIGTERM handler");
+        let mut sigterm = signal(SignalKind::terminate()).expect("failed to register SIGTERM handler");
         tokio::select! {
             _ = signal::ctrl_c() => {}
             _ = sigterm.recv() => {}

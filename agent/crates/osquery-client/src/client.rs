@@ -6,8 +6,8 @@ use std::{
 use anyhow::{Result, anyhow};
 use thrift::{
     protocol::{
-        TBinaryInputProtocol, TBinaryOutputProtocol, TFieldIdentifier, TInputProtocol,
-        TMessageIdentifier, TMessageType, TOutputProtocol, TType,
+        TBinaryInputProtocol, TBinaryOutputProtocol, TFieldIdentifier, TInputProtocol, TMessageIdentifier,
+        TMessageType, TOutputProtocol, TType,
     },
     transport::TBufferChannel,
 };
@@ -38,11 +38,7 @@ impl OsqueryClient {
         {
             let mut out_prot = TBinaryOutputProtocol::new(&mut t, true);
 
-            out_prot.write_message_begin(&TMessageIdentifier::new(
-                "query",
-                TMessageType::Call,
-                1,
-            ))?;
+            out_prot.write_message_begin(&TMessageIdentifier::new("query", TMessageType::Call, 1))?;
 
             out_prot.write_struct_begin(&thrift::protocol::TStructIdentifier::new("query_args"))?;
 

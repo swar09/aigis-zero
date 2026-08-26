@@ -39,19 +39,11 @@ pub fn sign_token(node_id: &str, secret: &[u8]) -> Result<String, NodeEnrollment
         exp,
     };
 
-    Ok(encode(
-        &Header::default(),
-        &claims,
-        &EncodingKey::from_secret(secret),
-    )?)
+    Ok(encode(&Header::default(), &claims, &EncodingKey::from_secret(secret))?)
 }
 
 #[cfg(test)]
-#[allow(
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::cast_possible_truncation
-)]
+#[allow(clippy::expect_used, clippy::unwrap_used, clippy::cast_possible_truncation)]
 mod tests {
     use jsonwebtoken::{DecodingKey, Validation, decode};
 
@@ -63,24 +55,16 @@ mod tests {
     #[test]
     fn signed_token_decodes_with_same_secret() {
         let token = sign_token(NODE_ID, SECRET).expect("sign_token failed");
-        let data = decode::<NodeClaims>(
-            &token,
-            &DecodingKey::from_secret(SECRET),
-            &Validation::default(),
-        )
-        .expect("decode failed");
+        let data = decode::<NodeClaims>(&token, &DecodingKey::from_secret(SECRET), &Validation::default())
+            .expect("decode failed");
         assert_eq!(data.claims.node_id, NODE_ID);
     }
 
     #[test]
     fn token_carries_correct_node_id() {
         let token = sign_token("other-node", SECRET).expect("sign failed");
-        let data = decode::<NodeClaims>(
-            &token,
-            &DecodingKey::from_secret(SECRET),
-            &Validation::default(),
-        )
-        .expect("decode failed");
+        let data = decode::<NodeClaims>(&token, &DecodingKey::from_secret(SECRET), &Validation::default())
+            .expect("decode failed");
         assert_eq!(data.claims.node_id, "other-node");
     }
 
@@ -103,12 +87,8 @@ mod tests {
             .as_secs() as usize;
 
         let token = sign_token(NODE_ID, SECRET).expect("sign failed");
-        let data = decode::<NodeClaims>(
-            &token,
-            &DecodingKey::from_secret(SECRET),
-            &Validation::default(),
-        )
-        .expect("decode failed");
+        let data = decode::<NodeClaims>(&token, &DecodingKey::from_secret(SECRET), &Validation::default())
+            .expect("decode failed");
 
         let expected_min = before + TOKEN_TTL_SECS as usize - 5;
         let expected_max = before + TOKEN_TTL_SECS as usize + 5;

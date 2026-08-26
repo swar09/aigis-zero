@@ -26,7 +26,7 @@ impl EventRouterProcessor {
             "file_create" | "file_modify" | "file_delete" => "aigis.events.file",
             "user_login" | "user_logout" => "aigis.events.auth",
             "osquery_result" | "osquery_snapshot" => "aigis.events.process", // default bucket
-            _ => "aigis.events.raw", // unknown types stay in raw
+            _ => "aigis.events.raw",                                         // unknown types stay in raw
         }
     }
 }
@@ -42,13 +42,9 @@ impl MessageProcessor for EventRouterProcessor {
         _offset: i64,
     ) -> Result<(), String> {
         // Lightweight JSON peek — only extract event_type field
-        let event: Value =
-            serde_json::from_slice(payload).map_err(|e| format!("Invalid JSON: {e}"))?;
+        let event: Value = serde_json::from_slice(payload).map_err(|e| format!("Invalid JSON: {e}"))?;
 
-        let event_type = event
-            .get("event_type")
-            .and_then(|v| v.as_str())
-            .unwrap_or("unknown");
+        let event_type = event.get("event_type").and_then(|v| v.as_str()).unwrap_or("unknown");
 
         let target_topic = self.route_topic(event_type);
 

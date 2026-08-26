@@ -163,10 +163,7 @@ fn parse_kafka_message(topic: &str, payload: &[u8]) -> Option<LiveEvent> {
                 .and_then(|v| v.as_str())
                 .unwrap_or("healthy")
                 .to_string();
-            let events_buffered = json
-                .get("events_buffered")
-                .and_then(|v| v.as_i64())
-                .unwrap_or(0);
+            let events_buffered = json.get("events_buffered").and_then(|v| v.as_i64()).unwrap_or(0);
             let timestamp_ns = json
                 .get("timestamp_ns")
                 .and_then(|v| v.as_i64())

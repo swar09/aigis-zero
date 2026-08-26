@@ -4,9 +4,7 @@ use uuid::Uuid;
 
 use crate::{
     error::AppError,
-    models::alert::{
-        AlertEntity, AlertFilterParams, UpdateAlertStatusRequest, UpdateAlertStatusResponse,
-    },
+    models::alert::{AlertEntity, AlertFilterParams, UpdateAlertStatusRequest, UpdateAlertStatusResponse},
     repositories::AlertRepository,
 };
 
@@ -20,10 +18,7 @@ impl AlertService {
         Self { alert_repo }
     }
 
-    pub async fn list_alerts(
-        &self,
-        params: AlertFilterParams,
-    ) -> Result<(Vec<AlertEntity>, i64), AppError> {
+    pub async fn list_alerts(&self, params: AlertFilterParams) -> Result<(Vec<AlertEntity>, i64), AppError> {
         self.alert_repo.find_all(params).await
     }
 

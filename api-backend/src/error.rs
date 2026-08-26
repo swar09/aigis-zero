@@ -96,10 +96,9 @@ impl From<diesel::result::Error> for AppError {
     fn from(err: diesel::result::Error) -> Self {
         match err {
             diesel::result::Error::NotFound => Self::NotFound("Requested record not found".into()),
-            diesel::result::Error::DatabaseError(
-                diesel::result::DatabaseErrorKind::UniqueViolation,
-                info,
-            ) => Self::Conflict(info.message().to_string()),
+            diesel::result::Error::DatabaseError(diesel::result::DatabaseErrorKind::UniqueViolation, info) => {
+                Self::Conflict(info.message().to_string())
+            }
             other => Self::DatabaseError(other.to_string()),
         }
     }

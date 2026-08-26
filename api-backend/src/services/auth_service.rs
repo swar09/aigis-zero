@@ -55,9 +55,7 @@ impl AuthService {
         };
 
         if !is_valid {
-            return Err(AppError::Unauthorized(
-                "Invalid username or password".into(),
-            ));
+            return Err(AppError::Unauthorized("Invalid username or password".into()));
         }
 
         let now = Utc::now().timestamp();

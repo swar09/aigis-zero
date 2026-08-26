@@ -119,10 +119,7 @@ fleet_port = 8443
         let config: AgentConfig = toml::from_str(toml_str).expect("Failed to parse TOML");
         assert_eq!(config.agent.name, "test-agent");
         assert_eq!(config.agent.server.port, 9100);
-        assert_eq!(
-            config.osquery.socket_path.to_str().unwrap(),
-            "/var/osquery/osquery.em"
-        );
+        assert_eq!(config.osquery.socket_path.to_str().unwrap(), "/var/osquery/osquery.em");
         assert_eq!(config.fleet.host, "fleet.test");
         assert!(!config.isolation.enabled);
     }

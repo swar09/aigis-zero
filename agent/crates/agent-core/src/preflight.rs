@@ -50,10 +50,7 @@ impl PreflightReport {
         match &self.inotify_watches {
             Ok(val) => {
                 if *val >= 524288 {
-                    println!(
-                        "  [OK]   inotify max_user_watches limit is sufficient ({})",
-                        val
-                    );
+                    println!("  [OK]   inotify max_user_watches limit is sufficient ({})", val);
                 } else {
                     println!(
                         "  [WARN] inotify max_user_watches limit is low ({}); recommended >= 524288",
@@ -83,10 +80,7 @@ pub fn run_preflight(config: &crate::config::AgentConfig) -> PreflightReport {
         if !path.exists()
             && let Err(e) = std::fs::create_dir_all(path)
         {
-            return Err(format!(
-                "Directory does not exist and failed to create: {}",
-                e
-            ));
+            return Err(format!("Directory does not exist and failed to create: {}", e));
         }
         let temp_file = path.join(".aigis_zero_preflight_temp");
         if let Err(e) = std::fs::write(&temp_file, b"test") {

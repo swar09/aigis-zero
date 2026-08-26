@@ -122,20 +122,14 @@ mod tests {
             b"test-secret-long-enough".to_vec(),
         );
 
-        let result = enroller
-            .register_agent(reg())
-            .await
-            .expect("enrollment should succeed");
+        let result = enroller.register_agent(reg()).await.expect("enrollment should succeed");
         assert_eq!(result.node_id, expected_id);
         assert!(!result.token.is_empty());
     }
 
     #[tokio::test]
     async fn store_failure_maps_to_internal_status() {
-        let enroller = NodeEnroller::new(
-            Arc::new(FailingNodeStore),
-            b"test-secret-long-enough".to_vec(),
-        );
+        let enroller = NodeEnroller::new(Arc::new(FailingNodeStore), b"test-secret-long-enough".to_vec());
 
         let err = enroller.register_agent(reg()).await.unwrap_err();
         assert_eq!(err.code(), tonic::Code::Internal);
