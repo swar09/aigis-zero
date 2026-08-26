@@ -84,9 +84,9 @@ impl ConsumerWorker {
                             let payload = borrowed_msg.payload().unwrap_or(&[]);
 
                             if let Err(e) = self.processor.process(key, payload, topic, partition, offset).await {
-                                error!(error = %e, topic, partition, offset, "Message processing failed");
-                                // TODO: Send to DLQ
+                                error!(error = %e, topic, partition, offset, "Message processing failed; dropping poisoned payload without blocking consumer stream");
                             }
+
                         }
                         Some(Err(e)) => {
                             error!(error = %e, "Kafka consumer error");

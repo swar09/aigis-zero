@@ -1,10 +1,21 @@
+//! # kafka-admin
+//!
+//! Command-line administrative utility for managing Kafka topic provisioning,
+//! partition topologies, and retention policies in the Aigis-Zero EDR cluster.
+//!
+//! # Usage
+//!
+//! ```bash
+//! kafka-admin create-topics --brokers localhost:29092
+//! ```
+
 use std::env;
 
-/// CLI tool for Kafka topic administration
-/// Usage:
-///   kafka-admin create-topics --brokers localhost:29092
-use rdkafka::admin::{AdminClient, AdminOptions, NewTopic, TopicReplication};
-use rdkafka::{client::DefaultClientContext, config::ClientConfig};
+use rdkafka::{
+    admin::{AdminClient, AdminOptions, NewTopic, TopicReplication},
+    client::DefaultClientContext,
+    config::ClientConfig,
+};
 
 struct TopicSpec {
     name: &'static str,

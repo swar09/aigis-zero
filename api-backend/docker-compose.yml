@@ -10,7 +10,7 @@ services:
     ports:
       - "${PORT:-8080}:8080"
     env_file:
-      - .env
+      - ../.env
     environment:
       - HOST=0.0.0.0
       - PORT=8080
@@ -36,7 +36,7 @@ services:
     image: postgres:16-alpine
     container_name: edr-postgres-nodes
     env_file:
-      - .env
+      - ../.env
     environment:
       POSTGRES_DB: edr_nodes
       POSTGRES_USER: ${POSTGRES_USER:-edr}
@@ -58,7 +58,7 @@ services:
     image: postgres:16-alpine
     container_name: edr-postgres-alerts
     env_file:
-      - .env
+      - ../.env
     environment:
       POSTGRES_DB: edr_alerts
       POSTGRES_USER: ${POSTGRES_USER:-edr}
@@ -80,13 +80,13 @@ services:
     image: postgres:16-alpine
     container_name: edr-postgres-logs
     env_file:
-      - .env
+      - ../.env
     environment:
       POSTGRES_DB: edr_logs
       POSTGRES_USER: ${POSTGRES_USER:-edr}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-edrpassword}
     ports:
-      - "5432:5432"
+      - "5435:5432"
     volumes:
       - postgres_logs_data:/var/lib/postgresql/data
     healthcheck:
@@ -96,6 +96,7 @@ services:
       retries: 5
     networks:
       - edr-net
+
 
   # Apache Kafka
   zookeeper:

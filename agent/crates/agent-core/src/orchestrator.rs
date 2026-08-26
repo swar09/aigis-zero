@@ -55,8 +55,7 @@ pub async fn run() -> Result<()> {
         }
     });
 
-    // EventBuffer wraps rusqlite::Connection which is !Send, so we keep it
-    // on this task and never move it into tokio::spawn.
+    // Initialize SQLite WAL-backed offline buffer for persistent event queuing
     let buffer = EventBuffer::new(&config.agent.event_buffer_db, config.agent.event_buffer_max)
         .map_err(|e| anyhow::anyhow!("Failed to open event buffer: {}", e))?;
     tracing::info!("Initialized event buffer at {:?}", config.agent.event_buffer_db);
@@ -101,9 +100,7 @@ pub async fn run() -> Result<()> {
         }
     }
 
-    // Main loop — drain results & handle shutdown
-    // rusqlite::Connection is !Send so we drive the buffer writes here on the
-    // main task rather than in a spawned task.
+    // Main event drain loop: poll collector channel and persist events to SQLite WAL buffer
     tracing::info!("Agent is running. Draining osquery results. Press Ctrl-C to stop.");
 
     let (shutdown_tx, mut shutdown_rx) = mpsc::channel::<()>(1);

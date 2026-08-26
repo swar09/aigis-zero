@@ -29,7 +29,7 @@ impl Settings {
         let database_url_alerts = env::var("DATABASE_URL_ALERTS")
             .unwrap_or_else(|_| "postgres://edr:edrpassword@localhost:5434/edr_alerts".to_string());
         let database_url_logs = env::var("DATABASE_URL_LOGS")
-            .unwrap_or_else(|_| "postgres://edr:edrpassword@localhost:5432/edr_logs".to_string());
+            .unwrap_or_else(|_| "postgres://edr:edrpassword@localhost:5435/edr_logs".to_string());
 
         let db_pool_max_size = env::var("DB_POOL_MAX_SIZE")
             .unwrap_or_else(|_| "16".to_string())

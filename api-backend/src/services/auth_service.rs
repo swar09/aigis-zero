@@ -1,3 +1,5 @@
+//! Business logic service for operator authentication, Argon2 hashing, and JWT token issuance.
+
 use std::sync::Arc;
 
 use argon2::{
@@ -13,16 +15,19 @@ use crate::{
     models::auth::{Claims, LoginRequest, LoginResponse, UserInfo},
 };
 
+/// Service managing operator authentication, credential verification, and JWT session tokens.
 #[derive(Clone)]
 pub struct AuthService {
     config: Arc<Settings>,
 }
 
 impl AuthService {
+    /// Creates a new `AuthService` initialized with backend security settings.
     pub fn new(config: Arc<Settings>) -> Self {
         Self { config }
     }
 
+    /// Hashes a raw password string using Argon2id with a secure random salt.
     pub fn hash_password(password: &str) -> anyhow::Result<String> {
         let salt = SaltString::generate(&mut OsRng);
         let argon2 = Argon2::default();
@@ -33,6 +38,7 @@ impl AuthService {
         Ok(hash)
     }
 
+    /// Verifies whether a candidate plaintext password matches an existing Argon2 password hash.
     pub fn verify_password(password: &str, password_hash: &str) -> bool {
         if let Ok(parsed_hash) = PasswordHash::new(password_hash) {
             Argon2::default()
@@ -43,6 +49,7 @@ impl AuthService {
         }
     }
 
+    /// Authenticates operator credentials and issues a signed Bearer JWT token on success.
     pub async fn login(&self, req: LoginRequest) -> Result<LoginResponse, AppError> {
         let is_valid = if req.username == self.config.admin_default_user {
             if req.password == self.config.admin_default_password {

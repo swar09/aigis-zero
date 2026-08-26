@@ -24,6 +24,8 @@ Before completing any task or pushing code:
    ```bash
    ./scripts/check.sh
    ```
+5. **Changelog Updates:** Any functional change, feature addition, bug fix, or breaking change must be recorded in `CHANGELOG.md` under `[Unreleased]`.
+
 
 ---
 
@@ -37,6 +39,7 @@ The `scripts/` directory contains standard tooling for local development and CI 
 | **`ci.sh`** | **Pre-push verification.** | `./scripts/ci.sh` | Strictly mirrors GitHub Actions CI. Runs non-destructive format checks, clippy, typos, full build, test suite, documentation tests (`cargo doc`), and security audit (`cargo audit`). |
 | **`setup.sh`** | **Initial workspace onboarding or tool upgrade.** | `./scripts/setup.sh` | Installs locked cargo tools (`typos-cli`, `cargo-audit`, `cargo-cache`, `sqlx-cli`) and marks all shell scripts executable. |
 | **`precommit.sh`** | **Repository setup.** | `./scripts/precommit.sh` | Installs `./scripts/check.sh` as a Git pre-commit hook in `.git/hooks/pre-commit` to prevent committing broken code. |
+| **`infra.sh`** | **One-command infrastructure startup, seeding, and teardown.** | `./scripts/infra.sh` or `./scripts/infra.sh [up\|down\|reset\|seed\|status]` | Boots all Docker containers (PostgreSQL, Kafka, Zookeeper, Kafka UI), waits for health checks, provisions Kafka topics, and applies DDL and mock seed data to all databases. |
 | **`seed.sh`** | **Local database reset or demo data seeding.** | `./scripts/seed.sh` or `./scripts/seed.sh --reset` | Connects to PostgreSQL using `.env` variables and applies migrations and test fixtures from `fleet-server/migrations/seed.sql`. Use `--reset` to drop, recreate, and reseed databases. |
 | **`clean.sh`** | **Disk cleanup or resolving build cache corruption.** | `./scripts/clean.sh` or `./scripts/clean.sh --deep` | Removes `target/`, temporary `*.rs.bk`, `*.orig` files, and optionally prunes the local cargo registry cache with `--deep`. |
 | **`infra/scripts/create-topics.sh`** | **Local Kafka cluster initialization.** | `./infra/scripts/create-topics.sh` | Provisions Kafka topics (`aigis.events.*`, `aigis.alerts`, `aigis.heartbeats`, `aigis.events.dlq`) with their defined partitions and retention policies inside Docker. |
@@ -76,3 +79,30 @@ The `scripts/` directory contains standard tooling for local development and CI 
 4. **Async Best Practices:**
    * Never use blocking I/O (`std::thread::sleep`, sync file I/O, synchronous mutex locks) across `.await` points.
    * Use Tokio primitives (`tokio::time::sleep`, `tokio::sync::Mutex`, `tokio::select!`).
+
+---
+
+## 4. Changelog Maintenance & Humanizer Rules
+
+Every agent and developer must maintain `CHANGELOG.md` following [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) conventions and the repository Humanizer style rules:
+
+### A. Entry Format & Categorization
+All new unreleased work belongs under `## [Unreleased]`, grouped into standard categories:
+* `### Added` — New capabilities, endpoints, or crates.
+* `### Changed` — Functional changes, breaking migrations, or updated behaviors.
+* `### Fixed` — Bug fixes, error handling corrections, or build repairs.
+* `### Removed` — Deprecated or removed components.
+* `### Security` — Vulnerability mitigations and auth hardening.
+
+Prefix every entry with its package name in bold:
+```markdown
+- **<package-name>**: <concise plain-language summary of what changed for consumers>
+```
+
+### B. Humanizer Style Rules
+To keep changelog entries clear and natural:
+1. **No Em or En Dashes:** Do not use `—` or `–` in changelog text; use colons, commas, or parentheses instead.
+2. **No Promotional Fluff:** Avoid words like *robust*, *seamless*, *cutting-edge*, *pivotal*, *crucial*, or *groundbreaking*.
+3. **Consumer Perspective:** Write what changed from a developer or operator perspective rather than internal code refactor steps.
+4. **Breaking Changes:** Prefix breaking modifications with `⚠️ BREAKING:` and include a brief migration note.
+

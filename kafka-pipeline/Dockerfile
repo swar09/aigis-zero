@@ -1,8 +1,17 @@
-FROM rust:1.80 AS builder
+FROM rust:1.85-slim AS builder
 WORKDIR /usr/src/app
-RUN apt-get update && apt-get install -y --no-install-recommends cmake g++ protobuf-compiler
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    pkg-config \
+    libssl-dev \
+    protobuf-compiler \
+    cmake \
+    g++ \
+    make \
+    libcurl4-openssl-dev \
+    && rm -rf /var/lib/apt/lists/*
 COPY . .
-RUN cd kafka-pipeline && cargo build --release
+RUN cargo build --release -p edr-kafka-pipeline
+
 
 FROM debian:bookworm-slim
 RUN apt-get update && apt-get install -y --no-install-recommends libssl3 ca-certificates && rm -rf /var/lib/apt/lists/*

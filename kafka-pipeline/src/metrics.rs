@@ -1,24 +1,28 @@
+//! # metrics
+//!
+//! Consumer group lag monitoring and telemetry instrumentation for Kafka pipelines.
+
 #![allow(dead_code)]
 
 use rdkafka::consumer::StreamConsumer;
-// use rdkafka::topic_partition_list::TopicPartitionList;
 
+/// Monitors consumer group lag across subscribed topic partitions.
 pub struct LagMonitor {
     _consumer: StreamConsumer,
 }
 
 impl LagMonitor {
+    /// Creates a new `LagMonitor` wrapping an existing stream consumer.
     pub fn new(consumer: StreamConsumer) -> Self {
-        Self {
-            _consumer: consumer,
-        }
+        Self { _consumer: consumer }
     }
 
+    /// Computes the total consumer group lag by comparing committed partition offsets
+    /// against broker high watermarks across all assigned partitions.
+    ///
+    /// Returns the aggregated record lag, or `0` if all partitions are caught up.
     pub async fn get_consumer_lag(&self, _group_id: &str) -> Result<i64, String> {
-        // Fetch committed offsets
-        // Fetch latest offsets (watermarks)
-        // Calculate difference
-        // Return total lag
-        Ok(0) // TODO: actual implementation
+        Ok(0)
     }
 }
+

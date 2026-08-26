@@ -228,6 +228,7 @@ impl FleetClient {
         self.node_id
     }
 
+    /// Returns the active authentication JWT token if enrolled.
     pub fn token(&self) -> Option<&str> {
         self.token.as_deref()
     }
@@ -235,16 +236,24 @@ impl FleetClient {
 
 #[cfg(test)]
 mod tests {
-    #[tokio::test]
-    async fn test_connection_establishment() {}
-    #[tokio::test]
-    async fn test_enrollment_request_response() {}
-    #[tokio::test]
-    async fn test_event_batch_sending() {}
-    #[tokio::test]
-    async fn test_heartbeat_sending() {}
-    #[tokio::test]
-    async fn test_reconnection_after_disconnect() {}
-    #[tokio::test]
-    async fn test_invalid_server_response() {}
+    use super::*;
+
+    #[test]
+    fn test_fleet_client_initial_state() {
+        let client = FleetClient::new("http://localhost:50051".to_string());
+        assert_eq!(client.endpoint, "http://localhost:50051");
+        assert!(client.node_id().is_none());
+        assert!(client.token().is_none());
+    }
+
+    #[test]
+    fn test_fleet_client_with_assigned_identity() {
+        let mut client = FleetClient::new("http://localhost:50051".to_string());
+        let expected_uuid = Uuid::new_v4();
+        client.node_id = Some(expected_uuid);
+        client.token = Some("test-jwt-token".to_string());
+
+        assert_eq!(client.node_id(), Some(expected_uuid));
+        assert_eq!(client.token(), Some("test-jwt-token"));
+    }
 }

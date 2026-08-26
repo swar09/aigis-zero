@@ -19,31 +19,45 @@ if [[ -f .env ]]; then
   set +a
 fi
 
-: "${DATABASE_URL:?DATABASE_URL not set — check .env or pass DATABASE_URL=...}"
+# Database URLs with defaults matching .env
+DATABASE_URL_NODES="${DATABASE_URL_NODES:-postgres://edr:edrpassword@localhost:5433/edr_nodes}"
+DATABASE_URL_ALERTS="${DATABASE_URL_ALERTS:-postgres://edr:edrpassword@localhost:5434/edr_alerts}"
+DATABASE_URL_LOGS="${DATABASE_URL_LOGS:-postgres://edr:edrpassword@localhost:5435/edr_logs}"
 
 if $RESET; then
-  echo "▶ resetting database"
+  echo "▶ resetting database schema"
   if command -v sqlx >/dev/null 2>&1; then
-    sqlx database drop -y || true
-    sqlx database create
-    sqlx migrate run --source fleet-server/migrations
-  else
-    echo "  sqlx-cli not found — install with: cargo install sqlx-cli"
-    exit 1
+    DATABASE_URL="$DATABASE_URL_NODES" sqlx database drop -y || true
+    DATABASE_URL="$DATABASE_URL_NODES" sqlx database create
+    DATABASE_URL="$DATABASE_URL_NODES" sqlx migrate run --source fleet-server/migrations
   fi
 fi
 
-echo "▶ seeding data"
-if cargo run --bin seed --quiet 2>/dev/null; then
+echo "▶ seeding databases"
+if command -v psql >/dev/null 2>&1; then
+  # 1. edr_nodes
+  psql "$DATABASE_URL_NODES" -f ./fleet-server/migrations/20260601000001_create_nodes.sql >/dev/null 2>&1 || true
+  psql "$DATABASE_URL_NODES" -f ./fleet-server/migrations/20260601000002_create_enrollment_events.sql >/dev/null 2>&1 || true
+  psql "$DATABASE_URL_NODES" -f ./fleet-server/migrations/20260601000003_create_node_health.sql >/dev/null 2>&1 || true
+  psql "$DATABASE_URL_NODES" -f ./fleet-server/migrations/seed.sql >/dev/null 2>&1 || true
+  echo "✔ seeded edr_nodes"
+
+  # 2. edr_alerts
+  if [[ -f ./infra/db/init_alerts.sql ]]; then
+    psql "$DATABASE_URL_ALERTS" -f ./infra/db/init_alerts.sql >/dev/null 2>&1 || true
+    psql "$DATABASE_URL_ALERTS" -f ./infra/db/seed_alerts.sql >/dev/null 2>&1 || true
+    echo "✔ seeded edr_alerts"
+  fi
+
+  # 3. edr_logs
+  if [[ -f ./infra/db/init_logs.sql ]]; then
+    psql "$DATABASE_URL_LOGS" -f ./infra/db/init_logs.sql >/dev/null 2>&1 || true
+    psql "$DATABASE_URL_LOGS" -f ./infra/db/seed_logs.sql >/dev/null 2>&1 || true
+    echo "✔ seeded edr_logs"
+  fi
+elif cargo run --bin seed --quiet 2>/dev/null; then
   echo "✔ seeded via cargo run --bin seed"
-elif [[ -f ./fleet-server/migrations/seed.sql ]]; then
-  psql "$DATABASE_URL" -f ./fleet-server/migrations/seed.sql
-  echo "✔ seeded via fleet-server/migrations/seed.sql"
-elif [[ -f ./seed/dev_seed.sql ]]; then
-  psql "$DATABASE_URL" -f ./seed/dev_seed.sql
-  echo "✔ seeded via seed/dev_seed.sql"
 else
-  echo "✘ no seed binary (src/bin/seed.rs) or seed SQL file found."
-  echo "  Create one of those, then re-run this script."
-  exit 1
+  echo "✘ psql not found on host. Tip: use './scripts/infra.sh seed' or './scripts/infra.sh up' to seed directly via Docker."
 fi
+

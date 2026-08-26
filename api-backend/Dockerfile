@@ -11,6 +11,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     cmake \
     g++ \
     make \
+    libcurl4-openssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /build
@@ -26,6 +27,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     libssl3 \
     libpq5 \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 RUN useradd -m -u 1001 -s /bin/bash edr
@@ -37,6 +39,7 @@ USER edr
 EXPOSE 8080
 
 HEALTHCHECK --interval=10s --timeout=5s --retries=3 \
-  CMD ["nc", "-z", "localhost", "8080"]
+  CMD ["curl", "-f", "http://localhost:8080/healthz"]
 
 ENTRYPOINT ["/usr/local/bin/edr-api-backend"]
+
