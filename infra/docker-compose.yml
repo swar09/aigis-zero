@@ -49,6 +49,27 @@ services:
       kafka:
         condition: service_healthy
 
+  rule-engine:
+    build:
+      context: ..
+      dockerfile: rule-engine/Dockerfile
+    container_name: edr-rule-engine
+    restart: unless-stopped
+    ports:
+      - "${HEALTH_PORT:-8081}:8081"
+    env_file:
+      - ../.env
+    environment:
+      - DATABASE_URL=postgres://edr:${POSTGRES_PASSWORD:-edrpassword}@postgres-alerts:5432/edr_alerts
+      - KAFKA_BROKERS=kafka:29092
+      - HEALTH_PORT=8081
+      - RULES_DIR=/etc/aigis/rules
+    depends_on:
+      postgres-alerts:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+
   zookeeper:
     image: confluentinc/cp-zookeeper:7.6.0
     container_name: edr-zookeeper
