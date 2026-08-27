@@ -4,16 +4,39 @@ edition.workspace = true
 version.workspace = true
 rust-version.workspace = true
 
+[lib]
+name = "edr_rule_engine"
+path = "src/lib.rs"
+
 [[bin]]
 name = "edr-rule-engine"
 path = "src/main.rs"
 
 [dependencies]
 tokio = { workspace = true }
-# rdkafka = { workspace = true }
-sqlx = { workspace = true }
+tokio-util = { workspace = true }
+tokio-stream = { workspace = true }
+axum = { workspace = true }
+rdkafka = { workspace = true }
+diesel = { workspace = true }
+diesel-async = { workspace = true }
+deadpool-diesel = { workspace = true }
+yara-x = { workspace = true }
+arc-swap = { workspace = true }
+lru = { workspace = true }
+num_cpus = { workspace = true }
+dotenvy = { workspace = true }
+futures-util = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+thiserror = { workspace = true }
+async-trait = { workspace = true }
 anyhow = { workspace = true }
 edr-sdk = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
