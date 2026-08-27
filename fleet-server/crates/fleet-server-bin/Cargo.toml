@@ -11,13 +11,13 @@ path = "src/main.rs"
 [dependencies]
 tokio = { workspace = true }
 tracing = { workspace = true }
-grpc-listener = { path = "../grpc-listener" }
-fleet-manager = { path = "../fleet-manager" }
-node-enrollment = { path = "../node-enrollment" }
-health-tracker = { path = "../health-tracker" }
-fleet-tracing = { path = "../fleet-tracing" }
-postgres-interface = { path = "../postgres-interface" }
-kafka-handler = { path = "../kafka-handler" }
+grpc-listener = { workspace = true }
+fleet-manager = { workspace = true }
+node-enrollment = { workspace = true }
+health-tracker = { workspace = true }
+fleet-tracing = { workspace = true }
+postgres-interface = { workspace = true }
+kafka-handler = { workspace = true }
 sqlx.workspace = true
 config.workspace = true
 anyhow.workspace = true
@@ -28,4 +28,4 @@ async-trait.workspace = true
 uuid.workspace = true
 jsonwebtoken.workspace = true
 tonic.workspace = true
-dotenvy = "0.15"
+dotenvy = { workspace = true }

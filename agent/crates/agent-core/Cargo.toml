@@ -19,8 +19,8 @@ agent-tracing = { workspace = true }
 fleet-client = { workspace = true }
 osquery-client = { workspace = true }
 event-buffer = { workspace = true }
-hostname = "0.4"
-notify = { version = "6", features = ["macos_fsevent"] }
+hostname = { workspace = true }
+notify = { workspace = true }
 edr-sdk = { workspace = true }
 isolation = { workspace = true }
-libc = "0.2"
+libc = { workspace = true }

@@ -13,11 +13,11 @@ agent-core = { workspace = true }
 tokio = { workspace = true }
 anyhow = { workspace = true }
 tracing = { workspace = true }
-clap = { version = "4", features = ["derive", "env"] }
-sd-notify = "0.4"
-libc = "0.2"
+clap = { workspace = true }
+sd-notify = { workspace = true }
+libc = { workspace = true }
 toml = { workspace = true }
-hostname = "0.4"
+hostname = { workspace = true }
 fleet-client = { workspace = true }
 event-buffer = { workspace = true }
 osquery-client = { workspace = true }
@@ -27,4 +27,4 @@ uuid = { workspace = true }
 agent-tracing = { workspace = true }
 isolation = { workspace = true }
 tokio-util = { workspace = true }
-dotenvy = "0.15"
+dotenvy = { workspace = true }
