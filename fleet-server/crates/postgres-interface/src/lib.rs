@@ -5,10 +5,12 @@
 
 pub mod error;
 pub mod health_store;
+pub mod models;
 pub mod node_store;
 pub mod pool;
+pub mod schema;
 
 pub use error::PgError;
 pub use health_store::PgHealthStore;
 pub use node_store::PgNodeStore;
-pub use pool::connect;
+pub use pool::{DbPool, connect, create_pool};

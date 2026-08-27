@@ -1,21 +1,30 @@
 use async_trait::async_trait;
+use chrono::Utc;
+use diesel::prelude::*;
+use diesel_async::{AsyncConnection, RunQueryDsl};
 use node_enrollment::{
     error::NodeEnrollmentError,
     store::{NodeRecord, NodeStore},
 };
-use sqlx::PgPool;
+use uuid::Uuid;
 
-/// PostgreSQL-backed implementation of `NodeStore`.
+use crate::{
+    models::{NewEnrollmentEventEntity, NewNodeEntity},
+    pool::DbPool,
+    schema::{enrollment_events, nodes},
+};
+
+/// PostgreSQL-backed implementation of `NodeStore` using `diesel-async`.
 ///
-/// Thread-safe: `PgPool` is an `Arc`-wrapped pool internally. Clone freely.
+/// Thread-safe: `DbPool` is cheaply cloneable (`Arc` inside).
 pub struct PgNodeStore {
-    pool: PgPool,
+    pool: DbPool,
 }
 
 impl PgNodeStore {
-    /// Wraps an existing connection pool.
+    /// Wraps an existing Diesel connection pool.
     #[must_use]
-    pub fn new(pool: PgPool) -> Self {
+    pub fn new(pool: DbPool) -> Self {
         Self { pool }
     }
 }
@@ -24,135 +33,92 @@ impl PgNodeStore {
 impl NodeStore for PgNodeStore {
     /// Upserts a node by `machine_id` and writes an audit event atomically.
     ///
-    /// Uses an explicit SELECT → INSERT/UPDATE pattern inside a transaction
-    /// to unambiguously determine whether this is a new or repeat enrollment
-    /// without relying on `xmax` system column behaviour (which is not stable
-    /// under all MVCC scenarios and cannot be type-checked by sqlx at compile
-    /// time).
-    ///
-    /// Transaction steps:
-    /// 1. `SELECT node_id FROM nodes WHERE machine_id = $1 FOR UPDATE`
-    ///    — locks the row if it exists, returns `None` if not.
-    /// 2a. If `None` (new node): `INSERT INTO nodes ...` — Postgres assigns UUID.
-    /// 2b. If `Some(id)` (re-enroll): `UPDATE nodes SET ... WHERE node_id = $1`.
-    /// 3. `INSERT INTO enrollment_events ...` with the appropriate `event_type`.
-    /// 4. `COMMIT`.
-    ///
-    /// Returns the `node_id` UUID string.
+    /// Runs inside a transaction to prevent concurrent enrollment races.
     ///
     /// # Errors
     ///
-    /// Returns `NodeEnrollmentError::Store` on any database failure.
+    /// Returns `NodeEnrollmentError::Store` on any pool or query failure.
     async fn upsert_node(&self, record: NodeRecord) -> Result<String, NodeEnrollmentError> {
-        let mut tx = self.pool.begin().await.map_err(|e| {
-            tracing::error!(err = %e, "failed to begin transaction");
+        let mut conn = self.pool.get().await.map_err(|e| {
+            tracing::error!(err = %e, "failed to get connection from pool");
             NodeEnrollmentError::Store(e.to_string())
         })?;
 
-        // Step 1: Check whether a node with this machine_id already exists.
-        // FOR UPDATE locks the row so concurrent enrollments from the same
-        // machine_id are serialised.
-        let existing = sqlx::query!(
-            r#"
-            SELECT node_id
-            FROM   nodes
-            WHERE  machine_id = $1
-            FOR UPDATE
-            "#,
-            record.machine_id,
-        )
-        .fetch_optional(&mut *tx)
-        .await
-        .map_err(|e| {
-            tracing::error!(err = %e, machine_id = %record.machine_id, "lookup failed");
-            NodeEnrollmentError::Store(e.to_string())
-        })?;
+        let machine_id_log = record.machine_id.clone();
 
-        let (node_id, event_type) = match existing {
-            None => {
-                // Step 2a: New node — let Postgres assign the UUID.
-                let row = sqlx::query!(
-                    r#"
-                    INSERT INTO nodes (machine_id, hostname, os_version, agent_version)
-                    VALUES ($1, $2, $3, $4)
-                    RETURNING node_id
-                    "#,
-                    record.machine_id,
-                    record.hostname,
-                    record.os_version,
-                    record.agent_version,
-                )
-                .fetch_one(&mut *tx)
-                .await
-                .map_err(|e| {
-                    tracing::error!(err = %e, machine_id = %record.machine_id, "insert failed");
-                    NodeEnrollmentError::Store(e.to_string())
-                })?;
+        conn.transaction::<_, diesel::result::Error, _>(|conn| {
+            Box::pin(async move {
+                // Step 1: Check whether a node with this machine_id already exists.
+                let existing: Option<Uuid> = nodes::table
+                    .select(nodes::node_id)
+                    .filter(nodes::machine_id.eq(&record.machine_id))
+                    .first::<Uuid>(conn)
+                    .await
+                    .optional()?;
 
-                (row.node_id, "new_enrollment")
-            }
-            Some(row) => {
-                let node_id = row.node_id;
+                let (node_id, event_type) = match existing {
+                    None => {
+                        let node_id = Uuid::new_v4();
+                        let new_node = NewNodeEntity {
+                            node_id,
+                            machine_id: &record.machine_id,
+                            hostname: &record.hostname,
+                            os_version: &record.os_version,
+                            agent_version: &record.agent_version,
+                            agent_status: "healthy",
+                            operator_status: "active",
+                        };
 
-                // Step 2b: Existing node — update mutable fields.
-                sqlx::query!(
-                    r#"
-                    UPDATE nodes
-                    SET hostname          = $1,
-                        os_version        = $2,
-                        agent_version     = $3,
-                        last_enrolled_at  = now()
-                    WHERE node_id = $4
-                    "#,
-                    record.hostname,
-                    record.os_version,
-                    record.agent_version,
+                        diesel::insert_into(nodes::table)
+                            .values(&new_node)
+                            .execute(conn)
+                            .await?;
+
+                        (node_id, "new_enrollment")
+                    }
+                    Some(node_id) => {
+                        diesel::update(nodes::table.filter(nodes::node_id.eq(node_id)))
+                            .set((
+                                nodes::hostname.eq(&record.hostname),
+                                nodes::os_version.eq(&record.os_version),
+                                nodes::agent_version.eq(&record.agent_version),
+                                nodes::last_enrolled_at.eq(Utc::now()),
+                            ))
+                            .execute(conn)
+                            .await?;
+
+                        (node_id, "re_enrollment")
+                    }
+                };
+
+                // Step 2: Write audit log event
+                let new_event = NewEnrollmentEventEntity {
+                    event_id: Uuid::new_v4(),
                     node_id,
-                )
-                .execute(&mut *tx)
-                .await
-                .map_err(|e| {
-                    tracing::error!(err = %e, node_id = %node_id, "update failed");
-                    NodeEnrollmentError::Store(e.to_string())
-                })?;
+                    event_type,
+                    hostname: &record.hostname,
+                    os_version: &record.os_version,
+                    agent_version: &record.agent_version,
+                    enrolled_at: Utc::now(),
+                };
 
-                (node_id, "re_enrollment")
-            }
-        };
+                diesel::insert_into(enrollment_events::table)
+                    .values(&new_event)
+                    .execute(conn)
+                    .await?;
 
-        // Step 3: Audit log — append-only, never modified.
-        sqlx::query!(
-            r#"
-            INSERT INTO enrollment_events
-                (node_id, event_type, hostname, os_version, agent_version)
-            VALUES ($1, $2, $3, $4, $5)
-            "#,
-            node_id,
-            event_type,
-            record.hostname,
-            record.os_version,
-            record.agent_version,
-        )
-        .execute(&mut *tx)
+                Ok(node_id)
+            })
+        })
         .await
         .map_err(|e| {
-            tracing::error!(err = %e, node_id = %node_id, "audit log insert failed");
+            tracing::error!(
+                err = %e,
+                machine_id = %machine_id_log,
+                "upsert node transaction failed"
+            );
             NodeEnrollmentError::Store(e.to_string())
-        })?;
-
-        // Step 4: Commit.
-        tx.commit().await.map_err(|e| {
-            tracing::error!(err = %e, node_id = %node_id, "commit failed");
-            NodeEnrollmentError::Store(e.to_string())
-        })?;
-
-        tracing::info!(
-            node_id    = %node_id,
-            machine_id = %record.machine_id,
-            event_type = %event_type,
-            "node upserted"
-        );
-
-        Ok(node_id.to_string())
+        })
+        .map(|id| id.to_string())
     }
 }

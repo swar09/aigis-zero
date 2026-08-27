@@ -31,6 +31,13 @@ pub struct Settings {
 
     #[serde(default = "default_jwt_secret")]
     pub jwt_secret: String,
+
+    #[serde(default = "default_db_pool_max_size")]
+    pub db_pool_max_size: usize,
+}
+
+fn default_db_pool_max_size() -> usize {
+    20
 }
 
 fn default_host() -> String {

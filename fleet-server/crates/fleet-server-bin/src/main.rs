@@ -32,12 +32,9 @@ async fn main() -> Result<()> {
         "fleet server starting"
     );
 
-    // Connect to Postgres and run pending migrations before accepting any traffic.
-    // If DATABASE_URL is wrong or Postgres is down, we fail here with a clear error
-    // rather than silently dropping every enrollment that comes in.
-    let pg_pool = postgres_interface::connect(&settings.database_url)
-        .await
-        .context("failed to connect to postgres — check DATABASE_URL and ensure the DB is running")?;
+    // Initialize deadpool-diesel connection pool for Postgres.
+    let pg_pool = postgres_interface::create_pool(&settings.database_url, settings.db_pool_max_size)
+        .context("failed to initialize postgres pool — check DATABASE_URL")?;
 
     let brokers = settings.kafka_brokers.as_deref().unwrap_or("localhost:9092");
     let topic = settings.kafka_topic_agents_events.as_deref().unwrap_or("agents_events");

@@ -5,7 +5,7 @@ use fleet_manager::{EventIngestPort, IncomingEvent, OutgoingCommand};
 use health_tracker::HealthTracker;
 use kafka_handler::KafkaPublisher;
 use node_enrollment::NodeEnroller;
-use postgres_interface::{PgHealthStore, PgNodeStore};
+use postgres_interface::{DbPool, PgHealthStore, PgNodeStore};
 use tonic::Status;
 
 pub struct KafkaEventIngest {
@@ -35,7 +35,7 @@ impl EventIngestPort for KafkaEventIngest {
 }
 
 pub fn build_ports(
-    pg_pool: sqlx::PgPool,
+    pg_pool: DbPool,
     jwt_secret: &str,
     kafka_brokers: &str,
     kafka_topic: &str,

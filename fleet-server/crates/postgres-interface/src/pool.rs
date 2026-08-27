@@ -1,35 +1,57 @@
-use sqlx::postgres::{PgPool, PgPoolOptions};
+use std::time::Duration;
+
+use deadpool_diesel::{Runtime, Timeouts};
+use diesel_async::{
+    AsyncPgConnection,
+    pooled_connection::{
+        AsyncDieselConnectionManager,
+        deadpool::{Object, Pool},
+    },
+};
 
 use crate::error::PgError;
 
-/// Creates a connection pool and runs all pending sqlx migrations.
+/// Type alias for the async diesel deadpool PostgreSQL connection pool.
 ///
-/// Call exactly once at process startup. The returned pool is cheaply
-/// cloneable (`Arc` inside) — pass it by value to `PgNodeStore` and
-/// `PgHealthStore`.
+/// Thread-safe and cheaply cloneable (`Arc` inside).
+pub type DbPool = Pool<AsyncPgConnection>;
+pub type DbConn = Object<AsyncPgConnection>;
+
+/// Creates an async diesel connection pool for PostgreSQL.
+///
+/// Bounded pool size with fast failover timeouts prevents connection and thread exhaustion.
 ///
 /// # Errors
 ///
-/// Returns `PgError::Database` if the connection cannot be established
-/// within the 5-second `acquire_timeout`.
-/// Returns `PgError::Migration` if any migration SQL fails.
-pub async fn connect(database_url: &str) -> Result<PgPool, PgError> {
-    let pool = PgPoolOptions::new()
-        // Sane default for a single fleet-server instance.
-        // Expose this as a config key once you have measured concurrency.
-        .max_connections(5)
-        // Hard fail at startup rather than queue requests silently.
-        .acquire_timeout(std::time::Duration::from_secs(5))
-        .connect(database_url)
-        .await?;
+/// Returns `PgError::PoolConfig` if pool initialization fails.
+pub fn create_pool(database_url: &str, max_size: usize) -> Result<DbPool, PgError> {
+    let config = AsyncDieselConnectionManager::<AsyncPgConnection>::new(database_url);
+    let timeouts = Timeouts {
+        wait: Some(Duration::from_secs(3)),
+        create: Some(Duration::from_secs(5)),
+        recycle: Some(Duration::from_secs(2)),
+    };
 
-    // Migrations are embedded in the binary at compile time via this macro.
-    // The path is relative to this crate's Cargo.toml:
-    //   fleet-server/crates/postgres-interface/ → ../../migrations
-    //   = fleet-server/migrations/
-    // At runtime there is no file dependency — the SQL is in the binary.
-    sqlx::migrate!("../../migrations").run(&pool).await?;
+    let pool = Pool::builder(config)
+        .max_size(max_size)
+        .timeouts(timeouts)
+        .runtime(Runtime::Tokio1)
+        .build()
+        .map_err(|e| PgError::PoolConfig(e.to_string()))?;
 
-    tracing::info!("postgres pool connected and migrations applied");
+    tracing::info!(
+        database_url,
+        max_size,
+        "Diesel async PostgreSQL connection pool initialized"
+    );
     Ok(pool)
+}
+
+/// Helper connecting with default pool size (5).
+///
+/// # Errors
+///
+/// Returns `PgError` if pool creation fails.
+pub async fn connect(database_url: &str) -> Result<DbPool, PgError> {
+    create_pool(database_url, 5)
 }

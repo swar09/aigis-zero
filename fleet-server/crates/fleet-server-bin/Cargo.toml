@@ -18,7 +18,6 @@ health-tracker = { workspace = true }
 fleet-tracing = { workspace = true }
 postgres-interface = { workspace = true }
 kafka-handler = { workspace = true }
-sqlx.workspace = true
 config.workspace = true
 anyhow.workspace = true
 thiserror.workspace = true
