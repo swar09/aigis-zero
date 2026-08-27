@@ -39,6 +39,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Changed
 
+- **fleet-server**: Migrated database layer from sqlx to diesel-async with deadpool connection pooling for non-blocking offline compilation and unified PostgreSQL ORM architecture
 - **workspace**: Consolidated shared dependencies (diesel, diesel-async, deadpool-diesel, yara-x, arc-swap, lru, num_cpus, dotenvy, futures-util, clap, metrics, tempfile) into root workspace dependencies across all crate manifests
 - **rule-engine**: Configured gitignore to exclude downloaded external YARA signatures and STIX JSON files while preserving custom rules in `rules/custom/`
 - **agent**: Switched fleet transport and offline buffer serialization from Protobuf to JSON
@@ -47,6 +48,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Removed
 
+- **workspace**: Removed sqlx from workspace dependencies following the fleet-server diesel-async migration
 - **workspace**: Removed unused `sled` and `http-body` dependencies from root Cargo.toml
 - **kafka-pipeline**: Removed unused `sqlx` dependency from `kafka-pipeline/Cargo.toml`
 
