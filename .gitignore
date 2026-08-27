@@ -57,3 +57,9 @@ dev-testing-skill.md
 agent-analysis.md
 TEST_GUIDE.md
 .agents
+
+# Rule engine downloaded external rules & MITRE datasets
+/rule-engine/rules/*
+!/rule-engine/rules/custom/
+!/rule-engine/rules/custom/**
+!/rule-engine/rules/**/.gitkeep

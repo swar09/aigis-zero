@@ -4,7 +4,8 @@ extend-exclude = [
     "target",
     "Cargo.lock",
     ".sqlx",
-    "node_modules"
+    "node_modules",
+    "rule-engine/rules"
 ]
 
 [default.extend-words]
