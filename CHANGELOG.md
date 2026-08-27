@@ -10,6 +10,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Added
 
+- **rule-engine**: Stream-processing detection microservice consuming typed Kafka topics with YARA-X rule matching
+- **rule-engine**: In-memory MITRE ATT&CK taxonomy loader providing sub-15ns technique enrichment and threat scoring
+- **rule-engine**: Sharded 16-bucket LRU deduplicator to prevent SOC alert flooding during high-volume event bursts
+- **rule-engine**: Dual alert sink persisting to PostgreSQL via diesel-async and broadcasting to Kafka topic `aigis.alerts`
+- **rule-engine**: Dead letter queue producer routing malformed or unparsable event payloads to `aigis.events.dlq`
+- **rule-engine**: SIGHUP rule hot-reload supporting zero-downtime rule updates via atomic pointer swapping
+- **rule-engine**: Prometheus metrics and Axum health check endpoints for liveness and readiness monitoring
+- **scripts**: Automated rule provisioning script (`scripts/fetch-rules.sh`) to download MITRE STIX data and community YARA signatures on demand
 - **api-backend**: REST endpoints for node inventory, alert triage, and telemetry search in Axum 0.8
 - **api-backend**: Bearer JWT authentication and Argon2id password verification on operator routes
 - **api-backend**: Multi-database connection pools with diesel-async for `edr_nodes` (5433), `edr_alerts` (5434), and `edr_logs` (5435)
@@ -31,9 +39,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Changed
 
+- **workspace**: Consolidated shared dependencies (diesel, diesel-async, deadpool-diesel, yara-x, arc-swap, lru, num_cpus, dotenvy, futures-util, clap, metrics, tempfile) into root workspace dependencies across all crate manifests
+- **rule-engine**: Configured gitignore to exclude downloaded external YARA signatures and STIX JSON files while preserving custom rules in `rules/custom/`
 - **agent**: Switched fleet transport and offline buffer serialization from Protobuf to JSON
 - **infra**: Consolidated all scattered configuration files into a single root `.env` and `.env.example`
 - **infra**: Updated PostgreSQL logs database port mapping to 5435 to avoid host port conflicts
+
+### Removed
+
+- **workspace**: Removed unused `sled` and `http-body` dependencies from root Cargo.toml
+- **kafka-pipeline**: Removed unused `sqlx` dependency from `kafka-pipeline/Cargo.toml`
 
 
 ### Fixed
