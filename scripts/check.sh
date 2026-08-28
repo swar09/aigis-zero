@@ -16,6 +16,19 @@ if [[ -z "${DATABASE_URL:-}" && -z "${SQLX_OFFLINE:-}" ]]; then
   export SQLX_OFFLINE=true
 fi
 
+# Support Homebrew keg-only libpq on macOS
+if [[ "$(uname -s)" == "Darwin" ]]; then
+  if [[ -d "/opt/homebrew/opt/libpq" ]]; then
+    export LIBRARY_PATH="/opt/homebrew/opt/libpq/lib:${LIBRARY_PATH:-}"
+    export PKG_CONFIG_PATH="/opt/homebrew/opt/libpq/lib/pkgconfig:${PKG_CONFIG_PATH:-}"
+    export PATH="/opt/homebrew/opt/libpq/bin:$PATH"
+  elif [[ -d "/usr/local/opt/libpq" ]]; then
+    export LIBRARY_PATH="/usr/local/opt/libpq/lib:${LIBRARY_PATH:-}"
+    export PKG_CONFIG_PATH="/usr/local/opt/libpq/lib/pkgconfig:${PKG_CONFIG_PATH:-}"
+    export PATH="/usr/local/opt/libpq/bin:$PATH"
+  fi
+fi
+
 step() { echo -e "\n\033[1;34m▶ $1\033[0m"; }
 ok()   { echo -e "\033[1;32m✔ $1\033[0m"; }
 fail() { echo -e "\033[1;31m✘ $1\033[0m"; exit 1; }
@@ -23,7 +36,7 @@ fail() { echo -e "\033[1;31m✘ $1\033[0m"; exit 1; }
 # --- 1. rustfmt ---
 step "rustfmt (uses nightly for import grouping if available)"
 FMT_CMD="cargo fmt"
-if command -v rustup >/dev/null 2>&1 && rustup toolchain list 2>/dev/null | grep -q "nightly"; then
+if cargo +nightly --version >/dev/null 2>&1; then
   FMT_CMD="cargo +nightly fmt"
 fi
 

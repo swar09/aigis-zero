@@ -11,13 +11,13 @@ use diesel_async::{
 
 use crate::error::PgError;
 
-/// Type alias for the async diesel deadpool PostgreSQL connection pool.
+/// Type alias for the async diesel deadpool `PostgreSQL` connection pool.
 ///
 /// Thread-safe and cheaply cloneable (`Arc` inside).
 pub type DbPool = Pool<AsyncPgConnection>;
 pub type DbConn = Object<AsyncPgConnection>;
 
-/// Creates an async diesel connection pool for PostgreSQL.
+/// Creates an async diesel connection pool for `PostgreSQL`.
 ///
 /// Bounded pool size with fast failover timeouts prevents connection and thread exhaustion.
 ///

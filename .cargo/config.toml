@@ -1,0 +1,5 @@
+[target.aarch64-apple-darwin]
+rustflags = ["-C", "link-arg=-L/opt/homebrew/opt/libpq/lib", "-C", "link-arg=-L/opt/homebrew/lib"]
+
+[target.x86_64-apple-darwin]
+rustflags = ["-C", "link-arg=-L/usr/local/opt/libpq/lib", "-C", "link-arg=-L/usr/local/lib"]
