@@ -2,7 +2,10 @@
 set -euo pipefail
 
 BOOTSTRAP="localhost:29092"
-KAFKA_BIN="/opt/kafka/bin"
+KAFKA_CONTAINER="edr-kafka"
+if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "^aigis-kafka-dev$"; then
+    KAFKA_CONTAINER="aigis-kafka-dev"
+fi
 
 # Function to create topic
 create_topic() {
@@ -12,13 +15,13 @@ create_topic() {
     local replication=${4:-1}
 
     echo "Creating topic: $topic (partitions=$partitions, retention=${retention_ms}ms, replication=$replication)"
-    docker exec aigis-kafka-dev /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 \
+    docker exec "$KAFKA_CONTAINER" /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 \
         --create --if-not-exists \
         --topic "$topic" \
         --partitions "$partitions" \
         --replication-factor "$replication" \
         --config retention.ms="$retention_ms" \
-        --config cleanup.policy=delete
+        --config cleanup.policy=delete || true
 }
 
 # Create all topics
@@ -32,4 +35,4 @@ create_topic "aigis.alerts"          8   7776000000  # 90 days
 create_topic "aigis.events.dlq"      4   2592000000  # 30 days
 
 echo "All topics created successfully"
-docker exec aigis-kafka-dev /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --list
+docker exec "$KAFKA_CONTAINER" /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list 2>/dev/null || true

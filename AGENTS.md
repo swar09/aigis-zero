@@ -37,7 +37,7 @@ The `scripts/` directory contains standard tooling for local development and CI 
 |---|---|---|---|
 | **`check.sh`** | **Daily development & before finishing any task.** | `./scripts/check.sh` or `./scripts/check.sh --fix` | Runs `rustfmt` (via `+nightly`), `clippy` (with `-D warnings`), `typos`, `cargo build`, and `cargo test`. Use `--fix` to automatically format imports and auto-fix clippy suggestions. |
 | **`ci.sh`** | **Pre-push verification.** | `./scripts/ci.sh` | Strictly mirrors GitHub Actions CI. Runs non-destructive format checks, clippy, typos, full build, test suite, documentation tests (`cargo doc`), and security audit (`cargo audit`). |
-| **`setup.sh`** | **Initial workspace onboarding or tool upgrade.** | `./scripts/setup.sh` | Installs locked cargo tools (`typos-cli`, `cargo-audit`, `cargo-cache`, `sqlx-cli`) and marks all shell scripts executable. |
+| **`setup.sh`** | **Initial workspace onboarding or tool upgrade.** | `./scripts/setup.sh` | Cross-platform dependency installer for macOS (Homebrew) and Linux (apt, dnf, pacman, apk). Installs system libraries (`libpq`, `openssl`, `pkg-config`, `protobuf`, `cmake`), Rust nightly toolchain components, locked cargo tools (`typos-cli`, `cargo-audit`, `cargo-cache`, `sqlx-cli`), and marks all shell scripts executable. |
 | **`precommit.sh`** | **Repository setup.** | `./scripts/precommit.sh` | Installs `./scripts/check.sh` as a Git pre-commit hook in `.git/hooks/pre-commit` to prevent committing broken code. |
 | **`infra.sh`** | **One-command infrastructure startup, seeding, and teardown.** | `./scripts/infra.sh` or `./scripts/infra.sh [up\|down\|reset\|seed\|status]` | Boots all Docker containers (PostgreSQL, Kafka, Zookeeper, Kafka UI), waits for health checks, provisions Kafka topics, and applies DDL and mock seed data to all databases. |
 | **`seed.sh`** | **Local database reset or demo data seeding.** | `./scripts/seed.sh` or `./scripts/seed.sh --reset` | Connects to PostgreSQL using `.env` variables and applies migrations and test fixtures from `fleet-server/migrations/seed.sql`. Use `--reset` to drop, recreate, and reseed databases. |
@@ -50,7 +50,7 @@ The `scripts/` directory contains standard tooling for local development and CI 
 
 ### A. Subsystem Overview
 * **`api-backend/`**: Axum 0.8 REST & WebSocket gateway. Uses `diesel-async` with `deadpool` for PostgreSQL and RdKafka for streaming live feeds.
-* **`fleet-server/`**: Tonic gRPC controller handling node enrollment, agent authentication, and telemetry forwarding. Uses `sqlx`.
+* **`fleet-server/`**: Tonic gRPC controller handling node enrollment, agent authentication, and telemetry forwarding. Uses `diesel-async` with `deadpool`.
 * **`kafka-pipeline/`**: Event router & normalizer fanning out `aigis.events.raw` into typed topics.
 * **`rule-engine/`**: Pure-Rust YARA-X scanning and MITRE ATT&CK alert generation.
 * **`agent/`**: Endpoint agent binary running osquery Thrift polling, SQLite WAL buffering, and `nftables` isolation.
