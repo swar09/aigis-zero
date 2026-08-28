@@ -19,6 +19,15 @@ if [[ -f .env ]]; then
   set +a
 fi
 
+# Support Homebrew keg-only libpq on macOS (for psql CLI)
+if [[ "$(uname -s)" == "Darwin" ]]; then
+  if [[ -d "/opt/homebrew/opt/libpq/bin" ]]; then
+    export PATH="/opt/homebrew/opt/libpq/bin:$PATH"
+  elif [[ -d "/usr/local/opt/libpq/bin" ]]; then
+    export PATH="/usr/local/opt/libpq/bin:$PATH"
+  fi
+fi
+
 # Database URLs with defaults matching .env
 DATABASE_URL_NODES="${DATABASE_URL_NODES:-postgres://edr:edrpassword@localhost:5433/edr_nodes}"
 DATABASE_URL_ALERTS="${DATABASE_URL_ALERTS:-postgres://edr:edrpassword@localhost:5434/edr_alerts}"

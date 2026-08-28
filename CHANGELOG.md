@@ -18,6 +18,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - **rule-engine**: SIGHUP rule hot-reload supporting zero-downtime rule updates via atomic pointer swapping
 - **rule-engine**: Prometheus metrics and Axum health check endpoints for liveness and readiness monitoring
 - **scripts**: Automated rule provisioning script (`scripts/fetch-rules.sh`) to download MITRE STIX data and community YARA signatures on demand
+- **scripts**: Cross-platform system and development dependency installation in `scripts/setup.sh` supporting macOS (Homebrew) and Linux distributions (apt, dnf, pacman, apk)
 - **api-backend**: REST endpoints for node inventory, alert triage, and telemetry search in Axum 0.8
 - **api-backend**: Bearer JWT authentication and Argon2id password verification on operator routes
 - **api-backend**: Multi-database connection pools with diesel-async for `edr_nodes` (5433), `edr_alerts` (5434), and `edr_logs` (5435)
@@ -58,6 +59,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - **api-backend**: Added missing native `libcurl4-openssl-dev` dependency required for rdkafka static builds in Docker
 - **agent**: Resolved SQLite thread-safety comments and added unit tests for FleetClient identity handling
 - **kafka-pipeline**: Corrected doc comments in `kafka-admin` and consumer metrics modules
+- **scripts**: Added macOS Homebrew libpq discovery and nightly toolchain verification in development and CI scripts
 
 ---
 
