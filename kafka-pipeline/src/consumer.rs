@@ -1,11 +1,11 @@
 use async_trait::async_trait;
 use rdkafka::{
     config::ClientConfig,
-    consumer::{Consumer, StreamConsumer},
+    consumer::{CommitMode, Consumer, StreamConsumer},
     message::Message,
 };
 use tokio_util::sync::CancellationToken;
-use tracing::{error, info};
+use tracing::{debug, error, info};
 
 /// Trait for implementing Kafka message processors
 #[async_trait]
@@ -43,7 +43,7 @@ impl ConsumerWorker {
             .set("enable.auto.commit", "false")
             .set("auto.commit.interval.ms", "1000")
             .set("fetch.min.bytes", "1")
-            .set("fetch.max.wait.ms", "100")
+            .set("fetch.wait.max.ms", "100")
             .set("max.poll.interval.ms", "300000")
             .set("session.timeout.ms", "45000")
             .create()
@@ -61,7 +61,7 @@ impl ConsumerWorker {
     }
 
     pub async fn run(&self) {
-        use tokio_stream::StreamExt;
+        use futures_util::StreamExt;
 
         info!("Consumer worker started");
 
@@ -87,6 +87,9 @@ impl ConsumerWorker {
                                 error!(error = %e, topic, partition, offset, "Message processing failed; dropping poisoned payload without blocking consumer stream");
                             }
 
+                            if let Err(e) = self.consumer.commit_message(&borrowed_msg, CommitMode::Async) {
+                                debug!(error = %e, "Failed to commit message offset");
+                            }
                         }
                         Some(Err(e)) => {
                             error!(error = %e, "Kafka consumer error");

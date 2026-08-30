@@ -16,13 +16,35 @@ pub struct KafkaEventIngest {
 #[async_trait]
 impl EventIngestPort for KafkaEventIngest {
     async fn ingest_event(&self, event: IncomingEvent) -> Result<Option<OutgoingCommand>, Status> {
-        let payload = if event.payload.is_empty() {
-            b"{}"
+        let payload_val: serde_json::Value = serde_json::from_slice(&event.payload)
+            .unwrap_or_else(|_| serde_json::json!({ "raw": String::from_utf8_lossy(&event.payload) }));
+
+        let event_id = if event.sequence_id.is_empty() {
+            uuid::Uuid::new_v4().to_string()
         } else {
-            event.payload.as_slice()
+            event.sequence_id.clone()
         };
 
-        match self.publisher.publish(&self.topic, &event.node_id, payload).await {
+        let telemetry_envelope = serde_json::json!({
+            "id": event_id,
+            "node_id": event.node_id,
+            "hostname": "",
+            "event_type": event.event_type,
+            "timestamp_ns": event.timestamp_ns,
+            "payload": payload_val,
+            "raw_sequence_id": Some(event.sequence_id.clone()),
+        });
+
+        let payload_bytes = match serde_json::to_vec(&telemetry_envelope) {
+            Ok(bytes) => bytes,
+            Err(_) => event.payload.clone(),
+        };
+
+        match self
+            .publisher
+            .publish(&self.topic, &event.node_id, &payload_bytes)
+            .await
+        {
             Ok(_) => Ok(Some(OutgoingCommand::Ack {
                 sequence_id: event.sequence_id,
             })),
