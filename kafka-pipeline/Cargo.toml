@@ -27,3 +27,4 @@ async-trait.workspace = true
 tokio-util.workspace = true
 tokio-stream.workspace = true
 futures-util = { workspace = true }
+axum = { workspace = true }

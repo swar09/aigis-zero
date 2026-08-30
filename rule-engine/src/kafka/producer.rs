@@ -21,6 +21,9 @@ impl AlertKafkaProducer {
             .set("message.timeout.ms", "5000")
             .set("queue.buffering.max.messages", "100000")
             .set("compression.type", "lz4")
+            .set("linger.ms", "5")
+            .set("batch.num.messages", "10000")
+            .set("acks", "1")
             .create()
             .map_err(|e| AppError::KafkaProduce(format!("Failed to create alerts producer: {e}")))?;
 
