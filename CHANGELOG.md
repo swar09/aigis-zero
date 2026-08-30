@@ -40,6 +40,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - **infra**: Single-command startup script (`./scripts/infra.sh up`) that initializes databases, seeds test data, and provisions Kafka topics
 - **infra**: Automated DDL schema and mock fixtures for `edr_nodes`, `edr_alerts`, and `edr_logs`
 - **frontend**: React and TypeScript operator console for viewing nodes, triaging alerts, and searching logs
+- **docs**: Reorganized architecture and operational instructions across dedicated READMEs in agent, fleet-server, kafka-pipeline, and rule-engine directories
 
 ### Changed
 
