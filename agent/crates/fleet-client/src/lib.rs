@@ -120,8 +120,23 @@ impl FleetClient {
     }
 
     pub async fn enroll(&mut self, request: RegisterRequest) -> Result<RegisterResponse, anyhow::Error> {
+        self.enroll_with_secret(request, None).await
+    }
+
+    pub async fn enroll_with_secret(
+        &mut self,
+        request: RegisterRequest,
+        secret: Option<&str>,
+    ) -> Result<RegisterResponse, anyhow::Error> {
         let client = self.client.as_mut().ok_or_else(|| anyhow::anyhow!("Not connected"))?;
-        let response = client.register_agent(Request::new(request)).await?.into_inner();
+        let mut grpc_req = Request::new(request);
+        if let Some(sec) = secret
+            && let Ok(val) = MetadataValue::try_from(sec)
+        {
+            grpc_req.metadata_mut().insert("x-enrollment-secret", val);
+        }
+
+        let response = client.register_agent(grpc_req).await?.into_inner();
 
         let node_uuid = Uuid::parse_str(&response.node_id)
             .map_err(|e| anyhow::anyhow!("Fleet server returned malformed node_id '{}': {}", response.node_id, e))?;

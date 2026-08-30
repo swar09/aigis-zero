@@ -24,6 +24,7 @@ pub struct FleetServiceImpl {
     heartbeat: Arc<dyn HeartbeatPort>,
     event_ingest: Arc<dyn EventIngestPort>,
     decoding_key: DecodingKey,
+    enrollment_secret: Option<String>,
 }
 
 impl FleetServiceImpl {
@@ -33,20 +34,53 @@ impl FleetServiceImpl {
         event_ingest: Arc<dyn EventIngestPort>,
         jwt_secret: &str,
     ) -> Self {
+        Self::with_enrollment_secret(enrollment, heartbeat, event_ingest, jwt_secret, None)
+    }
+
+    pub fn with_enrollment_secret(
+        enrollment: Arc<dyn EnrollmentPort>,
+        heartbeat: Arc<dyn HeartbeatPort>,
+        event_ingest: Arc<dyn EventIngestPort>,
+        jwt_secret: &str,
+        enrollment_secret: Option<String>,
+    ) -> Self {
         Self {
             enrollment,
             heartbeat,
             event_ingest,
             decoding_key: DecodingKey::from_secret(jwt_secret.as_bytes()),
+            enrollment_secret,
         }
     }
 }
 
 #[async_trait]
 impl FleetService for FleetServiceImpl {
-    // RegisterAgent is intentionally unauthenticated — the agent calls this
-    // once to get its node_id and JWT token.
     async fn register_agent(&self, request: Request<RegisterRequest>) -> Result<Response<RegisterResponse>, Status> {
+        if let Some(ref expected) = self.enrollment_secret
+            && !expected.is_empty()
+        {
+            let provided = request
+                .metadata()
+                .get("x-enrollment-secret")
+                .and_then(|v| v.to_str().ok())
+                .or_else(|| {
+                    request
+                        .metadata()
+                        .get("authorization")
+                        .and_then(|v| v.to_str().ok())
+                        .and_then(|s| s.strip_prefix("Bearer "))
+                });
+
+            match provided {
+                Some(secret) if secret == expected => {}
+                _ => {
+                    tracing::warn!("Agent enrollment rejected: invalid or missing enrollment secret");
+                    return Err(Status::unauthenticated("invalid or missing enrollment secret"));
+                }
+            }
+        }
+
         let req = request.into_inner();
         tracing::info!(
             hostname = %req.hostname,

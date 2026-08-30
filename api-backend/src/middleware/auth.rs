@@ -29,7 +29,7 @@ impl FromRequestParts<AppState> for AuthUser {
         let token_data = decode::<Claims>(
             token,
             &DecodingKey::from_secret(state.config.jwt_secret.as_bytes()),
-            &Validation::default(),
+            &Validation::new(jsonwebtoken::Algorithm::HS256),
         )
         .map_err(|e| AppError::Unauthorized(format!("Invalid or expired token: {e}")))?;
 

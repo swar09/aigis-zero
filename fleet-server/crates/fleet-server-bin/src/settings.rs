@@ -32,6 +32,9 @@ pub struct Settings {
     #[serde(default = "default_jwt_secret")]
     pub jwt_secret: String,
 
+    #[serde(default)]
+    pub fleet_enrollment_secret: Option<String>,
+
     #[serde(default = "default_db_pool_max_size")]
     pub db_pool_max_size: usize,
 }

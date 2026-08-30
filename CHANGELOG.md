@@ -31,6 +31,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - **fleet-server**: Kafka event publisher bridge routing agent telemetry into `aigis.events.raw`
 - **kafka-pipeline**: Event router dividing raw telemetry into typed topics (`process`, `network`, `file`, `auth`)
 - **kafka-pipeline**: Topic administration tool (`kafka-admin`) to provision partitions and retention policies
+- **kafka-pipeline**: Axum HTTP health and Prometheus metrics server listening on port 8082 with liveness and readiness probes
+- **kafka-pipeline**: Detailed Kafka dead-letter-queue record headers for error tracing across pipeline boundaries
 - **agent**: osquery Thrift client using Unix domain sockets with differential query snapshotting
 - **agent**: SQLite WAL buffer for offline telemetry storage during network disconnects
 - **agent**: Host quarantine management using Linux nftables packet-filtering rules
@@ -43,6 +45,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 - **fleet-server**: Migrated database layer from sqlx to diesel-async with deadpool connection pooling for non-blocking offline compilation and unified PostgreSQL ORM architecture
 - **workspace**: Consolidated shared dependencies (diesel, diesel-async, deadpool-diesel, yara-x, arc-swap, lru, num_cpus, dotenvy, futures-util, clap, metrics, tempfile) into root workspace dependencies across all crate manifests
+- **fleet-server**: Configured KafkaPublisher with LZ4 compression, linger micro-batching, and buffer limits
+- **kafka-pipeline**: Configured EventRouter producer with LZ4 compression, micro-batching, and graceful buffer flushing on shutdown
 - **rule-engine**: Configured gitignore to exclude downloaded external YARA signatures and STIX JSON files while preserving custom rules in `rules/custom/`
 - **agent**: Switched fleet transport and offline buffer serialization from Protobuf to JSON
 - **infra**: Consolidated all scattered configuration files into a single root `.env` and `.env.example`
@@ -69,6 +73,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - **agent**: Resolved SQLite thread-safety comments and added unit tests for FleetClient identity handling
 - **kafka-pipeline**: Corrected doc comments in `kafka-admin` and consumer metrics modules
 - **scripts**: Added macOS Homebrew libpq discovery and nightly toolchain verification in development and CI scripts
+
+### Security
+
+- **fleet-server**: Enforced pre-shared enrollment secret (`FLEET_ENROLLMENT_SECRET`) validation on gRPC `RegisterAgent` endpoint to prevent rogue node registration
+- **fleet-server**: Pinned JWT validation to HMAC-SHA256 algorithm in gRPC authentication filter to prevent algorithm downgrade attacks
+- **api-backend**: Pinned JWT decoding strictly to HS256 in authentication middleware
+- **api-backend**: Injected HTTP security headers (`X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `X-XSS-Protection`, `Referrer-Policy`) on all REST and WebSocket responses
+- **dependencies**: Upgraded `h2` from v0.4.15 to v0.4.19 resolving upstream advisory RUSTSEC-2026-0258
 
 ---
 

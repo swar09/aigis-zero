@@ -54,10 +54,11 @@ async fn main() -> anyhow::Result<()> {
         .await;
     });
 
-    // Build Axum Router with standard middleware
+    // Build Axum Router with standard middleware and security headers
     let cors = CorsLayer::new().allow_origin(Any).allow_methods(Any).allow_headers(Any);
 
     let app = routes::create_router(state)
+        .layer(axum::middleware::from_fn(add_security_headers))
         .layer(TraceLayer::new_for_http())
         .layer(cors);
 
@@ -81,4 +82,26 @@ async fn main() -> anyhow::Result<()> {
 
     info!("Aigis-Zero API Backend shutdown complete.");
     Ok(())
+}
+
+async fn add_security_headers(req: axum::extract::Request, next: axum::middleware::Next) -> axum::response::Response {
+    let mut response = next.run(req).await;
+    let headers = response.headers_mut();
+    headers.insert(
+        axum::http::header::X_CONTENT_TYPE_OPTIONS,
+        axum::http::HeaderValue::from_static("nosniff"),
+    );
+    headers.insert(
+        axum::http::header::X_FRAME_OPTIONS,
+        axum::http::HeaderValue::from_static("DENY"),
+    );
+    headers.insert(
+        axum::http::HeaderName::from_static("x-xss-protection"),
+        axum::http::HeaderValue::from_static("1; mode=block"),
+    );
+    headers.insert(
+        axum::http::HeaderName::from_static("referrer-policy"),
+        axum::http::HeaderValue::from_static("strict-origin-when-cross-origin"),
+    );
+    response
 }

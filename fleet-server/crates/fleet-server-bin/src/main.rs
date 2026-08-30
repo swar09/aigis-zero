@@ -40,11 +40,12 @@ async fn main() -> Result<()> {
     let topic = settings.kafka_topic_agents_events.as_deref().unwrap_or("agents_events");
     let (enrollment, heartbeat, event_ingest) = ports::build_ports(pg_pool, &settings.jwt_secret, brokers, topic);
 
-    let service = FleetServiceImpl::new(
+    let service = FleetServiceImpl::with_enrollment_secret(
         Arc::clone(&enrollment) as Arc<dyn fleet_manager::EnrollmentPort>,
         Arc::clone(&heartbeat) as Arc<dyn fleet_manager::HeartbeatPort>,
         Arc::clone(&event_ingest) as Arc<dyn fleet_manager::EventIngestPort>,
         &settings.jwt_secret,
+        settings.fleet_enrollment_secret,
     );
 
     let grpc_config = GrpcListenerConfig {
