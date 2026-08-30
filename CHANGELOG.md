@@ -10,6 +10,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Added
 
+- **agents**: Virtual engineering team skill suite and orchestration framework in `.agents/engineering-team/` with subagent delegation protocols and automation tooling
 - **rule-engine**: Stream-processing detection microservice consuming typed Kafka topics with YARA-X rule matching
 - **rule-engine**: In-memory MITRE ATT&CK taxonomy loader providing sub-15ns technique enrichment and threat scoring
 - **rule-engine**: Sharded 16-bucket LRU deduplicator to prevent SOC alert flooding during high-volume event bursts
@@ -56,6 +57,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Fixed
 
+- **rule-engine**: Corrected invalid librdkafka configuration key `fetch.max.wait.ms` to `fetch.wait.max.ms` to prevent consumer startup panic
+- **kafka-pipeline**: Corrected invalid librdkafka configuration key `fetch.max.wait.ms` to `fetch.wait.max.ms`
+- **fleet-server**: Serialized incoming agent events into structured TelemetryEvent JSON envelopes before publishing to `aigis.events.raw` to preserve event type and node metadata
+- **kafka-pipeline**: Added message offset commits after processing and routed unclassified event types to `aigis.events.dlq` to prevent infinite reprocessing loops
+- **rule-engine**: Added asynchronous consumer message offset commits and expanded payload buffer extraction to parse nested osquery row arrays
+- **infra**: Added missing canonical Kafka topics (process, network, file, auth, dlq, heartbeats) to Docker Compose kafka-init, infra.sh, and create-topics.sh
+- **infra**: Mounted host rule directory and MITRE taxonomy in rule-engine Docker Compose service and copied rules into container build stage
+- **api-backend**: Connected FleetClient to Fleet Server gRPC control plane for host containment dispatch
 - **api-backend**: Added missing native `libcurl4-openssl-dev` dependency required for rdkafka static builds in Docker
 - **agent**: Resolved SQLite thread-safety comments and added unit tests for FleetClient identity handling
 - **kafka-pipeline**: Corrected doc comments in `kafka-admin` and consumer metrics modules

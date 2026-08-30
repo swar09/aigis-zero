@@ -106,3 +106,76 @@ To keep changelog entries clear and natural:
 3. **Consumer Perspective:** Write what changed from a developer or operator perspective rather than internal code refactor steps.
 4. **Breaking Changes:** Prefix breaking modifications with `⚠️ BREAKING:` and include a brief migration note.
 
+---
+
+## 5. Virtual Engineering Team & Agent Orchestration
+
+The repository maintains an autonomous **Virtual Engineering Team** located in `.agents/engineering-team/` and `.agents/skills/`. All agents function as specialized software engineers ("employees") orchestrated by the Lead Agent.
+
+### A. Team Roster & Specialization Matrix
+
+| Agent / Role | Directory / Skill Path | Focus Areas & Subsystems | Primary Scripts & Automation |
+|---|---|---|---|
+| **Senior Architect** | `.agents/engineering-team/senior-architect/` | System architecture, LLD specs, Kafka topic topologies, DB schemas, component boundaries | `project_architect.py`, `dependency_analyzer.py`, `architecture_diagram_generator.py` |
+| **Senior Rust Systems Engineer** | `.agents/skills/rust-senior-engineer/` | High-throughput async Rust, zero-copy pipelines, lock-free safety, Tokio optimization, Zero-Warning clippy | `scripts/check.sh`, `cargo clippy`, `cargo +nightly fmt` |
+| **EDR Agent Developer** | `.agents/engineering-team/edr-agent-developer/` | Endpoint telemetry daemon, osquery Thrift extension IPC, SQLite WAL ring buffer, `nftables` isolation, Tonic gRPC streaming | Mock gRPC servers, `nftables` validation, SQLite recovery benchmarks |
+| **Senior Backend Developer** | `.agents/engineering-team/backend-developer/` | Axum 0.8 REST & WebSocket gateway, Tonic gRPC fleet server, diesel-async repositories, JWT auth, middleware | `api_scaffolder.py`, `backend_decision_engine.py`, `api_load_tester.py`, `scripts/seed.sh` |
+| **Kafka & Data Pipeline Engineer** | `.agents/engineering-team/data-engg-kafka/` | Kafka event routing (`aigis.events.*`), normalization, partition keys, DLQ handling, RdKafka tuning | `pipeline_orchestrator.py`, `data_quality_validator.py`, `etl_performance_optimizer.py` |
+| **Senior Security Engineer** | `.agents/engineering-team/senior-security-engg/` | Threat modeling, MITRE ATT&CK mappings, YARA-X signature engineering, secret audits, host quarantine verification | `threat_modeler.py`, `secret_scanner.py`, `cargo audit` |
+| **Machine Learning Engineer** | `.agents/engineering-team/ml-engg/` | Behavioral anomaly detection, statistical scoring, event classification, ML pipelines | `rag_system_builder.py`, `ml_monitoring_suite.py`, `model_deployment_pipeline.py` |
+| **Test & QA Engineer** | `.agents/engineering-team/test-qa/` | Integration tests, property-based tests, Criterion benchmarks, CI test suites, mock services | `test_suite_generator.py`, `coverage_analyzer.py`, `e2e_test_scaffolder.py`, `cargo test` |
+| **Code Reviewer** | `.agents/engineering-team/code-reviewer/` | Static analysis verification, anti-pattern detection, zero-warning compliance, idiomatic reviews | `code_quality_checker.py`, `pr_analyzer.py`, `review_report_generator.py` |
+| **Zero-Hallucination Coder** | `.agents/engineering-team/hallucination-checker/` | 5-phase loop (Discuss $\to$ Map $\to$ Decompose $\to$ Execute $\to$ Verify), YAGNI / Ponytail elimination ladder | 5-phase loop, Ponytail ladder |
+| **Senior Prompt Engineer** | `.agents/engineering-team/senior-prompt-engg/` | System prompt design, evaluation matrices, context optimization, subagent prompt authoring | `prompt_optimizer.py`, `rag_evaluator.py`, `agent_orchestrator.py` |
+| **Documentation Specialist** | `.agents/skills/rust-doc-agent/`, `humanizer/` | Crate docstrings, doctests, READMEs, architectural documentation, humanizer style checks | `rust-doc-agent`, `humanizer`, `readme-humanizer` |
+
+### B. Orchestration & Delegation Lifecycle
+
+```
+[Requirement / Feature Request]
+              |
+              v
+     [Lead Orchestrator]
+              |
+     +--------+---------------------------------------+
+     | 1. Design & RFC                                | 2. Threat & Schema Review
+     v                                                v
+[Senior Architect]                           [Senior Security Engineer]
+     |                                                |
+     +--------+---------------------------------------+
+              |
+              v
+   [Zero-Hallucination Coder] (Decompose into atomic stories)
+              |
+     +--------+-----------------------+-----------------------+
+     |                                |                       |
+     v                                v                       v
+[EDR Agent Dev]             [Senior Backend Dev]     [Data / Kafka Engg]
+ (agent/* crates)            (api-backend, fleet)     (kafka-pipeline)
+     |                                |                       |
+     +--------+-----------------------+-----------------------+
+              |
+              v
+     [Test & QA Engineer] (Integration tests & benchmarks)
+              |
+              v
+     [Code Reviewer] (Strict quality check & clippy verification)
+              |
+              v
+     [Doc Agent & Humanizer] (Docs, doctests, CHANGELOG.md)
+```
+
+### C. Subagent Spawning & Execution Rules
+
+1. **Autonomous Delegation:**
+   * Any agent or subagent may spawn additional specialized subagents (`invoke_subagent` or `define_subagent`) to parallelize work or isolate experimental code changes.
+   * Agents may execute workspace scripts (`./scripts/check.sh`, `./scripts/infra.sh`, `./scripts/seed.sh`) or agent-specific tools (`.agents/engineering-team/*/scripts/*.py`) using standard shell runners.
+
+2. **Inter-Agent Communication:**
+   * Agents coordinate handoffs and exchange context using `send_message` or structured markdown artifacts.
+   * Deliverables must include concrete file paths, line numbers, and verifiable test results.
+
+3. **Strict Compliance:**
+   * All subagents inherit the mandatory quality gates: zero warnings, nightly formatting, and passing test suites.
+
+
