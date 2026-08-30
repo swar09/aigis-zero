@@ -33,6 +33,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN useradd -m -u 1001 -s /bin/bash edr
 
 RUN mkdir -p /etc/aigis/rules && chown -R edr:edr /etc/aigis
+COPY --chown=edr:edr rule-engine/rules /etc/aigis/rules
 
 COPY --from=builder /build/target/release/edr-rule-engine /usr/local/bin/edr-rule-engine
 RUN chmod +x /usr/local/bin/edr-rule-engine

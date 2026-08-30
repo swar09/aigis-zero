@@ -15,6 +15,13 @@ create_topic() {
     local replication=${4:-1}
 
     echo "Creating topic: $topic (partitions=$partitions, retention=${retention_ms}ms, replication=$replication)"
+    docker exec "$KAFKA_CONTAINER" kafka-topics --bootstrap-server localhost:9092 \
+        --create --if-not-exists \
+        --topic "$topic" \
+        --partitions "$partitions" \
+        --replication-factor "$replication" \
+        --config retention.ms="$retention_ms" \
+        --config cleanup.policy=delete || \
     docker exec "$KAFKA_CONTAINER" /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 \
         --create --if-not-exists \
         --topic "$topic" \
@@ -35,4 +42,5 @@ create_topic "aigis.alerts"          8   7776000000  # 90 days
 create_topic "aigis.events.dlq"      4   2592000000  # 30 days
 
 echo "All topics created successfully"
+docker exec "$KAFKA_CONTAINER" kafka-topics --bootstrap-server localhost:9092 --list 2>/dev/null || \
 docker exec "$KAFKA_CONTAINER" /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list 2>/dev/null || true

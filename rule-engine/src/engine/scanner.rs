@@ -11,7 +11,7 @@ use crate::{
 pub fn extract_scannable_buffer(event: &TelemetryEvent) -> Vec<u8> {
     let mut buffer = Vec::with_capacity(1024);
 
-    if let Some(obj) = event.payload.as_object() {
+    let mut scan_object = |obj: &serde_json::Map<String, serde_json::Value>| {
         for key in [
             "cmdline",
             "cmd",
@@ -32,6 +32,17 @@ pub fn extract_scannable_buffer(event: &TelemetryEvent) -> Vec<u8> {
             if let Some(serde_json::Value::String(val)) = obj.get(key) {
                 buffer.extend_from_slice(val.as_bytes());
                 buffer.push(b'\n');
+            }
+        }
+    };
+
+    if let Some(obj) = event.payload.as_object() {
+        scan_object(obj);
+        if let Some(rows) = obj.get("rows").and_then(|r| r.as_array()) {
+            for row in rows {
+                if let Some(row_obj) = row.as_object() {
+                    scan_object(row_obj);
+                }
             }
         }
     }

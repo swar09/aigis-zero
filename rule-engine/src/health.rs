@@ -15,6 +15,8 @@ pub fn create_health_router(state: AppState) -> Router {
     Router::new()
         .route("/health/live", get(liveness_handler))
         .route("/health/ready", get(readiness_handler))
+        .route("/healthz", get(liveness_handler))
+        .route("/readyz", get(readiness_handler))
         .route("/metrics", get(metrics_handler))
         .with_state(state)
 }

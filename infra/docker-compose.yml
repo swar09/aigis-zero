@@ -60,10 +60,13 @@ services:
     env_file:
       - ../.env
     environment:
-      - DATABASE_URL=postgres://edr:${POSTGRES_PASSWORD:-edrpassword}@postgres-alerts:5432/edr_alerts
+      - DATABASE_URL=postgres://edr:${POSTGRES_PASSWORD:-edrpassword_change_in_production}@postgres-alerts:5432/edr_alerts
       - KAFKA_BROKERS=kafka:29092
       - HEALTH_PORT=8081
       - RULES_DIR=/etc/aigis/rules
+      - MITRE_TAXONOMY_PATH=/etc/aigis/rules/mitre/enterprise-attack-linux.json
+    volumes:
+      - ../rule-engine/rules:/etc/aigis/rules:ro
     depends_on:
       postgres-alerts:
         condition: service_healthy
@@ -118,9 +121,15 @@ services:
     command: |
       "
       kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic aigis.events.raw --partitions 12 --replication-factor 1
+      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic aigis.events.process --partitions 12 --replication-factor 1
+      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic aigis.events.network --partitions 12 --replication-factor 1
+      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic aigis.events.file --partitions 8 --replication-factor 1
+      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic aigis.events.auth --partitions 8 --replication-factor 1
       kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic aigis.events.norm --partitions 12 --replication-factor 1
+      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic aigis.heartbeats --partitions 4 --replication-factor 1
       kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic aigis.alerts --partitions 4 --replication-factor 1
       kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic aigis.health --partitions 4 --replication-factor 1
+      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic aigis.events.dlq --partitions 4 --replication-factor 1
       echo 'Topics created.'
       "
     restart: on-failure

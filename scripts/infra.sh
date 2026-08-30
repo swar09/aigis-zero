@@ -102,10 +102,9 @@ apply_seeds() {
 create_kafka_topics() {
   log_step "Verifying Kafka Topics..."
   if docker ps --format '{{.Names}}' | grep -q "^edr-kafka$"; then
-    docker exec -i edr-kafka kafka-topics --bootstrap-server localhost:9092 --create --if-not-exists --topic aigis.events.raw --partitions 12 --replication-factor 1 >/dev/null 2>&1 || true
-    docker exec -i edr-kafka kafka-topics --bootstrap-server localhost:9092 --create --if-not-exists --topic aigis.events.norm --partitions 12 --replication-factor 1 >/dev/null 2>&1 || true
-    docker exec -i edr-kafka kafka-topics --bootstrap-server localhost:9092 --create --if-not-exists --topic aigis.alerts --partitions 4 --replication-factor 1 >/dev/null 2>&1 || true
-    docker exec -i edr-kafka kafka-topics --bootstrap-server localhost:9092 --create --if-not-exists --topic aigis.health --partitions 4 --replication-factor 1 >/dev/null 2>&1 || true
+    for topic in aigis.events.raw aigis.events.process aigis.events.network aigis.events.file aigis.events.auth aigis.events.norm aigis.heartbeats aigis.alerts aigis.health aigis.events.dlq; do
+      docker exec -i edr-kafka kafka-topics --bootstrap-server localhost:9092 --create --if-not-exists --topic "$topic" --partitions 4 --replication-factor 1 >/dev/null 2>&1 || true
+    done
     log_ok "Kafka topics initialized."
   fi
 }

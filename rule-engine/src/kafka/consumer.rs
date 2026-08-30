@@ -3,7 +3,7 @@ use std::sync::Arc;
 use futures_util::StreamExt;
 use rdkafka::{
     config::ClientConfig,
-    consumer::{Consumer, StreamConsumer},
+    consumer::{CommitMode, Consumer, StreamConsumer},
     message::Message,
 };
 use tokio::sync::mpsc::Sender;
@@ -36,7 +36,7 @@ impl TelemetryConsumer {
             .set("enable.auto.commit", "false")
             .set("enable.auto.offset.store", "false")
             .set("fetch.min.bytes", "1")
-            .set("fetch.max.wait.ms", "100")
+            .set("fetch.wait.max.ms", "100")
             .set("session.timeout.ms", "45000")
             .set("max.poll.interval.ms", "300000")
             .create()
@@ -102,9 +102,9 @@ impl TelemetryConsumer {
                                 }
                             }
 
-                            // Store offset to commit periodically
-                            if let Err(e) = self.consumer.store_offset_from_message(&borrowed_msg) {
-                                warn!(error = %e, topic, partition, offset, "Failed to store message offset");
+                            // Commit offset to Kafka broker
+                            if let Err(e) = self.consumer.commit_message(&borrowed_msg, CommitMode::Async) {
+                                warn!(error = %e, topic, partition, offset, "Failed to commit message offset");
                             }
                         }
                         Some(Err(e)) => {
