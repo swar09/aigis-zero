@@ -485,8 +485,11 @@ async fn test_ut22_sharded_distribution() {
     }
 }
 
+static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 #[test]
 fn test_ut26_config_from_env_defaults() {
+    let _lock = ENV_LOCK.lock().unwrap();
     unsafe {
         std::env::set_var("DATABASE_URL", "postgres://localhost/edr_alerts");
     }
@@ -502,6 +505,7 @@ fn test_ut26_config_from_env_defaults() {
 
 #[test]
 fn test_ut27_config_missing_database_url() {
+    let _lock = ENV_LOCK.lock().unwrap();
     // Safety: isolated unit test validating missing environment variable error
     unsafe {
         std::env::remove_var("DATABASE_URL");

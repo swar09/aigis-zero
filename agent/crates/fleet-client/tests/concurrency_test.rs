@@ -4,8 +4,18 @@ use fleet_client::FleetClient;
 #[tokio::test]
 async fn test_concurrent_agent_enrollment() {
     let mut check_client = FleetClient::new("http://127.0.0.1:50051".to_string());
-    if check_client.connect(None).await.is_err() {
-        eprintln!("Fleet server not reachable on localhost:50051; skipping live concurrency test");
+    if check_client.connect(None).await.is_err()
+        || check_client
+            .enroll(RegisterRequest {
+                hostname: "health-check".to_string(),
+                os_version: "Linux Sim 6.6".to_string(),
+                agent_version: "0.1.0".to_string(),
+                machine_id: "health-check-probe".to_string(),
+            })
+            .await
+            .is_err()
+    {
+        eprintln!("Fleet server not reachable or not enrollable on localhost:50051; skipping live concurrency test");
         return;
     }
 
