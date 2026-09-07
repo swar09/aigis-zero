@@ -43,6 +43,9 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 dist-ssr/
+.next/
+out/
+*.tsbuildinfo
 
 # IDE and Project files
 *.suo
