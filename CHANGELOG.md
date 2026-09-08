@@ -41,6 +41,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - **infra**: Automated DDL schema and mock fixtures for `edr_nodes`, `edr_alerts`, and `edr_logs`
 - **frontend**: React and TypeScript operator console for viewing nodes, triaging alerts, and searching logs
 - **docs**: Reorganized architecture and operational instructions across dedicated READMEs in agent, fleet-server, kafka-pipeline, and rule-engine directories
+- **fleet-client**: Added concurrent multi-agent enrollment integration test verifying race-free registration under simultaneous agent load
 
 ### Changed
 
@@ -74,6 +75,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - **agent**: Resolved SQLite thread-safety comments and added unit tests for FleetClient identity handling
 - **kafka-pipeline**: Corrected doc comments in `kafka-admin` and consumer metrics modules
 - **scripts**: Added macOS Homebrew libpq discovery and nightly toolchain verification in development and CI scripts
+- **infra**: Pinned Fleet Server gRPC port to 50051 in Docker Compose to prevent port collision with the API backend port variable
+- **infra**: Added missing kafka-pipeline stream router service definition to Docker Compose configuration
+- **agent**: Marked /run/osquery path optional in systemd service mount namespace to prevent startup failure when the directory is absent on boot
 
 ### Security
 

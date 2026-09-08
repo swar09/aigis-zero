@@ -41,6 +41,7 @@ services:
     env_file:
       - ../.env
     environment:
+      - PORT=50051
       - DATABASE_URL=postgres://edr:${POSTGRES_PASSWORD:-edrpassword}@postgres-nodes:5432/edr_nodes
       - KAFKA_BROKERS=kafka:29092
     depends_on:
@@ -70,6 +71,24 @@ services:
     depends_on:
       postgres-alerts:
         condition: service_healthy
+      kafka:
+        condition: service_healthy
+
+  kafka-pipeline:
+    build:
+      context: ..
+      dockerfile: kafka-pipeline/Dockerfile
+    image: aigis-kafka-pipeline:latest
+    container_name: edr-kafka-pipeline
+    restart: unless-stopped
+    ports:
+      - "${PIPELINE_HEALTH_PORT:-8082}:8082"
+    env_file:
+      - ../.env
+    environment:
+      - KAFKA_BROKERS=kafka:29092
+      - HEALTH_PORT=8082
+    depends_on:
       kafka:
         condition: service_healthy
 
