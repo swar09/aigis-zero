@@ -42,6 +42,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - **frontend**: React and TypeScript operator console for viewing nodes, triaging alerts, and searching logs
 - **docs**: Reorganized architecture and operational instructions across dedicated READMEs in agent, fleet-server, kafka-pipeline, and rule-engine directories
 - **fleet-client**: Added concurrent multi-agent enrollment integration test verifying race-free registration under simultaneous agent load
+- **api-backend**: Production micro-batch telemetry persistence pipeline inserting Kafka events into PostgreSQL edr_logs database
 
 ### Changed
 
@@ -78,6 +79,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - **infra**: Pinned Fleet Server gRPC port to 50051 in Docker Compose to prevent port collision with the API backend port variable
 - **infra**: Added missing kafka-pipeline stream router service definition to Docker Compose configuration
 - **agent**: Marked /run/osquery path optional in systemd service mount namespace to prevent startup failure when the directory is absent on boot
+- **api-backend**: Extracted agent UUID, event type, and payload correctly from osquery telemetry envelopes across WebSocket and REST feeds
 
 ### Security
 

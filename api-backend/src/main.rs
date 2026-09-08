@@ -28,10 +28,11 @@ async fn main() -> anyhow::Result<()> {
 
     let state = AppState::new(settings.clone())?;
 
-    // Spawn Background Kafka Consumer
+    // Spawn Background Kafka Consumer and Persistence Worker
     let kafka_brokers = settings.kafka_brokers.clone();
     let kafka_group = settings.kafka_consumer_group.clone();
     let broadcast_tx = state.broadcast_tx.clone();
+    let log_repo = state.log_service.repo();
     let kafka_shutdown = shutdown_token.clone();
 
     tokio::spawn(async move {
@@ -49,6 +50,7 @@ async fn main() -> anyhow::Result<()> {
                 "aigis.health",
             ],
             broadcast_tx,
+            log_repo,
             kafka_shutdown,
         )
         .await;

@@ -6,13 +6,14 @@ use uuid::Uuid;
 use crate::{
     db::{DbPool, schema::event_logs},
     error::AppError,
-    models::log::{EventLogEntity, LogFilterParams},
+    models::log::{EventLogEntity, LogFilterParams, NewEventLogEntity},
 };
 
 #[async_trait]
 pub trait LogRepository: Send + Sync {
     async fn search_logs(&self, params: LogFilterParams) -> Result<Vec<EventLogEntity>, AppError>;
     async fn find_by_id(&self, target_id: Uuid) -> Result<Option<EventLogEntity>, AppError>;
+    async fn insert_batch(&self, logs: &[NewEventLogEntity]) -> Result<(), AppError>;
 }
 
 #[derive(Clone)]
@@ -69,5 +70,22 @@ impl LogRepository for DieselLogRepository {
             .optional()?;
 
         Ok(log)
+    }
+
+    async fn insert_batch(&self, logs: &[NewEventLogEntity]) -> Result<(), AppError> {
+        if logs.is_empty() {
+            return Ok(());
+        }
+
+        let mut conn = self.pool.get().await?;
+
+        diesel::insert_into(event_logs::table)
+            .values(logs)
+            .on_conflict(event_logs::event_id)
+            .do_nothing()
+            .execute(&mut conn)
+            .await?;
+
+        Ok(())
     }
 }

@@ -18,6 +18,19 @@ pub struct EventLogEntity {
     pub recorded_at: DateTime<Utc>,
 }
 
+#[derive(Debug, Clone, Insertable, Serialize, Deserialize)]
+#[diesel(table_name = event_logs)]
+#[diesel(check_for_backend(diesel::pg::Pg))]
+pub struct NewEventLogEntity {
+    pub event_id: Uuid,
+    pub node_id: Uuid,
+    pub event_type: String,
+    pub hostname: String,
+    pub payload: serde_json::Value,
+    pub raw_sequence_id: Option<String>,
+    pub recorded_at: DateTime<Utc>,
+}
+
 #[derive(Debug, Deserialize)]
 pub struct LogFilterParams {
     pub node_id: Option<Uuid>,

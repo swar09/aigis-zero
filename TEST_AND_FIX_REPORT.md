@@ -210,9 +210,9 @@ During Phase 0 and Phase 4, the team uncovered two areas of documentation drift:
 1. **Host-Level Installer Safety (ISSUE-1-1):**
    - `agent/install.sh` and `agent/uninstall.sh` currently call `systemctl stop osqueryd.service` unconditionally.
    - For hosts with an existing osquery installation, installer scripts should support a `--skip-osquery` flag to prevent disturbing external osquery services.
-2. **Normalized Telemetry Persistence Architecture:**
-   - `edr_logs` table in PostgreSQL (port 5435) is prepared with DDL schema and mock data, but `kafka-pipeline` is designed as a pure streaming router fanning out to typed Kafka topics.
-   - Long-term log archiving from Kafka topics to PostgreSQL or cold storage is delegated to dedicated log storage consumers.
+2. **Telemetry Log Storage & Retention Policies:**
+   - With the production micro-batch persistence pipeline now active in `api-backend`, events are written directly to PostgreSQL `edr_logs.event_logs`.
+   - In production with high fleet scale, retention policies (e.g. pg_partman partition rotation or 30-day purge crons) should be configured to manage table growth over time.
 
 ---
 
@@ -222,10 +222,12 @@ The following entries were recorded under `## [Unreleased]` in `CHANGELOG.md` fo
 
 - **Added**:
   - `fleet-client`: Added concurrent multi-agent enrollment integration test verifying race-free registration under simultaneous agent load.
+  - `api-backend`: Production micro-batch telemetry persistence pipeline inserting Kafka events into PostgreSQL edr_logs database.
 - **Fixed**:
   - `infra`: Pinned Fleet Server gRPC port to 50051 in Docker Compose to prevent port collision with the API backend port variable.
   - `infra`: Added missing kafka-pipeline stream router service definition to Docker Compose configuration.
   - `agent`: Marked /run/osquery path optional in systemd service mount namespace to prevent startup failure when the directory is absent on boot.
+  - `api-backend`: Extracted agent UUID, event type, and payload correctly from osquery telemetry envelopes across WebSocket and REST feeds.
 
 ---
 
