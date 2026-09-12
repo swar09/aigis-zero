@@ -110,6 +110,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Fixed
 
+- **agent**: Passed configured enrollment secret during fleet registration handshake to allow successful node authentication
+
 - **frontend**: WebSocket heartbeat payload corrected from `{ type: 'ping' }` to `{ action: 'ping' }` matching backend parser schema in `models/ws.rs`
 - **fleet-client**: Added pre-enrollment validation check in concurrent integration test to safely skip when fleet server is offline
 - **rule-engine**: Corrected invalid librdkafka configuration key `fetch.max.wait.ms` to `fetch.wait.max.ms` to prevent consumer startup panic
