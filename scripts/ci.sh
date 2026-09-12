@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # scripts/ci.sh
-# Exact commands CI runs. No auto-fixing — everything must already be clean.
+# Exact commands CI runs. No auto-fixing: everything must already be clean.
 # Usage: ./scripts/ci.sh
 
 # Ensure SQLX_OFFLINE=true is defaulted if DATABASE_URL is not set so checks don't fail when DB is down
@@ -49,5 +49,11 @@ cargo doc --all-features --no-deps
 
 step "security audit"
 command -v cargo-audit >/dev/null 2>&1 && cargo audit || echo "  (cargo-audit not installed: cargo install cargo-audit)"
+
+# --- frontend ---
+if [[ -f "scripts/frontend-check.sh" && -d "frontend" ]]; then
+  step "frontend"
+  ./scripts/frontend-check.sh
+fi
 
 echo -e "\n\033[1;32mCI checks passed locally.\033[0m"
