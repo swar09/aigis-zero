@@ -1,3 +1,61 @@
-target/
+# ==============================================================================
+# Aigis-Zero Docker Build Ignore Configuration
+# Prevents secret leakage, excludes massive node_modules/build caches,
+# and minimizes Docker build context for lightning-fast container builds.
+# ==============================================================================
+
+# VCS & Git
 .git/
 .github/
+.gitignore
+
+# Build Outputs & Compilation Caches
+target/
+**/target/
+
+# Environment Variables & Secrets (CRITICAL: NEVER LEAK TO DOCKER ENGINE)
+.env
+.env.*
+*.env
+*.env.*
+infra/.env
+*.pem
+*.key
+*.crt
+*.pfx
+*.passwd
+*.secrets
+
+# Node & Frontend Build Artifacts
+frontend/node_modules/
+**/node_modules/
+frontend/.next/
+frontend/out/
+frontend/dist/
+frontend/*.tsbuildinfo
+
+# Local Databases & Persistent Logs
+logs/
+*.log
+*.sqlite
+*.sqlite3
+*.db
+
+# Agent Automation, Skills & Local CLI Configs
+.agents/
+.antigravitycli/
+.gemini/
+
+# IDE & OS Metadata
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# Test & Verification Reports
+tests/
+TEST_AND_FIX_REPORT.md
+ISSUES.md
