@@ -33,9 +33,7 @@ Before completing any task or pushing code:
 
 The `scripts/` directory contains standard tooling for local development and CI verification. **Always use these scripts rather than running ad-hoc commands.**
 
-| Script | When to Use | Execution Command | Behavior & Rules |
-|---|---|---|---|
-| **`check.sh`** | **Daily development & before finishing any task.** | `./scripts/check.sh` or `./scripts/check.sh --fix` | Runs `rustfmt` (via `+nightly`), `clippy` (with `-D warnings`), `typos`, `cargo build`, and `cargo test`. Use `--fix` to automatically format imports and auto-fix clippy suggestions. |
+| **`check.sh`** | **Daily development & before finishing any task.** | `./scripts/check.sh [all\|frontend\|backend\|<service>] [--fix]` | Runs quality checks across frontend and backend. Supports targeting frontend only, backend only, specific services (api-backend, fleet-server, agent, kafka-pipeline, rule-engine, sdk), or individual crates. Defaults to checking everything. Use `--fix` to automatically format code and auto-fix clippy and lint suggestions. |
 | **`ci.sh`** | **Pre-push verification.** | `./scripts/ci.sh` | Strictly mirrors GitHub Actions CI. Runs non-destructive format checks, clippy, typos, full build, test suite, documentation tests (`cargo doc`), and security audit (`cargo audit`). |
 | **`setup.sh`** | **Initial workspace onboarding or tool upgrade.** | `./scripts/setup.sh` | Cross-platform dependency installer for macOS (Homebrew) and Linux (apt, dnf, pacman, apk). Installs system libraries (`libpq`, `openssl`, `pkg-config`, `protobuf`, `cmake`), Rust nightly toolchain components, locked cargo tools (`typos-cli`, `cargo-audit`, `cargo-cache`, `sqlx-cli`), and marks all shell scripts executable. |
 | **`precommit.sh`** | **Repository setup.** | `./scripts/precommit.sh` | Installs `./scripts/check.sh` as a Git pre-commit hook in `.git/hooks/pre-commit` to prevent committing broken code. |
@@ -177,5 +175,4 @@ The repository maintains an autonomous **Virtual Engineering Team** located in `
 
 3. **Strict Compliance:**
    * All subagents inherit the mandatory quality gates: zero warnings, nightly formatting, and passing test suites.
-
 

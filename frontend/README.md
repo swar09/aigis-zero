@@ -1,73 +1,66 @@
-# React + TypeScript + Vite
+# Aigis-Zero Console
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Management console for the Aigis-Zero platform, built with Next.js App Router and TypeScript.
 
-Currently, two official plugins are available:
+## Architecture
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+The console provides five operational views:
+* **System Overview (`/`):** Real-time fleet health metrics, active threat counts, and live telemetry throughput over WebSocket.
+* **Endpoints Inventory (`/endpoints`):** Enrolled host directory, heartbeat status, operating system metadata, and network isolation controls.
+* **Security Detections (`/alerts`):** YARA-X rule detections, MITRE ATT&CK taxonomy classification, threat scoring, and analyst triage controls.
+* **Threat Hunt (`/hunt`):** Structured query interface across process, network, socket, file, and auth telemetry with expandable JSON payload inspection.
+* **System Settings (`/settings`):** Backend health status, fleet server gRPC connection details, agent bootstrap script, and session management.
 
-## React Compiler
+## Getting Started
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### Prerequisites
+* Node.js v20+ (tested with v26)
+* Running Aigis-Zero API backend on port 8088
 
-## Expanding the ESLint configuration
+### Development Server
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+Run the development server on port 3000:
+```bash
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+### Production Build
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+Create an optimized static and server-rendered production build:
+```bash
+npm run build
+npm run start
 ```
+
+### Linting
+
+Verify ESLint compliance:
+```bash
+npm run lint
+```
+
+## Backend Connectivity
+
+API requests to `/api/v1/:path*`, `/healthz`, and `/readyz` are proxied to the local API backend via Next.js rewrites defined in `next.config.mjs`.
+
+Default backend URL: `http://127.0.0.1:8088`
+
+To override the backend destination during development, set the `BACKEND_URL` environment variable:
+```bash
+BACKEND_URL=http://localhost:8088 npm run dev
+```
+
+## Design Specification
+
+Visual styles follow the Cloudflare light theme tokens defined in `.agents/design-spec.md`:
+* Background: `#f6f6f7`
+* Surface: `#ffffff`
+* Border: `#e5e5e5`
+* Primary text: `#1a1a1a`
+* Muted text: `#8b8b8b`
+* Primary accent: `#3b82f6`
+* Success: `#16a34a`
+* Warning: `#b45309`
+* Danger: `#dc2626`

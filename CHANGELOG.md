@@ -39,11 +39,39 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - **agent**: Hardware-stable machine ID extraction and OS release parsing from `/etc/os-release`
 - **infra**: Single-command startup script (`./scripts/infra.sh up`) that initializes databases, seeds test data, and provisions Kafka topics
 - **infra**: Automated DDL schema and mock fixtures for `edr_nodes`, `edr_alerts`, and `edr_logs`
-- **frontend**: React and TypeScript operator console for viewing nodes, triaging alerts, and searching logs
+- **frontend**: Next.js App Router operator console with Cloudflare light theme tokens, real-time WebSocket telemetry ingestion, and threat hunt telemetry query interface
 - **docs**: Reorganized architecture and operational instructions across dedicated READMEs in agent, fleet-server, kafka-pipeline, and rule-engine directories
+- **fleet-client**: Added concurrent multi-agent enrollment integration test verifying race-free registration under simultaneous agent load
+- **api-backend**: Production micro-batch telemetry persistence pipeline inserting Kafka events into PostgreSQL edr_logs database
+- **frontend**: Added dedicated Event Logs (/logs) and Network Activity & Containment (/network) console views
+- **frontend**: Next.js auth guard middleware protecting console routes with cookie verification
+- **frontend**: Accessible Modal and Drawer primitives with ARIA dialog roles, focus management, and keyboard dismissal
+- **frontend**: Reusable LogTable telemetry viewer unifying event inspection across log audit and threat hunt views
+- **frontend**: Route-level loading skeleton (loading.tsx), runtime error recovery boundary (error.tsx), and 404 page (not-found.tsx)
+- **frontend**: Vitest and React Testing Library automated test suite with 26 unit and component tests across API client, query cache, status badges, metric cards, dialog modals, drawers, and permission guards
+- **frontend**: Client query cache in `lib/cache.ts` providing in-flight request deduplication and TTL-based stale-while-revalidate data delivery
+- **frontend**: Role-based access control guard component `<Can>` for conditional rendering based on user permission claims
+- **frontend**: Client API methods for `getMe`, `getLogById`, and paginated result retrieval with total count preservation
+- **frontend**: Strict HTTP response security headers in `next.config.mjs` including X-Frame-Options, X-Content-Type-Options, and Referrer-Policy
+- **scripts**: Dedicated frontend quality verification script `scripts/frontend-check.sh` integrated into `scripts/check.sh` and `scripts/ci.sh`
+- **scripts**: Enhanced `scripts/check.sh` with target selection supporting frontend only, backend only, specific services (api-backend, fleet-server, agent, kafka-pipeline, rule-engine, sdk), individual crates, and full suite execution by default
 
 ### Changed
 
+- **frontend**: Aligned sidebar icons and page title headers across all console navigation tabs with Threat Hunt included
+- **frontend**: Replaced fragile WebSocket host matching with configurable URLs, exponential backoff with jitter, and keep-alive ping heartbeats
+- **frontend**: Removed direct DOM style mutations in sidebar links in favor of pure CSS pseudo-classes
+- **frontend**: Fixed accessibility violations across login forms, modal dialogs, and detail drawers
+- **rule-engine**: Synchronized environment variable mutation in unit tests with a static mutex lock to prevent concurrent test races
+- **frontend**: Flattened sidebar into direct clickable tabs for Alerts, Endpoints, Logs, Network, Dashboard, and Settings, removing nested section headers and sub-item labels
+- **frontend**: Unified sidebar collapse toggle into a single button on the TopBar Aigis-Zero logo and removed separate Hide and Show Menu controls
+- **frontend**: Removed bottom Aigis-Zero branding from sidebar to maintain brand identity strictly in the top bar
+- **frontend**: Confined sliding ASCII background exclusively to the login screen, leaving the authenticated dashboard layout clean
+- **frontend**: Implemented dynamic viewport row and column repeat calculations in AsciiBackground to eliminate blank gaps across zoom levels and resolutions
+- **frontend**: Replaced complex operator authentication copy with standard terminology (Username, Password, Sign in)
+- **frontend**: Aligned operator interface with Aigis-Zero editorial identity, restored favicon and logo assets across the console, and added full-viewport scrolling ASCII background
+- **frontend**: Removed EDR branding labels and version strings across console headers, sidebar, and documentation
+- **agents**: Reorganized agents directory into dedicated directories per agent at `.agents/agents/{agent_name}/agent.md` with updated index and documentation
 - **fleet-server**: Migrated database layer from sqlx to diesel-async with deadpool connection pooling for non-blocking offline compilation and unified PostgreSQL ORM architecture
 - **workspace**: Consolidated shared dependencies (diesel, diesel-async, deadpool-diesel, yara-x, arc-swap, lru, num_cpus, dotenvy, futures-util, clap, metrics, tempfile) into root workspace dependencies across all crate manifests
 - **fleet-server**: Configured KafkaPublisher with LZ4 compression, linger micro-batching, and buffer limits
@@ -62,6 +90,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Fixed
 
+- **frontend**: WebSocket heartbeat payload corrected from `{ type: 'ping' }` to `{ action: 'ping' }` matching backend parser schema in `models/ws.rs`
+- **fleet-client**: Added pre-enrollment validation check in concurrent integration test to safely skip when fleet server is offline
 - **rule-engine**: Corrected invalid librdkafka configuration key `fetch.max.wait.ms` to `fetch.wait.max.ms` to prevent consumer startup panic
 - **kafka-pipeline**: Corrected invalid librdkafka configuration key `fetch.max.wait.ms` to `fetch.wait.max.ms`
 - **fleet-server**: Serialized incoming agent events into structured TelemetryEvent JSON envelopes before publishing to `aigis.events.raw` to preserve event type and node metadata
@@ -74,6 +104,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - **agent**: Resolved SQLite thread-safety comments and added unit tests for FleetClient identity handling
 - **kafka-pipeline**: Corrected doc comments in `kafka-admin` and consumer metrics modules
 - **scripts**: Added macOS Homebrew libpq discovery and nightly toolchain verification in development and CI scripts
+- **infra**: Pinned Fleet Server gRPC port to 50051 in Docker Compose to prevent port collision with the API backend port variable
+- **infra**: Added missing kafka-pipeline stream router service definition to Docker Compose configuration
+- **agent**: Marked /run/osquery path optional in systemd service mount namespace to prevent startup failure when the directory is absent on boot
+- **api-backend**: Extracted agent UUID, event type, and payload correctly from osquery telemetry envelopes across WebSocket and REST feeds
 
 ### Security
 

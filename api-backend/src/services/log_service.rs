@@ -6,7 +6,7 @@ use uuid::Uuid;
 
 use crate::{
     error::AppError,
-    models::log::{EventLogEntity, LogFilterParams},
+    models::log::{EventLogEntity, LogFilterParams, NewEventLogEntity},
     repositories::LogRepository,
 };
 
@@ -22,6 +22,11 @@ impl LogService {
         Self { log_repo }
     }
 
+    /// Returns a clone of the inner repository handle.
+    pub fn repo(&self) -> Arc<dyn LogRepository> {
+        self.log_repo.clone()
+    }
+
     /// Searches telemetry event logs matching the given filter criteria.
     pub async fn search_logs(&self, params: LogFilterParams) -> Result<Vec<EventLogEntity>, AppError> {
         self.log_repo.search_logs(params).await
@@ -33,5 +38,10 @@ impl LogService {
             .find_by_id(event_id)
             .await?
             .ok_or_else(|| AppError::NotFound(format!("Log event with id '{event_id}' not found")))
+    }
+
+    /// Persists a batch of telemetry event log entities into PostgreSQL storage.
+    pub async fn insert_batch(&self, logs: &[NewEventLogEntity]) -> Result<(), AppError> {
+        self.log_repo.insert_batch(logs).await
     }
 }
