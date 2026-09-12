@@ -9,7 +9,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-RULES_DIR="$ROOT_DIR/rule-engine/rules"
+export RULES_DIR="${RULES_DIR:-$ROOT_DIR/rule-engine/rules}"
 
 if [[ "${1:-}" == "--clean" ]]; then
     echo "▶ Cleaning downloaded YARA rules and MITRE datasets"
@@ -103,7 +103,8 @@ for obj in data.get('objects', []):
                 "description": first_sentence.replace('\n', ' ').strip()
             }
 
-output_path = "rule-engine/rules/mitre/enterprise-attack-linux.json"
+rules_dir = os.environ.get("RULES_DIR", "rule-engine/rules")
+output_path = os.path.join(rules_dir, "mitre", "enterprise-attack-linux.json")
 os.makedirs(os.path.dirname(output_path), exist_ok=True)
 with open(output_path, "w") as f:
     json.dump(linux_techniques, f, indent=2)
@@ -118,6 +119,7 @@ import shutil
 import subprocess
 import tempfile
 
+rules_dir = os.environ.get("RULES_DIR", "rule-engine/rules")
 temp_dir = tempfile.mkdtemp(prefix="yara_clone_")
 try:
     print(f"  Cloning Neo23x0/signature-base into {temp_dir}...")
@@ -125,18 +127,18 @@ try:
 
     src_yara = os.path.join(temp_dir, "yara")
     mappings = {
-        "rule-engine/rules/process": [
+        os.path.join(rules_dir, "process"): [
             "gen_mal_scripts.yar",
             "gen_recon_indicators.yar",
             "gen_cn_hacktool_scripts.yar",
             "gen_susp_hacktool.yar"
         ],
-        "rule-engine/rules/file": [
+        os.path.join(rules_dir, "file"): [
             "gen_webshells.yar",
             "apt_venom_linux_rootkit.yar",
             "apt_winnti_linux.yar"
         ],
-        "rule-engine/rules/network": [
+        os.path.join(rules_dir, "network"): [
             "gen_nighthawk_c2.yar",
             "webshell_regeorg.yar"
         ]

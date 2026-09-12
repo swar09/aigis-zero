@@ -2,6 +2,8 @@
 
 The API backend is an asynchronous operator gateway built on Axum 0.8, Diesel-Async, and Tokio. It exposes REST endpoints for security operations, streams live telemetry over WebSockets, interfaces with the Fleet Server gRPC control plane, and queries PostgreSQL databases.
 
+For the detailed operations, deployment, and triage manual, see the [API backend guide](guide.md).
+
 ## Capabilities
 
 * **REST security management**:
@@ -14,7 +16,7 @@ The API backend is an asynchronous operator gateway built on Axum 0.8, Diesel-As
   * Real-time events bypass database writes and stream directly into in-memory `tokio::sync::broadcast` channels for WebSocket distribution.
 * **Type-safe data access**:
   * Built on `diesel-async` with `deadpool` connection pooling.
-  * Dedicated connection pools for `edr_nodes` (port 5433), `edr_alerts` (port 5434), and `edr_logs` (port 5432).
+  * Dedicated connection pools for `edr_nodes` (port 5433), `edr_alerts` (port 5434), and `edr_logs` (port 5435).
   * Connection checkout timeouts to prevent cascading latency stalls under heavy load.
 * **Operator authentication**:
   * Argon2 password hashing.
@@ -65,7 +67,7 @@ graph TB
     subgraph Infrastructure["Storage & Message Bus"]
         DB_Nodes[("PostgreSQL: edr_nodes :5433")]
         DB_Alerts[("PostgreSQL: edr_alerts :5434")]
-        DB_Logs[("PostgreSQL: edr_logs :5432")]
+        DB_Logs[("PostgreSQL: edr_logs :5435")]
         KafkaCluster{{"Kafka Cluster :9092"}}
         FleetServer["Fleet Server :50051"]
     end
@@ -129,7 +131,7 @@ PORT=8080
 
 DATABASE_URL_NODES=postgres://edr:edrpassword@localhost:5433/edr_nodes
 DATABASE_URL_ALERTS=postgres://edr:edrpassword@localhost:5434/edr_alerts
-DATABASE_URL_LOGS=postgres://edr:edrpassword@localhost:5432/edr_logs
+DATABASE_URL_LOGS=postgres://edr:edrpassword@localhost:5435/edr_logs
 DB_POOL_MAX_SIZE=16
 
 KAFKA_BROKERS=localhost:9092

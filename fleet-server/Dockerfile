@@ -1,11 +1,10 @@
 # syntax=docker/dockerfile:1.7
-
-# Stage 1: build
-FROM rust:1.85-slim AS builder
+FROM rust:1-slim-bookworm AS builder
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     pkg-config \
     libssl-dev \
+    libpq-dev \
     protobuf-compiler \
     cmake \
     g++ \
@@ -14,25 +13,31 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /build
-
 COPY . .
 
-# For CI: set SQLX_OFFLINE=true and commit .sqlx/ directory.
-# For local dev with live DB: set SQLX_OFFLINE=false.
-ARG SQLX_OFFLINE=true
-ENV SQLX_OFFLINE=${SQLX_OFFLINE}
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=/usr/local/cargo/git \
+    --mount=type=cache,target=/build/target \
+    cargo build --release -p fleet-server-bin && \
+    cp /build/target/release/fleet-server-bin /usr/local/bin/fleet-server
 
-RUN cargo build --release -p fleet-server-bin
-
-# Stage 2: runtime
 FROM debian:bookworm-slim AS runtime
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     libssl3 \
+    libpq5 \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=builder /build/target/release/fleet-server-bin /usr/local/bin/fleet-server
+RUN groupadd -g 1001 edr && \
+    useradd -u 1001 -g edr -s /usr/sbin/nologin -M edr
 
+COPY --from=builder --chmod=0755 /usr/local/bin/fleet-server /usr/local/bin/fleet-server
+
+USER edr:edr
 EXPOSE 50051
+
+HEALTHCHECK --interval=10s --timeout=5s --start-period=5s --retries=3 \
+  CMD ["bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/50051 && exec 3>&-"]
+
 ENTRYPOINT ["/usr/local/bin/fleet-server"]

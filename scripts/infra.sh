@@ -111,6 +111,12 @@ create_kafka_topics() {
 
 cmd_up() {
   check_docker
+
+  if [[ ! -f "${REPO_ROOT}/rule-engine/rules/mitre/enterprise-attack-linux.json" ]]; then
+    log_step "Fetching MITRE ATT&CK taxonomy and community YARA rules..."
+    "${REPO_ROOT}/scripts/fetch-rules.sh"
+  fi
+
   log_step "Starting infrastructure containers via Docker Compose..."
   docker compose -f "$COMPOSE_FILE" up -d
 

@@ -4,6 +4,8 @@ on:
   push:
     tags:
       - 'agent-v*'
+      - 'v*'
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -14,6 +16,7 @@ jobs:
     runs-on: ubuntu-latest
 
     strategy:
+      fail-fast: false
       matrix:
         include:
           - target: x86_64-unknown-linux-musl
@@ -30,41 +33,48 @@ jobs:
         with:
           targets: ${{ matrix.target }}
 
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Install cross
         run: cargo install cross --git https://github.com/cross-rs/cross
 
       - name: Build Agent (${{ matrix.target }})
         run: |
-          cd agent
           cross build --bin edr-agent --target ${{ matrix.target }} --release
 
       - name: Package Release (${{ matrix.arch }})
         run: |
           mkdir -p aigis-zero-agent
-          # Copy binary
           cp target/${{ matrix.target }}/release/edr-agent aigis-zero-agent/aigis-zero
-          # Copy scripts
           cp agent/install.sh aigis-zero-agent/
           cp agent/uninstall.sh aigis-zero-agent/
-          # Copy configs
           cp agent/agent.toml aigis-zero-agent/
           cp -r agent/osquery aigis-zero-agent/
           cp -r agent/sysctl aigis-zero-agent/
           cp -r agent/limits aigis-zero-agent/
           cp -r agent/systemd aigis-zero-agent/
-
-          # Create tarball
+          chmod +x aigis-zero-agent/install.sh aigis-zero-agent/uninstall.sh aigis-zero-agent/aigis-zero
           tar -czvf aigis-zero-agent-linux-${{ matrix.arch }}.tar.gz aigis-zero-agent/
+          if [ "${{ matrix.arch }}" = "aarch64" ]; then
+            cp aigis-zero-agent-linux-aarch64.tar.gz aigis-zero-agent-linux-arm64.tar.gz
+          fi
+          if [ "${{ matrix.arch }}" = "x86_64" ]; then
+            cp aigis-zero-agent-linux-x86_64.tar.gz aigis-zero-agent-linux-amd64.tar.gz
+          fi
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: aigis-zero-agent-linux-${{ matrix.arch }}
-          path: aigis-zero-agent-linux-${{ matrix.arch }}.tar.gz
+          path: aigis-zero-agent-linux-*.tar.gz
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
         with:
-          files: aigis-zero-agent-linux-${{ matrix.arch }}.tar.gz
+          files: aigis-zero-agent-linux-*.tar.gz
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

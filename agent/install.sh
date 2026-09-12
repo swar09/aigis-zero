@@ -57,9 +57,9 @@ warn() {
 step 1 "Detecting architecture"
 HOST_ARCH=$(uname -m)
 case "$HOST_ARCH" in
-  x86_64)  ;;
-  aarch64) ;;
-  *) fail "Unsupported architecture: $HOST_ARCH. Only x86_64 and aarch64 are supported." ;;
+  x86_64|amd64) HOST_ARCH="x86_64" ;;
+  aarch64|arm64) HOST_ARCH="aarch64" ;;
+  *) fail "Unsupported architecture: $HOST_ARCH. Only x86_64 and aarch64 (arm64) are supported." ;;
 esac
 ok
 echo "         Architecture: $HOST_ARCH"

@@ -1,6 +1,6 @@
 # aigis-zero
 
-Open-source endpoint detection and response (EDR) platform written in Rust. Monitors Linux endpoints for suspicious activity in real time, streams telemetry through a central fleet server, normalizes and routes events with Apache Kafka, evaluates detection rules against a YARA-X engine with MITRE ATT&CK mapping, and presents alerts on a React operator dashboard.
+Open-source endpoint detection and response (EDR) platform written in Rust. Monitors Linux endpoints for suspicious activity in real time, streams telemetry through a central fleet server, normalizes and routes events with Apache Kafka, evaluates detection rules against a YARA-X engine with MITRE ATT&CK mapping, and presents alerts on a Next.js operator dashboard.
 
 Rust runs across all backend services and the endpoint daemon, providing predictable memory usage without garbage collection pauses and eliminating memory safety vulnerabilities in privileged endpoint code.
 
@@ -55,7 +55,7 @@ graph TD
     %% API Backend & Frontend
     subgraph Operator ["Operator Console"]
         API["API Backend (Axum / WebSockets :8080)"]
-        UI["Frontend (React / Vite :5173)"]
+        UI["Frontend (Next.js / TypeScript :3000)"]
     end
 
     %% Communication Flows
@@ -97,9 +97,35 @@ The repository is organized as a Cargo workspace with dedicated subsystems:
 - [`kafka-pipeline/`](kafka-pipeline/README.md): Event router and normalizer fanning raw telemetry into typed topics.
 - [`rule-engine/`](rule-engine/README.md): Pure-Rust YARA-X scanning, MITRE ATT&CK taxonomy enrichment, and deduplication.
 - [`api-backend/`](api-backend/README.md): Axum 0.8 REST gateway, diesel-async connection pooling, and WebSocket live feeds.
-- [`frontend/`](frontend/README.md): React and TypeScript operator console for node management and alert triage.
-- [`sdk/`](sdk/): Shared Protobuf definitions (`.proto`) and domain models across all services.
+- [`frontend/`](frontend/README.md): Next.js and TypeScript operator console for node management and alert triage.
+- [`sdk/`](sdk/README.md): Shared Protobuf definitions (`.proto`) and domain models across all services.
 - [`infra/`](infra/README.md): Docker Compose configurations for Kafka, Zookeeper, and isolated PostgreSQL databases.
+
+## documentation and operational guides
+
+Each component includes an operational guide detailing deployment, configuration, and runtime mechanics:
+
+| Subsystem | Readme | Operations Guide | Key Topics Covered |
+|---|---|---|---|
+| Infrastructure | [`infra/README.md`](infra/README.md) | [`infra/guide.md`](infra/guide.md) | PostgreSQL partitioning, Kafka topology, KEDA scaling, disaster recovery |
+| Fleet Server | [`fleet-server/README.md`](fleet-server/README.md) | [`fleet-server/guide.md`](fleet-server/guide.md) | Pre-shared key enrollment, gRPC EventStream, heartbeat invariant |
+| Endpoint Agent | [`agent/README.md`](agent/README.md) | [`agent/guide.md`](agent/guide.md) | osquery Thrift IPC, SQLite WAL buffer, nftables network containment |
+| Telemetry Pipeline | [`kafka-pipeline/README.md`](kafka-pipeline/README.md) | [`kafka-pipeline/guide.md`](kafka-pipeline/guide.md) | Topic routing matrix, dead-letter queue, micro-batching, metrics |
+| Detection Engine | [`rule-engine/README.md`](rule-engine/README.md) | [`rule-engine/guide.md`](rule-engine/guide.md) | YARA-X rule syntax, MITRE ATT&CK indexing, LRU deduplication, SIGHUP reload |
+| API Gateway | [`api-backend/README.md`](api-backend/README.md) | [`api-backend/guide.md`](api-backend/guide.md) | REST endpoints, WebSocket live broadcast, quarantine command dispatch |
+| Operator Console | [`frontend/README.md`](frontend/README.md) | [`frontend/guide.md`](frontend/guide.md) | Next.js App Router, backend proxy rewrites, alert triage workflow |
+| Shared SDK | [`sdk/README.md`](sdk/README.md) | [`sdk/guide.md`](sdk/guide.md) | Protocol Buffer contracts, prost code generation, domain codecs |
+
+## end-to-end lifecycle: enrollment to deployment
+
+1. Infrastructure boot: `./scripts/infra.sh up` starts three isolated PostgreSQL instances (`edr_nodes:5433`, `edr_alerts:5434`, `edr_logs:5435`), ZooKeeper, and Kafka (`9092`), then provisions all partitioned topics and applies schema seeds.
+2. Control plane initialization: `fleet-server`, `kafka-pipeline`, `rule-engine`, and `api-backend` boot. The rule engine compiles YARA-X detection rules and indexes the MITRE ATT&CK STIX taxonomy into memory.
+3. Endpoint enrollment: The `edr-agent` binary boots on a Linux host, reads `/etc/aigis-zero/config.toml`, and sends a gRPC `RegisterRequest` with hardware identifiers and `x-enrollment-secret`. The Fleet Server validates the secret against `edr_nodes`, registers the host UUID, and issues a 24-hour JWT token.
+4. Telemetry collection: The agent receives kernel events from `osqueryd` via Thrift IPC, writes records to its local SQLite WAL buffer, and drains batches over a bidirectional gRPC `EventStream` to the Fleet Server.
+5. Ingestion and fanout: Fleet Server streams raw telemetry into Kafka topic `aigis.events.raw`. The `kafka-pipeline` normalizes events and fans them out into typed topics (`process`, `network`, `file`, `auth`).
+6. Threat detection: The `rule-engine` scans typed event streams against YARA-X signatures. Matching events are enriched with MITRE ATT&CK metadata, passed through a 16-bucket sharded LRU deduplicator, and stored in `edr_alerts` while broadcasting to `aigis.alerts`.
+7. Real-time SOC triage: The `api-backend` consumes live alert and log feeds from Kafka and broadcasts them to connected Next.js consoles over WebSockets.
+8. Containment dispatch: When an analyst isolates an endpoint, the API backend notifies the Fleet Server over gRPC. The Fleet Server sends an `IsolateCommand` down the agent's open stream, prompting the agent to apply `nftables` blocking rules in the host kernel.
 
 ## prerequisites
 
@@ -107,7 +133,7 @@ The repository is organized as a Cargo workspace with dedicated subsystems:
 |---|---|---|
 | Rust (stable & nightly) | 1.91+ | Nightly required for rustfmt import grouping |
 | Docker & Docker Compose | Recent | Required for databases and Kafka cluster |
-| Node.js | 18+ | Required for frontend dashboard |
+| Node.js | 20+ | Required for frontend dashboard |
 | Linux kernel | 4.18+ | Required for endpoint agent (eBPF and nftables) |
 
 To install all system libraries and developer tooling on macOS or Linux:
@@ -163,14 +189,14 @@ cargo run -p edr-api-backend
 ```bash
 cd frontend
 npm install
-npm run dev
+BACKEND_URL=http://localhost:8080 npm run dev
 ```
 
-The SOC console opens at [http://localhost:5173](http://localhost:5173). Default operator login: `admin` / `admin`.
+The SOC console opens at [http://localhost:3000](http://localhost:3000). Default operator login: `admin` / `admin`.
 
 ### 5. deploy endpoint agent
 
-Refer to the [Agent Documentation](agent/README.md) for endpoint installation methods, osquery configuration, and systemd service management.
+Refer to the [Agent Documentation](agent/README.md) and [Agent Guide](agent/guide.md) for endpoint installation methods, osquery configuration, and systemd service management.
 
 ## development and quality gates
 

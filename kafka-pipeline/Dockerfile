@@ -1,5 +1,6 @@
-FROM rust:1.85-slim AS builder
-WORKDIR /usr/src/app
+# syntax=docker/dockerfile:1.7
+FROM rust:1-slim-bookworm AS builder
+
 RUN apt-get update && apt-get install -y --no-install-recommends \
     pkg-config \
     libssl-dev \
@@ -9,14 +10,33 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     make \
     libcurl4-openssl-dev \
     && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /build
 COPY . .
-RUN cargo build --release -p edr-kafka-pipeline
 
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=/usr/local/cargo/git \
+    --mount=type=cache,target=/build/target \
+    cargo build --release -p edr-kafka-pipeline && \
+    cp /build/target/release/edr-kafka-pipeline /usr/local/bin/edr-kafka-pipeline
 
-FROM debian:bookworm-slim
-RUN apt-get update && apt-get install -y --no-install-recommends libssl3 ca-certificates && rm -rf /var/lib/apt/lists/*
-COPY --from=builder /usr/src/app/target/release/edr-kafka-pipeline /usr/local/bin/edr-kafka-pipeline
-COPY --from=builder /usr/src/app/target/release/kafka-admin /usr/local/bin/kafka-admin
-RUN groupadd --system edr && useradd --system --gid edr edr
-USER edr
-CMD ["edr-kafka-pipeline"]
+FROM debian:bookworm-slim AS runtime
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    libssl3 \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN groupadd -g 1001 edr && \
+    useradd -u 1001 -g edr -s /usr/sbin/nologin -M edr
+
+COPY --from=builder --chmod=0755 /usr/local/bin/edr-kafka-pipeline /usr/local/bin/edr-kafka-pipeline
+
+USER edr:edr
+EXPOSE 8082
+
+HEALTHCHECK --interval=10s --timeout=5s --start-period=5s --retries=3 \
+  CMD curl -f http://127.0.0.1:8082/healthz || exit 1
+
+ENTRYPOINT ["/usr/local/bin/edr-kafka-pipeline"]

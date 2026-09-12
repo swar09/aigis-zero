@@ -12,6 +12,7 @@
 # Build Outputs & Compilation Caches
 target/
 **/target/
+rust-toolchain.toml
 
 # Environment Variables & Secrets (CRITICAL: NEVER LEAK TO DOCKER ENGINE)
 .env

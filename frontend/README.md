@@ -2,6 +2,8 @@
 
 Management console for the Aigis-Zero platform, built with Next.js App Router and TypeScript.
 
+For operator workflows, reverse proxy configurations, and production deployment runbooks, see the [Frontend guide](guide.md).
+
 ## Architecture
 
 The console provides five operational views:
@@ -14,17 +16,18 @@ The console provides five operational views:
 ## Getting Started
 
 ### Prerequisites
-* Node.js v20+ (tested with v26)
-* Running Aigis-Zero API backend on port 8088
+* Node.js v20+ (tested with v20 and v22)
+* Running Aigis-Zero API backend on port 8080
 
 ### Development Server
 
 Run the development server on port 3000:
 ```bash
-npm run dev
+npm install
+BACKEND_URL=http://localhost:8080 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) in your browser.
+Open [http://localhost:3000](http://localhost:3000) in your browser. Default login: `admin` / `admin`.
 
 ### Production Build
 
@@ -34,22 +37,29 @@ npm run build
 npm run start
 ```
 
-### Linting
+### Quality and Testing
 
-Verify ESLint compliance:
 ```bash
+# Verify ESLint compliance
 npm run lint
+
+# Verify TypeScript types
+npm run typecheck
+
+# Run test suite
+npm run test
 ```
 
 ## Backend Connectivity
 
-API requests to `/api/v1/:path*`, `/healthz`, and `/readyz` are proxied to the local API backend via Next.js rewrites defined in `next.config.mjs`.
+API requests to `/api/v1/:path*`, `/healthz`, and `/readyz` are proxied to the API backend via Next.js rewrites defined in `next.config.mjs`.
 
-Default backend URL: `http://127.0.0.1:8088`
+Default backend URL in Docker: `http://api-backend:8080`
+Default backend URL in local development: `http://localhost:8080`
 
-To override the backend destination during development, set the `BACKEND_URL` environment variable:
+Override the backend destination during development using `BACKEND_URL`:
 ```bash
-BACKEND_URL=http://localhost:8088 npm run dev
+BACKEND_URL=http://localhost:8080 npm run dev
 ```
 
 ## Design Specification
@@ -64,3 +74,7 @@ Visual styles follow the Cloudflare light theme tokens defined in `.agents/desig
 * Success: `#16a34a`
 * Warning: `#b45309`
 * Danger: `#dc2626`
+
+## Additional Resources
+
+- [Frontend deployment and operations guide](guide.md): In-depth guide covering standalone mode, Docker builds, and proxy rewrites.

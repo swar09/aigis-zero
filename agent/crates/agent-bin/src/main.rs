@@ -65,12 +65,24 @@ fn parse_endpoint(endpoint: &str) -> (std::net::IpAddr, u16) {
     let clean = endpoint.trim_start_matches("http://").trim_start_matches("https://");
     let host_port = clean.split('/').next().unwrap_or(clean);
     let parts: Vec<&str> = host_port.split(':').collect();
-    let ip_str = parts.first().copied().unwrap_or("127.0.0.1");
-    let ip_str = ip_str.trim_start_matches('[').trim_end_matches(']');
-    let ip = ip_str
-        .parse()
-        .unwrap_or(std::net::IpAddr::V4(std::net::Ipv4Addr::new(127, 0, 0, 1)));
+    let host = parts.first().copied().unwrap_or("127.0.0.1");
     let port = parts.get(1).and_then(|p| p.parse().ok()).unwrap_or(50051);
+
+    let ip = host
+        .trim_start_matches('[')
+        .trim_end_matches(']')
+        .parse::<std::net::IpAddr>()
+        .ok()
+        .or_else(|| {
+            use std::net::ToSocketAddrs;
+            format!("{host}:{port}")
+                .to_socket_addrs()
+                .ok()
+                .and_then(|mut addrs| addrs.next())
+                .map(|sa| sa.ip())
+        })
+        .unwrap_or(std::net::IpAddr::V4(std::net::Ipv4Addr::new(127, 0, 0, 1)));
+
     (ip, port)
 }
 

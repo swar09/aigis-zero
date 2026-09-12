@@ -2,6 +2,8 @@
 
 Endpoint telemetry daemon for Linux systems. Collects process, network, file, and authentication events using osquery and eBPF, buffers events in local SQLite storage during network partitions, and streams telemetry to the fleet server over gRPC.
 
+For end-to-end architecture, lifecycle walkthroughs, and containment procedures, see the [Agent guide](guide.md) and the [Installation guide](INSTALLATION_GUIDE.md).
+
 ## crate structure
 
 The agent workspace contains seven focused crates:
@@ -168,3 +170,10 @@ sudo systemctl daemon-reload
 | `connection refused` on osquery socket | osqueryd still initializing | Check `journalctl -u osqueryd -f` for extension manager start |
 | `permission denied on /var/osquery` | Incorrect directory permissions | Run `sudo chmod 750 /var/osquery && sudo chown root:root /var/osquery` |
 | `enrollment rejected` | Secret mismatch | Verify `x-enrollment-secret` matches `FLEET_ENROLLMENT_SECRET` on fleet server |
+ 
+ ## additional resources
+ 
+ - [Agent operations and deployment guide](guide.md): Complete lifecycle from preflight checks to nftables network containment.
+ - [Installation guide](INSTALLATION_GUIDE.md): Step-by-step production musl binary and source build runbooks.
+ - [Agent developer guide](agent-dev-guide.md): In-depth guide for agent internals and osquery extensions.
+ - [osquery Linux guide](osquery-edr-linux-guide.md): Kernel telemetry configurations and scheduled query tuning.

@@ -1,9 +1,6 @@
 services:
 
   frontend:
-    build:
-      context: ..
-      dockerfile: frontend/Dockerfile
     image: ${IMAGE_REGISTRY:-ghcr.io/swar09}/aigis-frontend:${IMAGE_TAG:-latest}
     container_name: edr-frontend
     restart: unless-stopped
@@ -19,16 +16,13 @@ services:
       - edr-net
 
   api-backend:
-    build:
-      context: ..
-      dockerfile: api-backend/Dockerfile
     image: ${IMAGE_REGISTRY:-ghcr.io/swar09}/aigis-api-backend:${IMAGE_TAG:-latest}
     container_name: edr-api-backend
     restart: unless-stopped
     ports:
       - "${API_BIND_IP:-127.0.0.1}:${PORT:-8080}:8080"
     env_file:
-      - ../.env
+      - .env
     environment:
       - HOST=0.0.0.0
       - PORT=8080
@@ -54,16 +48,13 @@ services:
       - edr-net
 
   fleet-server:
-    build:
-      context: ..
-      dockerfile: fleet-server/Dockerfile
     image: ${IMAGE_REGISTRY:-ghcr.io/swar09}/aigis-fleet-server:${IMAGE_TAG:-latest}
     container_name: edr-fleet-server
     restart: unless-stopped
     ports:
       - "${FLEET_BIND_IP:-127.0.0.1}:${FLEET_PORT:-50051}:50051"
     env_file:
-      - ../.env
+      - .env
     environment:
       - HOST=0.0.0.0
       - PORT=50051
@@ -80,16 +71,13 @@ services:
       - edr-net
 
   rule-engine:
-    build:
-      context: ..
-      dockerfile: rule-engine/Dockerfile
     image: ${IMAGE_REGISTRY:-ghcr.io/swar09}/aigis-rule-engine:${IMAGE_TAG:-latest}
     container_name: edr-rule-engine
     restart: unless-stopped
     ports:
       - "${RULE_ENGINE_BIND_IP:-127.0.0.1}:${HEALTH_PORT:-8081}:8081"
     env_file:
-      - ../.env
+      - .env
     environment:
       - DATABASE_URL=postgres://${POSTGRES_USER:-edr}:${POSTGRES_PASSWORD}@postgres-alerts:5432/edr_alerts
       - KAFKA_BROKERS=kafka:29092
@@ -107,16 +95,13 @@ services:
       - edr-net
 
   kafka-pipeline:
-    build:
-      context: ..
-      dockerfile: kafka-pipeline/Dockerfile
     image: ${IMAGE_REGISTRY:-ghcr.io/swar09}/aigis-kafka-pipeline:${IMAGE_TAG:-latest}
     container_name: edr-kafka-pipeline
     restart: unless-stopped
     ports:
       - "${PIPELINE_BIND_IP:-127.0.0.1}:${PIPELINE_HEALTH_PORT:-8082}:8082"
     env_file:
-      - ../.env
+      - .env
     environment:
       - KAFKA_BROKERS=kafka:29092
       - HEALTH_PORT=8082
@@ -206,7 +191,7 @@ services:
       postgres-logs:
         condition: service_healthy
     env_file:
-      - ../.env
+      - .env
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-edr}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -290,7 +275,7 @@ services:
     container_name: edr-postgres-logs
     restart: unless-stopped
     env_file:
-      - ../.env
+      - .env
     environment:
       POSTGRES_DB: edr_logs
       POSTGRES_USER: ${POSTGRES_USER:-edr}
@@ -312,7 +297,7 @@ services:
     container_name: edr-postgres-nodes
     restart: unless-stopped
     env_file:
-      - ../.env
+      - .env
     environment:
       POSTGRES_DB: edr_nodes
       POSTGRES_USER: ${POSTGRES_USER:-edr}
@@ -334,7 +319,7 @@ services:
     container_name: edr-postgres-alerts
     restart: unless-stopped
     env_file:
-      - ../.env
+      - .env
     environment:
       POSTGRES_DB: edr_alerts
       POSTGRES_USER: ${POSTGRES_USER:-edr}

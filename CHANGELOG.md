@@ -10,6 +10,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Added
 
+- **infra**: Added comprehensive operations and deployment guide in `infra/guide.md` covering database partitioning, Kafka topology, KEDA autoscaling, and backup runbooks
+- **api-backend**: Added operational guide in `api-backend/guide.md` covering multi-pool database routing, live WebSocket streaming, and quarantine command dispatch
+- **fleet-server**: Added operations guide in `fleet-server/guide.md` documenting agent enrollment handshakes, bidirectional gRPC streaming, and heartbeat invariants
+- **agent**: Added operational guide in `agent/guide.md` covering eBPF osquery IPC, SQLite WAL event buffering, and nftables network quarantine
+- **rule-engine**: Added operational guide in `rule-engine/guide.md` covering YARA-X rule syntax, MITRE ATT&CK indexing, sharded LRU deduplication, and SIGHUP hot-reloading
+- **sdk**: Added `sdk/README.md` and `sdk/guide.md` documenting Protocol Buffer contracts, prost code generation, and domain codecs
+- **frontend**: Added operational guide in `frontend/guide.md` covering Next.js App Router standalone builds, proxy rewrites, and operator triage workflows
+- **infra**: Multi-stage standalone production Dockerfile for Next.js frontend with unprivileged node user and health check probe
+- **ci**: GitHub Actions workflow (`.github/workflows/docker-publish.yml`) building and publishing production container images to GitHub Container Registry (`ghcr.io`) on push and release tags
+- **infra**: Dedicated production environment template (`.env.production.example`) with container service discovery hostnames and security guidance
 - **agents**: Virtual engineering team skill suite and orchestration framework in `.agents/engineering-team/` with subagent delegation protocols and automation tooling
 - **rule-engine**: Stream-processing detection microservice consuming typed Kafka topics with YARA-X rule matching
 - **rule-engine**: In-memory MITRE ATT&CK taxonomy loader providing sub-15ns technique enrichment and threat scoring
@@ -58,6 +68,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Changed
 
+- **docs**: Updated root `README.md` with an end-to-end lifecycle walkthrough from agent enrollment to cluster deployment, along with a subsystem documentation matrix
+- **docs**: Synchronized port configurations across `infra/README.md`, `api-backend/README.md`, and `frontend/README.md` to match actual service bindings
+- **infra**: Hardened microservice Dockerfiles (api-backend, fleet-server, kafka-pipeline, rule-engine, agent) with BuildKit cache mounts and single-layer permission handling
+- **fleet-server**: Updated Dockerfile to run under an unprivileged user (`edr:1001`) instead of root, and added TCP socket health checking
+- **kafka-pipeline**: Added `EXPOSE 8082` and HTTP health check probe to Dockerfile
+- **rule-engine**: Added start-period grace window to container readiness probe to prevent false restarts during rule compilation
+- **agent**: Modernized osquery repository GPG key management in agent Dockerfile using dearmored keyrings and added capability-hardened runtime guidance
+- **agent**: Enabled DNS hostname resolution in `parse_endpoint` to allow connecting to remote or containerized fleet servers
+- **infra**: Hardened Docker Compose port mappings to bind to loopback (`127.0.0.1`) by default, protecting databases and Kafka brokers from direct internet exposure
 - **frontend**: Aligned sidebar icons and page title headers across all console navigation tabs with Threat Hunt included
 - **frontend**: Replaced fragile WebSocket host matching with configurable URLs, exponential backoff with jitter, and keep-alive ping heartbeats
 - **frontend**: Removed direct DOM style mutations in sidebar links in favor of pure CSS pseudo-classes
@@ -108,9 +127,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - **infra**: Added missing kafka-pipeline stream router service definition to Docker Compose configuration
 - **agent**: Marked /run/osquery path optional in systemd service mount namespace to prevent startup failure when the directory is absent on boot
 - **api-backend**: Extracted agent UUID, event type, and payload correctly from osquery telemetry envelopes across WebSocket and REST feeds
+- **infra**: Upgraded Rust builder base images to `rust:1-slim-bookworm` across all microservice Dockerfiles to satisfy Rust 2024 edition and transitive crate requirements
+- **agent**: Removed brittle `x86_64-musl` target and hardcoded `amd64` osquery repository architecture to enable portable multi-platform container builds
+- **scripts**: Exported `RULES_DIR` and parameterized output paths in `scripts/fetch-rules.sh` to allow reliable execution from any working directory
+- **infra**: Stripped comments across all Dockerfiles and Docker Compose files to maintain minimal configuration standards
+- **ci**: Updated `agent-release.yml` with dual `aarch64` and `arm64` release tarball assets, protoc installation, and root workspace compilation
+- **ci**: Configured multi-platform image builds (`linux/amd64`, `linux/arm64`) with QEMU in `docker-publish.yml`
+- **agent**: Added `arm64` and `amd64` architecture normalization to `install.sh`
+- **infra**: Added standalone pull-only production compose manifest `docker-compose.prod.yml` with automated database schema and Kafka topic initialization
 
 ### Security
 
+- **infra**: Hardened `.dockerignore` to completely block `.env` files, certificates, private keys, logs, and node_modules from leaking into Docker build contexts
+- **infra**: Removed hardcoded plaintext passwords and fallback secrets from fleet-server and api-backend Docker Compose files
+- **ci**: Removed legacy `SQLX_OFFLINE` environment variable references from CI workflows and Dockerfiles
 - **fleet-server**: Enforced pre-shared enrollment secret (`FLEET_ENROLLMENT_SECRET`) validation on gRPC `RegisterAgent` endpoint to prevent rogue node registration
 - **fleet-server**: Pinned JWT validation to HMAC-SHA256 algorithm in gRPC authentication filter to prevent algorithm downgrade attacks
 - **api-backend**: Pinned JWT decoding strictly to HS256 in authentication middleware
