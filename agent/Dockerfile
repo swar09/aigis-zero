@@ -29,15 +29,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     systemd-sysv \
     nftables \
     curl \
-    gnupg \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-RUN mkdir -p /etc/apt/keyrings && \
-    curl -fsSL https://pkg.osquery.io/deb/osquery_key.pub | gpg --dearmor -o /etc/apt/keyrings/osquery.gpg && \
-    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/osquery.gpg] https://pkg.osquery.io/deb deb main" > /etc/apt/sources.list.d/osquery.list && \
-    apt-get update && apt-get install -y --no-install-recommends osquery && \
-    rm -rf /var/lib/apt/lists/*
+ARG OSQUERY_VERSION=5.23.1
+
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    ARCH="$(dpkg --print-architecture)" && \
+    curl -fsSL \
+      "https://github.com/osquery/osquery/releases/download/${OSQUERY_VERSION}/osquery_${OSQUERY_VERSION}-1.linux_${ARCH}.deb" \
+      -o /tmp/osquery.deb && \
+    dpkg -i /tmp/osquery.deb && \
+    rm /tmp/osquery.deb
 
 RUN systemctl mask systemd-udevd.service \
                    systemd-udevd-kernel.socket \

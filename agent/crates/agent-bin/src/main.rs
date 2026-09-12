@@ -153,13 +153,21 @@ async fn main() -> anyhow::Result<()> {
         .await?;
 
     // Enrollment
+    let enrollment_secret = if config.fleet.enrollment_secret.is_empty() {
+        None
+    } else {
+        Some(config.fleet.enrollment_secret.as_str())
+    };
     let enrollment = fleet
-        .enroll(RegisterRequest {
-            hostname: hostname::get()?.to_string_lossy().to_string(),
-            os_version: get_os_version(),
-            agent_version: env!("CARGO_PKG_VERSION").to_string(),
-            machine_id: read_machine_id(),
-        })
+        .enroll_with_secret(
+            RegisterRequest {
+                hostname: hostname::get()?.to_string_lossy().to_string(),
+                os_version: get_os_version(),
+                agent_version: env!("CARGO_PKG_VERSION").to_string(),
+                machine_id: read_machine_id(),
+            },
+            enrollment_secret,
+        )
         .await?;
 
     let node_id = Uuid::parse_str(&enrollment.node_id)

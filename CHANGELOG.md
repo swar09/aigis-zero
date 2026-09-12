@@ -102,6 +102,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Removed
 
+- **workspace**: Removed Justfile and Makefile wrappers in favor of direct execution of scripts in ./scripts/
 - **workspace**: Removed sqlx from workspace dependencies following the fleet-server diesel-async migration
 - **workspace**: Removed unused `sled` and `http-body` dependencies from root Cargo.toml
 - **kafka-pipeline**: Removed unused `sqlx` dependency from `kafka-pipeline/Cargo.toml`
@@ -133,8 +134,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - **infra**: Stripped comments across all Dockerfiles and Docker Compose files to maintain minimal configuration standards
 - **ci**: Updated `agent-release.yml` with dual `aarch64` and `arm64` release tarball assets, protoc installation, and root workspace compilation
 - **ci**: Configured multi-platform image builds (`linux/amd64`, `linux/arm64`) with QEMU in `docker-publish.yml`
-- **agent**: Added `arm64` and `amd64` architecture normalization to `install.sh`
-- **infra**: Added standalone pull-only production compose manifest `docker-compose.prod.yml` with automated database schema and Kafka topic initialization
+- **agent**: Replaced osquery apt repository install with direct GitHub release download (`osquery_5.23.1-1.linux_${ARCH}.deb`), enabling multi-platform agent Docker builds for both `linux/amd64` and `linux/arm64`
+- **infra**: Fixed `infra/docker-compose.yml` app service image tags to use local names (`aigis-*:local`) so `./scripts/infra.sh` always builds from local Dockerfiles and never pulls from the container registry
+- **scripts**: Updated `infra.sh` to build from local Dockerfiles by default and accept `--pull` flag to switch to the production manifest pulling images from GHCR
 
 ### Security
 

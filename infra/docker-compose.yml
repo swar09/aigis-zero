@@ -4,7 +4,7 @@ services:
     build:
       context: ..
       dockerfile: frontend/Dockerfile
-    image: ${IMAGE_REGISTRY:-ghcr.io/swar09}/aigis-frontend:${IMAGE_TAG:-latest}
+    image: aigis-frontend:local
     container_name: edr-frontend
     restart: unless-stopped
     ports:
@@ -22,7 +22,7 @@ services:
     build:
       context: ..
       dockerfile: api-backend/Dockerfile
-    image: ${IMAGE_REGISTRY:-ghcr.io/swar09}/aigis-api-backend:${IMAGE_TAG:-latest}
+    image: aigis-api-backend:local
     container_name: edr-api-backend
     restart: unless-stopped
     ports:
@@ -57,7 +57,7 @@ services:
     build:
       context: ..
       dockerfile: fleet-server/Dockerfile
-    image: ${IMAGE_REGISTRY:-ghcr.io/swar09}/aigis-fleet-server:${IMAGE_TAG:-latest}
+    image: aigis-fleet-server:local
     container_name: edr-fleet-server
     restart: unless-stopped
     ports:
@@ -83,7 +83,7 @@ services:
     build:
       context: ..
       dockerfile: rule-engine/Dockerfile
-    image: ${IMAGE_REGISTRY:-ghcr.io/swar09}/aigis-rule-engine:${IMAGE_TAG:-latest}
+    image: aigis-rule-engine:local
     container_name: edr-rule-engine
     restart: unless-stopped
     ports:
@@ -110,7 +110,7 @@ services:
     build:
       context: ..
       dockerfile: kafka-pipeline/Dockerfile
-    image: ${IMAGE_REGISTRY:-ghcr.io/swar09}/aigis-kafka-pipeline:${IMAGE_TAG:-latest}
+    image: aigis-kafka-pipeline:local
     container_name: edr-kafka-pipeline
     restart: unless-stopped
     ports:
