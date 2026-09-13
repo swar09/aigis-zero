@@ -30,12 +30,11 @@ impl EventRouterProcessor {
     fn route_topic(&self, event_type: &str) -> Option<&'static str> {
         match event_type {
             "process_start" | "process_end" | "process" | "process_events" | "bpf_process_events" | "processes"
-            | "osquery_result" | "osquery_snapshot" => Some("aigis.events.process"),
-            "network_connect" | "network_listen" | "socket_events" | "bpf_socket_events" | "network" => {
-                Some("aigis.events.network")
-            }
+            | "osquery_result" | "osquery_snapshot" | "running_processes" => Some("aigis.events.process"),
+            "network_connect" | "network_listen" | "socket_events" | "bpf_socket_events" | "network"
+            | "listening_ports" => Some("aigis.events.network"),
             "file_create" | "file_modify" | "file_delete" | "file_events" | "file" => Some("aigis.events.file"),
-            "user_login" | "user_logout" | "logged_in_users" | "auth" => Some("aigis.events.auth"),
+            "user_login" | "user_logout" | "logged_in_users" | "auth" | "users" => Some("aigis.events.auth"),
             _ => None,
         }
     }
@@ -92,19 +91,44 @@ impl MessageProcessor for EventRouterProcessor {
             }
         };
 
-        let event_type = event
-            .get("event_type")
+        let query_name = event
+            .get("payload")
+            .and_then(|p| p.get("query_name"))
             .and_then(|v| v.as_str())
-            .or_else(|| {
-                event
-                    .get("payload")
-                    .and_then(|p| p.get("query_name"))
-                    .and_then(|v| v.as_str())
-            })
-            .unwrap_or("unknown");
+            .map(|s| s.to_string());
+
+        let raw_event_type = event.get("event_type").and_then(|v| v.as_str()).map(|s| s.to_string());
+
+        let event_type = match raw_event_type.as_deref() {
+            Some("osquery") | None => query_name.as_deref().unwrap_or("osquery"),
+            Some(et) => et,
+        };
 
         let target_topic = self.route_topic(event_type).unwrap_or("aigis.events.dlq");
         self.metrics.inc_routed(target_topic);
+
+        let normalized_category = match target_topic {
+            "aigis.events.process" => "process",
+            "aigis.events.network" => "network",
+            "aigis.events.file" => "file",
+            "aigis.events.auth" => "auth",
+            _ => event_type,
+        };
+
+        let forward_payload = if target_topic != "aigis.events.dlq" {
+            let mut normalized_event = event;
+            if let Some(obj) = normalized_event.as_object_mut() {
+                obj.insert("event_type".to_string(), Value::String(normalized_category.to_string()));
+            }
+            Some(serde_json::to_vec(&normalized_event).unwrap_or_else(|_| payload.to_vec()))
+        } else {
+            None
+        };
+
+        let outbound_bytes: &[u8] = match &forward_payload {
+            Some(vec) => vec.as_slice(),
+            None => payload,
+        };
 
         // Forward to typed topic or DLQ
         let record = if target_topic == "aigis.events.dlq" {
@@ -127,11 +151,13 @@ impl MessageProcessor for EventRouterProcessor {
                 });
 
             FutureRecord::to(target_topic)
-                .payload(payload)
+                .payload(outbound_bytes)
                 .key(key.unwrap_or(&[]))
                 .headers(headers)
         } else {
-            FutureRecord::to(target_topic).payload(payload).key(key.unwrap_or(&[]))
+            FutureRecord::to(target_topic)
+                .payload(outbound_bytes)
+                .key(key.unwrap_or(&[]))
         };
 
         self.producer

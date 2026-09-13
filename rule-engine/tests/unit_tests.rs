@@ -184,6 +184,37 @@ fn test_ut12_scannable_buffer_extraction() {
 }
 
 #[test]
+fn test_ut12b_osquery_columns_extraction() {
+    let event = TelemetryEvent {
+        id: "evt-001b".into(),
+        node_id: Uuid::new_v4(),
+        hostname: "prod-node-01".into(),
+        event_type: "process".into(),
+        timestamp_ns: 1234567890,
+        payload: json!({
+            "action": "ADDED",
+            "query_name": "running_processes",
+            "rows": [
+                {
+                    "columns": [
+                        { "name": "cmdline", "value": "/bin/sh -c evil_command" },
+                        { "name": "path", "value": "/bin/sh" },
+                        { "name": "pid", "value": "1234" }
+                    ]
+                }
+            ]
+        }),
+        raw_sequence_id: None,
+    };
+
+    let buffer = extract_scannable_buffer(&event);
+    let text = String::from_utf8_lossy(&buffer);
+    assert!(text.contains("/bin/sh -c evil_command"));
+    assert!(text.contains("/bin/sh"));
+    assert!(text.contains("1234"));
+}
+
+#[test]
 fn test_ut13_scannable_buffer_fallback() {
     let event = TelemetryEvent {
         id: "evt-002".into(),

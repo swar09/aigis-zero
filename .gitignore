@@ -67,3 +67,7 @@ TEST_GUIDE.md
 !/rule-engine/rules/custom/
 !/rule-engine/rules/custom/**
 !/rule-engine/rules/**/.gitkeep
+
+# Tests scratch directory
+tests/.tests/
+.tests/

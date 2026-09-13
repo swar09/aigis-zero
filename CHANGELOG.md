@@ -8,6 +8,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+### Fixed
+
+- **kafka-pipeline**: Inspect inner `query_name` for osquery events and normalize categories to route osquery scheduled telemetry into typed Kafka topics instead of discarding to DLQ.
+- **rule-engine**: Extract column values from nested osquery rows format in `extract_scannable_buffer` and map event categories to ensure compiled YARA rule matching.
+- **rule-engine**: Added regression test `test_ut12b_osquery_columns_extraction` verifying nested column extraction in scannable buffers.
+
 ### Added
 
 - **infra**: Added comprehensive operations and deployment guide in `infra/guide.md` covering database partitioning, Kafka topology, KEDA autoscaling, and backup runbooks
