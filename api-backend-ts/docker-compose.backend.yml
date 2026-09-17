@@ -1,0 +1,40 @@
+version: "3.9"
+
+services:
+  api-backend:
+    build:
+      context: ..
+      dockerfile: api-backend-ts/Dockerfile
+      target: production
+    container_name: aigis-api-backend
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      LOG_LEVEL: info
+      DB_NODES_URL: postgresql://edr:${POSTGRES_PASSWORD}@postgres-nodes:5432/edr_nodes
+      DB_LOGS_URL: postgresql://edr:${POSTGRES_PASSWORD}@postgres-logs:5432/edr_logs
+      DB_ALERTS_URL: postgresql://edr:${POSTGRES_PASSWORD}@postgres-alerts:5432/edr_alerts
+      KAFKA_BROKERS: kafka:29092
+      KAFKA_GROUP_ID: aigis-api-backend
+      KAFKA_TOPIC_ALERTS: aigis.alerts
+      KAFKA_TOPIC_HEALTH: aigis.health
+      JWT_SECRET: ${JWT_SECRET}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173}
+    depends_on:
+      postgres-nodes:
+        condition: service_healthy
+      postgres-logs:
+        condition: service_healthy
+      postgres-alerts:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
